@@ -19,7 +19,7 @@ export function ToggleButton() {
     setTheme(resolvedTheme === "dark" ? "light" : "dark")
   }
   return (
-    <Button variant={"outline"}  size="icon" onClick={toggleTheme} className="absolute top-4 right-4 ">
+    <Button variant={"outline"}  size="icon" onClick={toggleTheme} className="absolute top-10 right-10 md:top-4 md:right-4 ">
         <Sun
           className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90"
         />
