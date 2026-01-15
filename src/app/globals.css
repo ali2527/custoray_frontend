@@ -120,3 +120,64 @@
     @apply bg-background text-foreground;
   }
 }
+
+
+
+[data-theme='red'] {
+  --primary: hsl(0 84.2% 60.2%);
+}
+
+[data-theme='rose'] {
+  --primary: hsl(346.8 77.2% 49.8%);
+}
+
+[data-theme='orange'] {
+  --primary: hsl(24.6 95% 53.1%);
+}
+
+[data-theme='yellow'] {
+  --primary: hsl(47.9 95.8% 53.1%);
+}
+
+[data-theme='green'] {
+  --primary: hsl(142.1 76.2% 36.3%);
+}
+
+[data-theme='blue'] {
+  --primary: hsl(221.2 83.2% 53.3%);
+}
+
+[data-theme='violet'] {
+  --primary: hsl(262.1 83.3% 57.8%);
+}
+
+.sidebar-content::-webkit-scrollbar {
+  background-color:transparent;
+}
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE and Edge */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari */
+}
+
+:root {
+  --app-font-size: 1rem; /* default = base */
+}
+
+html {
+  font-size: var(--app-font-size);
+}
+
+/* Optional mappings */
+html:has([data-font='sm']) {
+  --app-font-size: 0.875rem;
+}
+html:has([data-font='lg']) {
+  --app-font-size: 1.125rem;
+}
+html:has([data-font='xl']) {
+  --app-font-size: 1.25rem;
+}

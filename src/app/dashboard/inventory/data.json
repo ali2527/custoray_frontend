@@ -1,0 +1,138 @@
+[
+  {
+    "srNo": 1,
+    "sku": "SKU-001",
+    "name": "Laptop Pro 15",
+    "category": "Electronics",
+    "status": "In Stock",
+    "stock": 45,
+    "orders": 12
+  },
+  {
+    "srNo": 2,
+    "sku": "SKU-002",
+    "name": "Wireless Mouse",
+    "category": "Accessories",
+    "status": "In Stock",
+    "stock": 120,
+    "orders": 8
+  },
+  {
+    "srNo": 3,
+    "sku": "SKU-003",
+    "name": "Mechanical Keyboard",
+    "category": "Accessories",
+    "status": "Low Stock",
+    "stock": 5,
+    "orders": 15
+  },
+  {
+    "srNo": 4,
+    "sku": "SKU-004",
+    "name": "USB-C Cable",
+    "category": "Accessories",
+    "status": "In Stock",
+    "stock": 200,
+    "orders": 25
+  },
+  {
+    "srNo": 5,
+    "sku": "SKU-005",
+    "name": "Monitor 27 inch",
+    "category": "Electronics",
+    "status": "Out of Stock",
+    "stock": 0,
+    "orders": 3
+  },
+  {
+    "srNo": 6,
+    "sku": "SKU-006",
+    "name": "Webcam HD",
+    "category": "Electronics",
+    "status": "In Stock",
+    "stock": 30,
+    "orders": 7
+  },
+  {
+    "srNo": 7,
+    "sku": "SKU-007",
+    "name": "Desk Stand",
+    "category": "Furniture",
+    "status": "In Stock",
+    "stock": 18,
+    "orders": 4
+  },
+  {
+    "srNo": 8,
+    "sku": "SKU-008",
+    "name": "Laptop Bag",
+    "category": "Accessories",
+    "status": "In Stock",
+    "stock": 55,
+    "orders": 10
+  },
+  {
+    "srNo": 9,
+    "sku": "SKU-009",
+    "name": "USB Hub",
+    "category": "Accessories",
+    "status": "Low Stock",
+    "stock": 8,
+    "orders": 6
+  },
+  {
+    "srNo": 10,
+    "sku": "SKU-010",
+    "name": "External SSD 1TB",
+    "category": "Electronics",
+    "status": "In Stock",
+    "stock": 25,
+    "orders": 9
+  },
+  {
+    "srNo": 11,
+    "sku": "SKU-011",
+    "name": "Headphones Wireless",
+    "category": "Electronics",
+    "status": "In Stock",
+    "stock": 40,
+    "orders": 14
+  },
+  {
+    "srNo": 12,
+    "sku": "SKU-012",
+    "name": "Laptop Charger",
+    "category": "Accessories",
+    "status": "In Stock",
+    "stock": 60,
+    "orders": 11
+  },
+  {
+    "srNo": 13,
+    "sku": "SKU-013",
+    "name": "Mouse Pad",
+    "category": "Accessories",
+    "status": "In Stock",
+    "stock": 150,
+    "orders": 20
+  },
+  {
+    "srNo": 14,
+    "sku": "SKU-014",
+    "name": "Tablet Stand",
+    "category": "Accessories",
+    "status": "Low Stock",
+    "stock": 6,
+    "orders": 5
+  },
+  {
+    "srNo": 15,
+    "sku": "SKU-015",
+    "name": "Bluetooth Speaker",
+    "category": "Electronics",
+    "status": "In Stock",
+    "stock": 35,
+    "orders": 8
+  }
+]
+

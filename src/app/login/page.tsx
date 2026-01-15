@@ -1,5 +1,5 @@
 import { LoginForm } from "@/components/loginForm"
-import { ToggleButton } from "@/components/ui/toggleButton"
+import { ToggleButton } from "@/components/ui/toggle-button"
 
 
 export default function LoginPage() {

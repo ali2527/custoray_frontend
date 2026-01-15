@@ -56,12 +56,12 @@ const data = {
   navMain: [
     {
       title: "Dashboard",
-      url: "#",
+      url: "/dashboard",
       icon: IconLayoutDashboard,
     },
     {
       title: "Inventory",
-      url: "#",
+      url: "/dashboard/inventory",
       icon: IconPackage,
     },
     {
@@ -96,7 +96,7 @@ const data = {
   navSecondary: [
     {
       title: "Settings",
-      url: "#",
+      url: "/dashboard/settings",
       icon: IconSettings,
     },
     {
@@ -137,7 +137,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <TeamSwitcher teams={data.teams} />
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="hide-scrollbar overflow-y-auto h-full">
         <NavMain items={data.navMain} />
         <NavGeneral items={data.payments} title="Payments" />
         <NavGeneral items={data.documents} title="Documents" />

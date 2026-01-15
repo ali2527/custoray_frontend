@@ -1,5 +1,5 @@
 import { ResetForm  } from "@/components/resetForm"
-import { ToggleButton } from "@/components/ui/toggleButton"
+import { ToggleButton } from "@/components/ui/toggle-button"
 
 export default function ResetPassword() {
   return (

@@ -68,7 +68,7 @@ export function LoginForm({
           </form>
           <div className="bg-muted relative hidden md:block">
             {resolvedTheme ? <Image
-                src={resolvedTheme == "dark" ? "/assets/logo-3.png" : "/assets/logo-2.png"}
+                src={"/assets/logo-3.png"}
                 alt="logo"
                 height={50}
                 width={140}

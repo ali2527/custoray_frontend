@@ -1,5 +1,5 @@
 import { EmailForm  } from "@/components/emailForm"
-import { ToggleButton } from "@/components/ui/toggleButton"
+import { ToggleButton } from "@/components/ui/toggle-button"
 
 export default function ForgetPassword() {
   return (
