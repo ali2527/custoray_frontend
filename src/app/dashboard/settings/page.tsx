@@ -18,7 +18,26 @@ const fontSizes = {
   xl: "1.25rem",
 } as const
 
-const themes = ["default", "blue", "red", "green", "purple"]
+const themes = [
+  "default",
+  "blue",
+  "red",
+  "green",
+  "purple",
+  "violet",
+  "rose",
+  "orange",
+  "yellow",
+  "pink",
+  "cyan",
+  "teal",
+  "indigo",
+  "emerald",
+  "amber",
+  "lime",
+  "sky",
+  "fuchsia"
+]
 
 const languages = [
   { value: "en", label: "English" },
