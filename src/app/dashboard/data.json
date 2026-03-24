@@ -6,7 +6,8 @@
     "status": "In Process",
     "target": "18",
     "limit": "5",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Eddie Lake",
+    "lifecycle": "archived"
   },
   {
     "id": 2,
@@ -15,7 +16,8 @@
     "status": "Done",
     "target": "29",
     "limit": "24",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Eddie Lake",
+    "lifecycle": "active"
   },
   {
     "id": 3,
@@ -24,7 +26,8 @@
     "status": "Done",
     "target": "10",
     "limit": "13",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Eddie Lake",
+    "lifecycle": "active"
   },
   {
     "id": 4,
@@ -33,7 +36,8 @@
     "status": "Done",
     "target": "27",
     "limit": "23",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Jamik Tashpulatov",
+    "lifecycle": "active"
   },
   {
     "id": 5,
@@ -42,7 +46,8 @@
     "status": "In Process",
     "target": "2",
     "limit": "16",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Jamik Tashpulatov",
+    "lifecycle": "inactive"
   },
   {
     "id": 6,
@@ -51,7 +56,8 @@
     "status": "In Process",
     "target": "20",
     "limit": "8",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Jamik Tashpulatov",
+    "lifecycle": "active"
   },
   {
     "id": 7,
@@ -60,7 +66,8 @@
     "status": "In Process",
     "target": "19",
     "limit": "21",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Jamik Tashpulatov",
+    "lifecycle": "active"
   },
   {
     "id": 8,
@@ -69,7 +76,8 @@
     "status": "Done",
     "target": "25",
     "limit": "26",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 9,
@@ -78,7 +86,8 @@
     "status": "Done",
     "target": "7",
     "limit": "23",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "inactive"
   },
   {
     "id": 10,
@@ -87,7 +96,8 @@
     "status": "Done",
     "target": "30",
     "limit": "28",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "archived"
   },
   {
     "id": 11,
@@ -96,7 +106,8 @@
     "status": "Done",
     "target": "9",
     "limit": "31",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 12,
@@ -105,7 +116,8 @@
     "status": "Done",
     "target": "12",
     "limit": "0",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 13,
@@ -114,7 +126,8 @@
     "status": "Done",
     "target": "22",
     "limit": "33",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "inactive"
   },
   {
     "id": 14,
@@ -123,7 +136,8 @@
     "status": "Done",
     "target": "15",
     "limit": "34",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 15,
@@ -132,7 +146,8 @@
     "status": "Done",
     "target": "3",
     "limit": "35",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 16,
@@ -141,7 +156,8 @@
     "status": "In Process",
     "target": "6",
     "limit": "36",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 17,
@@ -150,7 +166,8 @@
     "status": "Done",
     "target": "4",
     "limit": "37",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "inactive"
   },
   {
     "id": 18,
@@ -159,7 +176,8 @@
     "status": "Done",
     "target": "14",
     "limit": "38",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 19,
@@ -168,7 +186,8 @@
     "status": "Done",
     "target": "17",
     "limit": "39",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "archived"
   },
   {
     "id": 20,
@@ -177,7 +196,8 @@
     "status": "Done",
     "target": "11",
     "limit": "40",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 21,
@@ -186,7 +206,8 @@
     "status": "In Process",
     "target": "24",
     "limit": "18",
-    "reviewer": "Maya Johnson"
+    "reviewer": "Maya Johnson",
+    "lifecycle": "inactive"
   },
   {
     "id": 22,
@@ -195,7 +216,8 @@
     "status": "Done",
     "target": "15",
     "limit": "22",
-    "reviewer": "Carlos Rodriguez"
+    "reviewer": "Carlos Rodriguez",
+    "lifecycle": "active"
   },
   {
     "id": 23,
@@ -204,7 +226,8 @@
     "status": "In Process",
     "target": "31",
     "limit": "27",
-    "reviewer": "Sarah Chen"
+    "reviewer": "Sarah Chen",
+    "lifecycle": "active"
   },
   {
     "id": 24,
@@ -213,7 +236,8 @@
     "status": "Done",
     "target": "8",
     "limit": "12",
-    "reviewer": "Raj Patel"
+    "reviewer": "Raj Patel",
+    "lifecycle": "active"
   },
   {
     "id": 25,
@@ -222,7 +246,8 @@
     "status": "In Process",
     "target": "19",
     "limit": "25",
-    "reviewer": "Leila Ahmadi"
+    "reviewer": "Leila Ahmadi",
+    "lifecycle": "inactive"
   },
   {
     "id": 26,
@@ -231,7 +256,8 @@
     "status": "Done",
     "target": "22",
     "limit": "20",
-    "reviewer": "Thomas Wilson"
+    "reviewer": "Thomas Wilson",
+    "lifecycle": "active"
   },
   {
     "id": 27,
@@ -240,7 +266,8 @@
     "status": "In Process",
     "target": "17",
     "limit": "14",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 28,
@@ -249,7 +276,8 @@
     "status": "Done",
     "target": "26",
     "limit": "30",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Eddie Lake",
+    "lifecycle": "archived"
   },
   {
     "id": 29,
@@ -258,7 +286,8 @@
     "status": "In Process",
     "target": "13",
     "limit": "16",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Jamik Tashpulatov",
+    "lifecycle": "inactive"
   },
   {
     "id": 30,
@@ -267,7 +296,8 @@
     "status": "Done",
     "target": "29",
     "limit": "32",
-    "reviewer": "Sophia Martinez"
+    "reviewer": "Sophia Martinez",
+    "lifecycle": "active"
   },
   {
     "id": 31,
@@ -276,7 +306,8 @@
     "status": "In Process",
     "target": "21",
     "limit": "19",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 32,
@@ -285,7 +316,8 @@
     "status": "Done",
     "target": "16",
     "limit": "23",
-    "reviewer": "Alex Thompson"
+    "reviewer": "Alex Thompson",
+    "lifecycle": "active"
   },
   {
     "id": 33,
@@ -294,7 +326,8 @@
     "status": "In Process",
     "target": "27",
     "limit": "24",
-    "reviewer": "Nina Patel"
+    "reviewer": "Nina Patel",
+    "lifecycle": "inactive"
   },
   {
     "id": 34,
@@ -303,7 +336,8 @@
     "status": "Done",
     "target": "18",
     "limit": "21",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 35,
@@ -312,7 +346,8 @@
     "status": "In Process",
     "target": "23",
     "limit": "26",
-    "reviewer": "David Kim"
+    "reviewer": "David Kim",
+    "lifecycle": "active"
   },
   {
     "id": 36,
@@ -321,7 +356,8 @@
     "status": "Done",
     "target": "14",
     "limit": "17",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Jamik Tashpulatov",
+    "lifecycle": "active"
   },
   {
     "id": 37,
@@ -330,7 +366,8 @@
     "status": "In Process",
     "target": "25",
     "limit": "28",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Eddie Lake",
+    "lifecycle": "archived"
   },
   {
     "id": 38,
@@ -339,7 +376,8 @@
     "status": "Done",
     "target": "20",
     "limit": "15",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 39,
@@ -348,7 +386,8 @@
     "status": "In Process",
     "target": "12",
     "limit": "19",
-    "reviewer": "Maria Garcia"
+    "reviewer": "Maria Garcia",
+    "lifecycle": "active"
   },
   {
     "id": 40,
@@ -357,7 +396,8 @@
     "status": "Done",
     "target": "28",
     "limit": "31",
-    "reviewer": "James Wilson"
+    "reviewer": "James Wilson",
+    "lifecycle": "active"
   },
   {
     "id": 41,
@@ -366,7 +406,8 @@
     "status": "In Process",
     "target": "19",
     "limit": "22",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "inactive"
   },
   {
     "id": 42,
@@ -375,7 +416,8 @@
     "status": "Done",
     "target": "30",
     "limit": "33",
-    "reviewer": "Priya Singh"
+    "reviewer": "Priya Singh",
+    "lifecycle": "active"
   },
   {
     "id": 43,
@@ -384,7 +426,8 @@
     "status": "In Process",
     "target": "11",
     "limit": "14",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Eddie Lake",
+    "lifecycle": "active"
   },
   {
     "id": 44,
@@ -393,7 +436,8 @@
     "status": "Done",
     "target": "24",
     "limit": "27",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 45,
@@ -402,7 +446,8 @@
     "status": "In Process",
     "target": "17",
     "limit": "20",
-    "reviewer": "Sarah Johnson"
+    "reviewer": "Sarah Johnson",
+    "lifecycle": "inactive"
   },
   {
     "id": 46,
@@ -411,7 +456,8 @@
     "status": "Done",
     "target": "22",
     "limit": "25",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Jamik Tashpulatov",
+    "lifecycle": "archived"
   },
   {
     "id": 47,
@@ -420,7 +466,8 @@
     "status": "In Process",
     "target": "15",
     "limit": "18",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 48,
@@ -429,7 +476,8 @@
     "status": "Done",
     "target": "26",
     "limit": "29",
-    "reviewer": "Michael Chen"
+    "reviewer": "Michael Chen",
+    "lifecycle": "active"
   },
   {
     "id": 49,
@@ -438,7 +486,8 @@
     "status": "In Process",
     "target": "13",
     "limit": "16",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "inactive"
   },
   {
     "id": 50,
@@ -447,7 +496,8 @@
     "status": "Done",
     "target": "28",
     "limit": "31",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Eddie Lake",
+    "lifecycle": "active"
   },
   {
     "id": 51,
@@ -456,7 +506,8 @@
     "status": "In Process",
     "target": "21",
     "limit": "24",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Jamik Tashpulatov",
+    "lifecycle": "active"
   },
   {
     "id": 52,
@@ -465,7 +516,8 @@
     "status": "Done",
     "target": "16",
     "limit": "19",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 53,
@@ -474,7 +526,8 @@
     "status": "In Process",
     "target": "29",
     "limit": "32",
-    "reviewer": "Lisa Wong"
+    "reviewer": "Lisa Wong",
+    "lifecycle": "inactive"
   },
   {
     "id": 54,
@@ -483,7 +536,8 @@
     "status": "Done",
     "target": "14",
     "limit": "17",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Eddie Lake",
+    "lifecycle": "active"
   },
   {
     "id": 55,
@@ -492,7 +546,8 @@
     "status": "In Process",
     "target": "27",
     "limit": "30",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "archived"
   },
   {
     "id": 56,
@@ -501,7 +556,8 @@
     "status": "Done",
     "target": "20",
     "limit": "23",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Jamik Tashpulatov",
+    "lifecycle": "active"
   },
   {
     "id": 57,
@@ -510,7 +566,8 @@
     "status": "In Process",
     "target": "15",
     "limit": "18",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "inactive"
   },
   {
     "id": 58,
@@ -519,7 +576,8 @@
     "status": "Done",
     "target": "30",
     "limit": "33",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Eddie Lake",
+    "lifecycle": "active"
   },
   {
     "id": 59,
@@ -528,7 +586,8 @@
     "status": "In Process",
     "target": "23",
     "limit": "26",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Jamik Tashpulatov",
+    "lifecycle": "active"
   },
   {
     "id": 60,
@@ -537,7 +596,8 @@
     "status": "Done",
     "target": "18",
     "limit": "21",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   },
   {
     "id": 61,
@@ -546,7 +606,8 @@
     "status": "In Process",
     "target": "25",
     "limit": "28",
-    "reviewer": "Daniel Park"
+    "reviewer": "Daniel Park",
+    "lifecycle": "inactive"
   },
   {
     "id": 62,
@@ -555,7 +616,8 @@
     "status": "Done",
     "target": "12",
     "limit": "15",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Eddie Lake",
+    "lifecycle": "active"
   },
   {
     "id": 63,
@@ -564,7 +626,8 @@
     "status": "In Process",
     "target": "27",
     "limit": "30",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Jamik Tashpulatov",
+    "lifecycle": "active"
   },
   {
     "id": 64,
@@ -573,7 +636,8 @@
     "status": "Done",
     "target": "22",
     "limit": "25",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "archived"
   },
   {
     "id": 65,
@@ -582,7 +646,8 @@
     "status": "In Process",
     "target": "19",
     "limit": "22",
-    "reviewer": "Emma Davis"
+    "reviewer": "Emma Davis",
+    "lifecycle": "inactive"
   },
   {
     "id": 66,
@@ -591,7 +656,8 @@
     "status": "Done",
     "target": "24",
     "limit": "27",
-    "reviewer": "Eddie Lake"
+    "reviewer": "Eddie Lake",
+    "lifecycle": "active"
   },
   {
     "id": 67,
@@ -600,7 +666,8 @@
     "status": "In Process",
     "target": "21",
     "limit": "24",
-    "reviewer": "Jamik Tashpulatov"
+    "reviewer": "Jamik Tashpulatov",
+    "lifecycle": "active"
   },
   {
     "id": 68,
@@ -609,6 +676,7 @@
     "status": "Done",
     "target": "26",
     "limit": "29",
-    "reviewer": "Assign reviewer"
+    "reviewer": "Assign reviewer",
+    "lifecycle": "active"
   }
 ]

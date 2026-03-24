@@ -2,22 +2,27 @@
 
 import * as React from "react"
 import {
-  IconChevronDown,
   IconChevronLeft,
   IconChevronRight,
   IconChevronsLeft,
   IconChevronsRight,
   IconCircleCheckFilled,
   IconDotsVertical,
-  IconLayoutColumns,
+  IconFilter,
+  IconLayoutGrid,
+  IconLayoutList,
   IconLoader,
   IconPlus,
   IconSearch,
+  IconTableExport,
+  IconTableImport,
   IconTrendingUp,
 } from "@tabler/icons-react"
 import {
-  ColumnDef,
+  type Column,
+  type ColumnDef,
   ColumnFiltersState,
+  type FilterFn,
   flexRender,
   getCoreRowModel,
   getFacetedRowModel,
@@ -25,8 +30,8 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  Row,
   SortingState,
+  type Table as TanStackTable,
   useReactTable,
   VisibilityState,
 } from "@tanstack/react-table"
@@ -34,7 +39,11 @@ import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 import { toast } from "sonner"
 import { z } from "zod"
 
+import { DataTableExportDialog } from "@/components/data-table-export-dialog"
+import { DataTableImportDialog } from "@/components/data-table-import-dialog"
 import { useIsMobile } from "@/hooks/use-mobile"
+import { buildSampleCsv } from "@/lib/csv"
+import { cn } from "@/lib/utils"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -56,7 +65,6 @@ import {
 } from "@/components/ui/drawer"
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -64,6 +72,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 import { SearchInput } from "@/components/ui/search-input"
 import {
   Select,
@@ -72,7 +85,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardHeader,
+} from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
   Table,
   TableBody,
@@ -81,12 +101,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs"
 
 export const schema = z.object({
   id: z.number(),
@@ -96,6 +110,7 @@ export const schema = z.object({
   target: z.string(),
   limit: z.string(),
   reviewer: z.string(),
+  lifecycle: z.enum(["active", "inactive", "archived"]).default("active"),
 })
 
 export const defaultColumns: ColumnDef<z.infer<typeof schema>>[] = [
@@ -268,17 +283,436 @@ export const defaultColumns: ColumnDef<z.infer<typeof schema>>[] = [
   },
 ]
 
+const FILTER_ANY = "__data_table_any__"
+
+const rangeNumberFilter: FilterFn<any> = (row, columnId, filterValue) => {
+  if (filterValue == null) return true
+  const pair = filterValue as [string, string]
+  if (!Array.isArray(pair)) return true
+  const [minS, maxS] = pair
+  const raw = row.getValue(columnId)
+  const n = typeof raw === "number" ? raw : Number(raw)
+  if (Number.isNaN(n)) return false
+  if (minS !== "" && minS != null && n < Number(minS)) return false
+  if (maxS !== "" && maxS != null && n > Number(maxS)) return false
+  return true
+}
+
+const exactStringFilter: FilterFn<any> = (row, columnId, filterValue) => {
+  if (filterValue == null || filterValue === "") return true
+  return String(row.getValue(columnId) ?? "") === String(filterValue)
+}
+
+const includesTextFilter: FilterFn<any> = (row, columnId, filterValue) => {
+  if (filterValue == null || filterValue === "") return true
+  const q = String(filterValue).toLowerCase()
+  return String(row.getValue(columnId) ?? "").toLowerCase().includes(q)
+}
+
+type DataTableColumnMeta = {
+  /** Set false to hide column from the filter popover */
+  dataTableFilter?: boolean
+  /** Override auto-detected filter control */
+  dataTableFilterVariant?: "range" | "select" | "text"
+}
+
+function mergeColumnFilters<TData>(
+  columns: ColumnDef<TData>[],
+  rows: Record<string, unknown>[]
+): ColumnDef<TData>[] {
+  return columns.map((col) => {
+    const id = col.id
+    if (id === "select" || id === "actions") {
+      return { ...col, enableColumnFilter: false }
+    }
+    const key =
+      "accessorKey" in col && col.accessorKey != null
+        ? String(col.accessorKey)
+        : undefined
+    if (!key) return col
+
+    const meta = col.meta as DataTableColumnMeta | undefined
+    if (meta?.dataTableFilter === false) {
+      return { ...col, enableColumnFilter: false }
+    }
+
+    const sample = rows[0]?.[key]
+    const metaVariant = meta?.dataTableFilterVariant
+    const isNumber =
+      metaVariant === "range" ||
+      (typeof sample === "number" && !Number.isNaN(sample))
+
+    if (isNumber) {
+      return {
+        ...col,
+        filterFn: rangeNumberFilter,
+        enableColumnFilter: true,
+        meta: { ...col.meta, dataTableFilterVariant: "range" } as ColumnDef<TData>["meta"],
+      }
+    }
+
+    const stringVals = rows
+      .map((r) => r[key])
+      .filter((v) => v != null && v !== "")
+    const unique = new Set(stringVals.map((v) => String(v)))
+    const useSelect =
+      metaVariant === "select" ||
+      (metaVariant !== "text" && unique.size > 0 && unique.size <= 16)
+
+    if (useSelect) {
+      return {
+        ...col,
+        filterFn: exactStringFilter,
+        enableColumnFilter: true,
+        meta: { ...col.meta, dataTableFilterVariant: "select" } as ColumnDef<TData>["meta"],
+      }
+    }
+
+    return {
+      ...col,
+      filterFn: includesTextFilter,
+      enableColumnFilter: true,
+      meta: { ...col.meta, dataTableFilterVariant: "text" } as ColumnDef<TData>["meta"],
+    }
+  }) as ColumnDef<TData>[]
+}
+
+function filterableLeafColumns<TData>(table: TanStackTable<TData>) {
+  return table.getAllLeafColumns().filter((c) => {
+    const def = c.columnDef
+    if (def.id === "select" || def.id === "actions") return false
+    if (!("accessorKey" in def) || def.accessorKey == null) return false
+    if ((def.meta as DataTableColumnMeta | undefined)?.dataTableFilter === false)
+      return false
+    return c.getCanFilter()
+  })
+}
+
+function activeColumnFilterCount(filters: ColumnFiltersState): number {
+  let n = 0
+  for (const f of filters) {
+    const v = f.value
+    if (v == null || v === "") continue
+    if (Array.isArray(v)) {
+      const [a, b] = v as [string, string]
+      if ((a !== "" && a != null) || (b !== "" && b != null)) n++
+    } else {
+      n++
+    }
+  }
+  return n
+}
+
+function DataTableFiltersPopover<TData>({
+  table,
+}: {
+  table: TanStackTable<TData>
+}) {
+  const columns = filterableLeafColumns(table)
+  const filterCount = activeColumnFilterCount(table.getState().columnFilters)
+
+  if (columns.length === 0) return null
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="border-border/80 bg-background text-muted-foreground hover:text-foreground relative size-9 shrink-0 shadow-xs"
+          aria-label="Open filters"
+        >
+          <IconFilter className="size-4" />
+          {filterCount > 0 ? (
+            <span className="bg-primary text-primary-foreground absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full text-[10px] font-semibold leading-none">
+              {filterCount > 9 ? "9+" : filterCount}
+            </span>
+          ) : null}
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="border-border/80 w-[min(100vw-2rem,22rem)] max-w-[22rem] space-y-4 p-0 shadow-lg"
+        onOpenAutoFocus={(e) => e.preventDefault()}
+      >
+        <div className="border-border/60 flex items-center justify-between border-b px-4 py-3">
+          <div>
+            <p className="text-foreground text-sm font-semibold">Filters</p>
+            <p className="text-muted-foreground text-xs">
+              Narrow results by column
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
+            disabled={filterCount === 0}
+            onClick={() => table.resetColumnFilters()}
+          >
+            Clear all
+          </Button>
+        </div>
+        <div className="max-h-[min(70vh,24rem)] space-y-4 overflow-y-auto px-4 pb-4">
+          {columns.map((column) => {
+            const variant = (column.columnDef.meta as DataTableColumnMeta | undefined)
+              ?.dataTableFilterVariant
+            const title = getColumnTitle(column)
+
+            if (variant === "range") {
+              const raw = column.getFilterValue() as [string, string] | undefined
+              const minV = raw?.[0] ?? ""
+              const maxV = raw?.[1] ?? ""
+              return (
+                <div key={column.id} className="space-y-2">
+                  <Label className="text-xs font-medium">{title}</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="Min"
+                      className="h-9"
+                      value={minV}
+                      onChange={(e) => {
+                        const nextMin = e.target.value
+                        const next: [string, string] = [nextMin, maxV]
+                        if (nextMin === "" && maxV === "")
+                          column.setFilterValue(undefined)
+                        else column.setFilterValue(next)
+                      }}
+                    />
+                    <span className="text-muted-foreground text-xs">–</span>
+                    <Input
+                      type="number"
+                      inputMode="decimal"
+                      placeholder="Max"
+                      className="h-9"
+                      value={maxV}
+                      onChange={(e) => {
+                        const nextMax = e.target.value
+                        const next: [string, string] = [minV, nextMax]
+                        if (minV === "" && nextMax === "")
+                          column.setFilterValue(undefined)
+                        else column.setFilterValue(next)
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            }
+
+            if (variant === "select") {
+              const opts = [...column.getFacetedUniqueValues().keys()]
+                .map(String)
+                .filter(Boolean)
+                .sort((a, b) => a.localeCompare(b))
+              const cur = (column.getFilterValue() as string | undefined) ?? ""
+              return (
+                <div key={column.id} className="space-y-2">
+                  <Label className="text-xs font-medium">{title}</Label>
+                  <Select
+                    value={cur === "" ? FILTER_ANY : cur}
+                    onValueChange={(v) =>
+                      column.setFilterValue(v === FILTER_ANY ? undefined : v)
+                    }
+                  >
+                    <SelectTrigger size="sm" className="h-9 w-full">
+                      <SelectValue placeholder="Any" />
+                    </SelectTrigger>
+                    <SelectContent position="popper" className="max-h-56">
+                      <SelectItem value={FILTER_ANY}>Any</SelectItem>
+                      {opts.map((opt) => (
+                        <SelectItem key={opt} value={opt}>
+                          {opt}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )
+            }
+
+            const textVal = (column.getFilterValue() as string | undefined) ?? ""
+            return (
+              <div key={column.id} className="space-y-2">
+                <Label className="text-xs font-medium">{title}</Label>
+                <Input
+                  placeholder={`Contains…`}
+                  className="h-9"
+                  value={textVal}
+                  onChange={(e) =>
+                    column.setFilterValue(
+                      e.target.value === "" ? undefined : e.target.value
+                    )
+                  }
+                />
+              </div>
+            )
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function getColumnTitle<TData>(column: Column<TData, unknown>): string {
+  const def = column.columnDef
+  if (typeof def.header === "string") return def.header
+  if ("accessorKey" in def && def.accessorKey != null) {
+    return String(def.accessorKey)
+  }
+  return column.id
+}
+
+function DataTableGridView<TData>({ table }: { table: TanStackTable<TData> }) {
+  const rows = table.getRowModel().rows
+  if (rows.length === 0) {
+    return (
+      <div className="bg-muted/20 text-muted-foreground flex min-h-[14rem] flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-6 text-center text-sm">
+        <span className="text-foreground/80 font-medium">No results</span>
+        <span className="text-xs">Try another filter or search term.</span>
+      </div>
+    )
+  }
+  return (
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      {rows.map((row) => {
+        const cells = row.getVisibleCells()
+        const actionsCell = cells.find((c) => c.column.id === "actions")
+        const dataCells = cells.filter(
+          (c) => c.column.id !== "select" && c.column.id !== "actions"
+        )
+        const [primaryCell, ...restCells] = dataCells
+        return (
+          <Card
+            key={row.id}
+            className={cn(
+              "group/card border-border/80 gap-0 overflow-hidden rounded-xl px-0 py-0 shadow-sm transition-all duration-200 sm:shadow-xs",
+              "hover:border-primary/20 hover:shadow-md",
+              row.getIsSelected() &&
+                "border-primary/30 shadow-md ring-2 ring-primary/20 hover:border-primary/30"
+            )}
+            data-state={row.getIsSelected() ? "selected" : undefined}
+          >
+            <CardHeader className="bg-muted/30 flex flex-row items-center gap-3 space-y-0 border-b border-border/60 px-5 pb-4 pt-4 sm:px-6">
+              <div className="flex shrink-0 items-center">
+                <Checkbox
+                  checked={row.getIsSelected()}
+                  onCheckedChange={(v) => row.toggleSelected(!!v)}
+                  aria-label="Select row"
+                />
+              </div>
+              <div className="min-w-0 flex-1 pr-1 [&_button]:h-auto [&_button]:min-h-0 [&_button]:py-0 [&_button]:leading-snug">
+                {primaryCell ? (
+                  <div className="text-foreground text-[15px] leading-snug font-semibold tracking-tight [&_a]:font-semibold [&_a]:text-foreground [&_a]:no-underline hover:[&_a]:underline">
+                    {flexRender(
+                      primaryCell.column.columnDef.cell,
+                      primaryCell.getContext()
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-muted-foreground text-sm">Row</span>
+                )}
+              </div>
+              {actionsCell ? (
+                <CardAction className="shrink-0 self-center [&_button]:opacity-80 group-hover/card:[&_button]:opacity-100">
+                  {flexRender(
+                    actionsCell.column.columnDef.cell,
+                    actionsCell.getContext()
+                  )}
+                </CardAction>
+              ) : null}
+            </CardHeader>
+            {restCells.length > 0 ? (
+              <CardContent className="flex flex-col gap-0 px-5 py-4 sm:px-6">
+                {restCells.map((cell, idx) => (
+                  <div
+                    key={cell.id}
+                    className={cn(
+                      "flex flex-col gap-1 py-2.5 sm:flex-row sm:items-start sm:gap-4",
+                      idx > 0 && "border-t border-border/50"
+                    )}
+                  >
+                    <dt className="text-muted-foreground w-full shrink-0 text-xs font-medium sm:w-[7rem]">
+                      {getColumnTitle(cell.column)}
+                    </dt>
+                    <dd className="text-foreground min-w-0 flex-1 text-sm leading-relaxed [&_a]:break-words [&_input]:h-8 [&_input]:max-w-full [&_input]:text-sm">
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </dd>
+                  </div>
+                ))}
+              </CardContent>
+            ) : null}
+          </Card>
+        )
+      })}
+    </div>
+  )
+}
+
+export type DataTableBulkAction<TData> = {
+  id: string
+  label: string
+  /** Shown before the label in the bulk toolbar (e.g. Tabler icon). */
+  icon?: React.ReactNode
+  onClick: (rows: TData[]) => void
+  variant?: "default" | "destructive"
+  disabled?: boolean | ((rows: TData[]) => boolean)
+}
+
+export type DataTableTab = { value: string; label: string }
 
 export function DataTable<TData>({
   data: initialData,
   columns: columnsProp,
-  showSearch = false,
+  addButtonLabel = "Add",
+  searchPlaceholder = "Search...",
+  importRowMapper,
+  importSampleFilename = "sample.csv",
+  exportFilename = "export.csv",
+  bulkActions,
+  tabs,
+  tab: tabProp,
+  defaultTab,
+  onTabChange,
+  tabFilter,
+  enableLayoutToggle = true,
 }: {
   data: TData[]
   columns: ColumnDef<TData>[]
-  showSearch?: boolean
+  addButtonLabel?: string
+  searchPlaceholder?: string
+  importRowMapper?: (row: Record<string, string>, existing: TData[]) => TData | null
+  importSampleFilename?: string
+  exportFilename?: string
+  bulkActions?: DataTableBulkAction<TData>[]
+  tabs?: DataTableTab[]
+  tab?: string
+  defaultTab?: string
+  onTabChange?: (value: string) => void
+  tabFilter?: (row: TData, tabValue: string) => boolean
+  /** Pill toggle: list (table) vs grid (card layout). */
+  enableLayoutToggle?: boolean
 }) {
   const [data, setData] = React.useState(() => initialData)
+
+  const [uncontrolledTab, setUncontrolledTab] = React.useState(
+    () => defaultTab ?? tabs?.[0]?.value ?? "all"
+  )
+
+  const activeTab = tabProp ?? uncontrolledTab
+
+  const handleTabChange = React.useCallback(
+    (value: string) => {
+      if (tabProp === undefined) setUncontrolledTab(value)
+      onTabChange?.(value)
+    },
+    [tabProp, onTabChange]
+  )
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({})
@@ -292,9 +726,23 @@ export function DataTable<TData>({
   })
   const [globalFilter, setGlobalFilter] = React.useState("")
 
+  const tableData = React.useMemo(() => {
+    if (!tabs?.length || !tabFilter) return data
+    return data.filter((row) => tabFilter(row, activeTab))
+  }, [data, tabs, tabFilter, activeTab])
+
+  const columnsWithFilter = React.useMemo(
+    () =>
+      mergeColumnFilters(
+        columnsProp,
+        tableData as Record<string, unknown>[]
+      ),
+    [columnsProp, tableData]
+  )
+
   const table = useReactTable({
-    data,
-    columns: columnsProp,
+    data: tableData,
+    columns: columnsWithFilter,
     state: {
       sorting,
       columnVisibility,
@@ -305,7 +753,7 @@ export function DataTable<TData>({
     },
     getRowId: (row: any) => (row.id ?? row.srNo ?? Math.random()).toString(),
     enableRowSelection: true,
-    enableGlobalFilter: showSearch,
+    enableGlobalFilter: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -325,59 +773,140 @@ export function DataTable<TData>({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   })
 
+  const [importOpen, setImportOpen] = React.useState(false)
+  const [exportOpen, setExportOpen] = React.useState(false)
+  const [layoutView, setLayoutView] = React.useState<"list" | "grid">("list")
+
+  const csvKeys = React.useMemo(() => {
+    const row = data[0] as Record<string, unknown> | undefined
+    if (!row || typeof row !== "object") return []
+    return Object.keys(row)
+  }, [data])
+
+  const sampleCsvContent = React.useMemo(() => {
+    const example = data[0] as Record<string, unknown> | undefined
+    return buildSampleCsv(csvKeys, example)
+  }, [csvKeys, data])
+
+  const handleImportComplete = React.useCallback(
+    (rows: Record<string, string>[]) => {
+      if (rows.length === 0) {
+        toast.error("No rows to import.")
+        return
+      }
+      setData((prev) => {
+        let acc = [...prev]
+        for (const r of rows) {
+          const mapped = importRowMapper
+            ? importRowMapper(r, acc)
+            : ({ ...r } as unknown as TData)
+          if (mapped != null) acc = [...acc, mapped]
+        }
+        const added = acc.length - prev.length
+        queueMicrotask(() => {
+          if (added > 0) {
+            toast.success(`Imported ${added} row(s).`)
+          } else {
+            toast.message(
+              "No rows were added. Check that CSV headers match the sample file."
+            )
+          }
+        })
+        return acc
+      })
+    },
+    [importRowMapper]
+  )
+
+  const selectedRowCount = table.getFilteredSelectedRowModel().rows.length
+
+  const filteredTotal = table.getFilteredRowModel().rows.length
+  const pageIndex = table.getState().pagination.pageIndex
+  const pageSize = table.getState().pagination.pageSize
+  const rowsOnPage = table.getRowModel().rows.length
+  const rangeFrom =
+    filteredTotal === 0 || rowsOnPage === 0 ? 0 : pageIndex * pageSize + 1
+  const rangeTo =
+    filteredTotal === 0 || rowsOnPage === 0
+      ? 0
+      : pageIndex * pageSize + rowsOnPage
+
+  const selectedRowsData = React.useMemo(
+    () => table.getFilteredSelectedRowModel().rows.map((r) => r.original),
+    [table, rowSelection]
+  )
+
+  const filteredRows = table.getFilteredRowModel().rows
+  const allFilteredSelected =
+    filteredRows.length > 0 && filteredRows.every((r) => r.getIsSelected())
+  const someFilteredSelected = filteredRows.some((r) => r.getIsSelected())
+
+  const selectAllFiltered = React.useCallback(() => {
+    const rows = table.getFilteredRowModel().rows
+    const next: Record<string, boolean> = {}
+    for (const r of rows) next[r.id] = true
+    table.setRowSelection(next)
+  }, [table])
+
   const tableContent = (
-    <div className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6">
-        <div className="overflow-hidden rounded-lg border">
-          <Table>
-            <TableHeader className="bg-muted sticky top-0 z-10">
-              {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    return (
-                      <TableHead key={header.id} colSpan={header.colSpan}>
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext()
-                            )}
-                      </TableHead>
-                    )
-                  })}
-                </TableRow>
-              ))}
-            </TableHeader>
-            <TableBody className="**:data-[slot=table-cell]:first:w-8">
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
-                  <TableRow
-                    key={row.id}
-                    data-state={row.getIsSelected() && "selected"}
-                  >
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                      </TableCell>
-                    ))}
+    <div className="relative flex flex-col gap-4 overflow-auto">
+        {layoutView === "list" || !enableLayoutToggle ? (
+          <div className="overflow-hidden rounded-lg border">
+            <Table>
+              <TableHeader className="bg-muted sticky top-0 z-10">
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers.map((header) => {
+                      return (
+                        <TableHead key={header.id} colSpan={header.colSpan}>
+                          {header.isPlaceholder
+                            ? null
+                            : flexRender(
+                                header.column.columnDef.header,
+                                header.getContext()
+                              )}
+                        </TableHead>
+                      )
+                    })}
                   </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell
-                    colSpan={columnsProp.length}
-                    className="h-24 text-center"
-                  >
-                    No results.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-        <div className="flex items-center justify-between px-4">
-          <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-            {table.getFilteredSelectedRowModel().rows.length} of{" "}
-            {table.getFilteredRowModel().rows.length} row(s) selected.
+                ))}
+              </TableHeader>
+              <TableBody className="**:data-[slot=table-cell]:first:w-8">
+                {table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && "selected"}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columnsProp.length}
+                      className="h-24 text-center"
+                    >
+                      No results.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        ) : (
+          <DataTableGridView table={table} />
+        )}
+        <div className="flex items-center justify-between">
+          <div className="text-muted-foreground flex min-w-0 flex-1 text-sm">
+            Showing records {rangeFrom} to {rangeTo} of {filteredTotal}
           </div>
           <div className="flex w-full items-center gap-8 lg:w-fit">
             <div className="hidden items-center gap-2 lg:flex">
@@ -454,160 +983,216 @@ export function DataTable<TData>({
       </div>
     )
 
-  if (showSearch) {
-    return (
-      <div className="w-full flex-col justify-start gap-6">
-        <div className="flex items-center justify-between px-4 lg:px-6 mb-6">
-          <div className="flex-1 max-w-md">
+  return (
+    <div className="w-full flex-col justify-start gap-6">
+      <DataTableImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        sampleCsvContent={sampleCsvContent}
+        sampleFilename={importSampleFilename}
+        onComplete={handleImportComplete}
+      />
+      <DataTableExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        rowCount={table.getFilteredRowModel().rows.length}
+        filename={exportFilename}
+        getRows={() =>
+          table
+            .getFilteredRowModel()
+            .rows.map((r) => ({ ...(r.original as Record<string, unknown>) }))
+        }
+      />
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+          {enableLayoutToggle ? (
+            <div
+              role="group"
+              aria-label="List or grid layout"
+              className="bg-muted/80 inline-flex h-9 shrink-0 items-center rounded-md p-0.5 ring-1 ring-border/50"
+            >
+              <button
+                type="button"
+                aria-pressed={layoutView === "list"}
+                onClick={() => setLayoutView("list")}
+                className={cn(
+                  "inline-flex h-8 items-center gap-1.5 rounded-sm px-3 text-sm font-medium transition-all",
+                  layoutView === "list"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <IconLayoutList className="size-4 shrink-0" />
+                <span className="hidden sm:inline">List</span>
+              </button>
+              <button
+                type="button"
+                aria-pressed={layoutView === "grid"}
+                onClick={() => setLayoutView("grid")}
+                className={cn(
+                  "inline-flex h-8 items-center gap-1.5 rounded-sm px-3 text-sm font-medium transition-all",
+                  layoutView === "grid"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <IconLayoutGrid className="size-4 shrink-0" />
+                <span className="hidden sm:inline">Grid</span>
+              </button>
+            </div>
+          ) : null}
+          <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-md">
             <SearchInput
-              placeholder="Search inventory..."
+              placeholder={searchPlaceholder}
               value={globalFilter}
               onChange={(e) => setGlobalFilter(e.target.value)}
               icon={<IconSearch className="size-4" />}
-              className="focus-visible:ring-0 focus-visible:ring-offset-0 hover:ring-0 focus:ring-0 focus:outline-none"
+              className="focus-visible:ring-0 focus-visible:ring-offset-0 hover:ring-0 focus:ring-0 focus:outline-none min-w-0 flex-1"
             />
-          </div>
-          <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm">
-                  <IconLayoutColumns />
-                  <span className="hidden lg:inline">Customize Columns</span>
-                  <span className="lg:hidden">Columns</span>
-                  <IconChevronDown />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                {table
-                  .getAllColumns()
-                  .filter(
-                    (column) =>
-                      typeof column.accessorFn !== "undefined" &&
-                      column.getCanHide()
-                  )
-                  .map((column) => {
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        className="capitalize"
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(value) =>
-                          column.toggleVisibility(!!value)
-                        }
-                      >
-                        {column.id}
-                      </DropdownMenuCheckboxItem>
-                    )
-                  })}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button variant="outline" size="sm">
-              <IconPlus />
-              <span className="hidden lg:inline">Add Item</span>
-            </Button>
+            <DataTableFiltersPopover table={table} />
           </div>
         </div>
-        {tableContent}
-      </div>
-    )
-  }
-
-  return (
-    <Tabs
-      defaultValue="outline"
-      className="w-full flex-col justify-start gap-6"
-    >
-      <div className="flex items-center justify-between px-4 lg:px-6">
-        <Label htmlFor="view-selector" className="sr-only">
-          View
-        </Label>
-        <Select defaultValue="outline">
-          <SelectTrigger
-            className="flex w-fit @4xl/main:hidden"
+        <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
+          <Button
+            type="button"
+            variant="outline"
             size="sm"
-            id="view-selector"
+            onClick={() => setImportOpen(true)}
           >
-            <SelectValue placeholder="Select a view" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="outline">Outline</SelectItem>
-            <SelectItem value="past-performance">Past Performance</SelectItem>
-            <SelectItem value="key-personnel">Key Personnel</SelectItem>
-            <SelectItem value="focus-documents">Focus Documents</SelectItem>
-          </SelectContent>
-        </Select>
-        <TabsList className="**:data-[slot=badge]:bg-muted-foreground/30 hidden **:data-[slot=badge]:size-5 **:data-[slot=badge]:rounded-full **:data-[slot=badge]:px-1 @4xl/main:flex">
-          <TabsTrigger value="outline">Outline</TabsTrigger>
-          <TabsTrigger value="past-performance">
-            Past Performance <Badge variant="secondary">3</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="key-personnel">
-            Key Personnel <Badge variant="secondary">2</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="focus-documents">Focus Documents</TabsTrigger>
-        </TabsList>
-        <div className="flex items-center gap-2">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm">
-                <IconLayoutColumns />
-                <span className="hidden lg:inline">Customize Columns</span>
-                <span className="lg:hidden">Columns</span>
-                <IconChevronDown />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              {table
-                .getAllColumns()
-                .filter(
-                  (column) =>
-                    typeof column.accessorFn !== "undefined" &&
-                    column.getCanHide()
-                )
-                .map((column) => {
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={column.id}
-                      className="capitalize"
-                      checked={column.getIsVisible()}
-                      onCheckedChange={(value) =>
-                        column.toggleVisibility(!!value)
-                      }
-                    >
-                      {column.id}
-                    </DropdownMenuCheckboxItem>
-                  )
-                })}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button variant="outline" size="sm">
+            <IconTableImport />
+            <span className="hidden sm:inline">Import</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setExportOpen(true)}
+          >
+            <IconTableExport />
+            <span className="hidden sm:inline">Export</span>
+          </Button>
+          <Button variant="default" size="sm" type="button">
             <IconPlus />
-            <span className="hidden lg:inline">Add Section</span>
+            <span className="hidden lg:inline">{addButtonLabel}</span>
           </Button>
         </div>
       </div>
-      <TabsContent
-        value="outline"
-        className="relative flex flex-col gap-4 overflow-auto px-4 lg:px-6"
-      >
-        {tableContent}
-      </TabsContent>
-      <TabsContent
-        value="past-performance"
-        className="flex flex-col px-4 lg:px-6"
-      >
-        <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
-      </TabsContent>
-      <TabsContent value="key-personnel" className="flex flex-col px-4 lg:px-6">
-        <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
-      </TabsContent>
-      <TabsContent
-        value="focus-documents"
-        className="flex flex-col px-4 lg:px-6"
-      >
-        <div className="aspect-video w-full flex-1 rounded-lg border border-dashed"></div>
-      </TabsContent>
-    </Tabs>
+      {(tabs && tabs.length > 0) || selectedRowCount > 0 ? (
+        <div
+          className="border-border mb-4 flex w-full min-w-0 flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b px-3 sm:px-4"
+          role={selectedRowCount > 0 ? "region" : undefined}
+          aria-label={selectedRowCount > 0 ? "Bulk selection" : undefined}
+        >
+          {tabs && tabs.length > 0 ? (
+            <div className="min-w-0 flex-1">
+              <Tabs
+                value={activeTab}
+                onValueChange={(v) => {
+                  handleTabChange(v)
+                  table.setPageIndex(0)
+                }}
+                className="inline-flex w-fit max-w-full min-w-0 flex-col"
+              >
+                <TabsList className="bg-transparent text-muted-foreground -mb-px inline-flex h-auto w-fit max-w-full min-w-0 flex-wrap justify-start gap-x-1 gap-y-1 rounded-none border-0 p-0 px-1 shadow-none sm:px-2">
+                  {tabs.map((t) => (
+                    <TabsTrigger
+                      key={t.value}
+                      value={t.value}
+                      className="text-muted-foreground hover:text-foreground data-[state=active]:text-primary relative z-10 shrink-0 rounded-none border-0 border-b-2 border-transparent bg-transparent px-3 py-2.5 text-sm font-medium shadow-none transition-colors data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:shadow-none"
+                    >
+                      {t.label}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+              </Tabs>
+            </div>
+          ) : (
+            <div className="min-w-0 flex-1" />
+          )}
+          {selectedRowCount > 0 ? (
+            <div className="flex min-w-0 shrink-0 flex-wrap items-center justify-end gap-x-4 gap-y-2 sm:gap-x-8">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+                <div className="flex items-center gap-2.5">
+                  <Checkbox
+                    checked={
+                      allFilteredSelected
+                        ? true
+                        : someFilteredSelected
+                          ? "indeterminate"
+                          : false
+                    }
+                    onCheckedChange={(value) => {
+                      if (value) selectAllFiltered()
+                      else table.resetRowSelection()
+                    }}
+                    aria-label={
+                      allFilteredSelected
+                        ? "Deselect all filtered rows"
+                        : "Select all filtered rows"
+                    }
+                  />
+                  <span className="text-sm font-semibold tracking-tight">
+                    {selectedRowCount} Selected
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground text-sm font-normal transition-colors"
+                  onClick={() =>
+                    allFilteredSelected
+                      ? table.resetRowSelection()
+                      : selectAllFiltered()
+                  }
+                >
+                  {allFilteredSelected ? "Deselect all" : "Select All"}
+                </button>
+              </div>
+              {bulkActions && bulkActions.length > 0 ? (
+                <div className="flex flex-wrap items-center gap-0.5 sm:gap-1">
+                  {bulkActions.map((action) => {
+                    const rows = selectedRowsData
+                    const disabled =
+                      typeof action.disabled === "function"
+                        ? action.disabled(rows)
+                        : (action.disabled ?? false)
+                    return (
+                      <Button
+                        key={action.id}
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={disabled}
+                        className={cn(
+                          "text-muted-foreground hover:text-foreground h-9 gap-2 px-2.5 font-normal sm:px-3",
+                          action.variant === "destructive" &&
+                            "text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        )}
+                        onClick={() => action.onClick(rows)}
+                      >
+                        {action.icon ? (
+                          <span
+                            className={cn(
+                              "[&_svg]:size-4 shrink-0 opacity-90",
+                              action.variant === "destructive"
+                                ? "text-destructive"
+                                : "text-muted-foreground"
+                            )}
+                          >
+                            {action.icon}
+                          </span>
+                        ) : null}
+                        {action.label}
+                      </Button>
+                    )
+                  })}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+      {tableContent}
+    </div>
   )
 }
 

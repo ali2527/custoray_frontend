@@ -1,6 +1,6 @@
 "use client"
 
-import { IconCirclePlusFilled, IconMail, IconChevronRight, type Icon } from "@tabler/icons-react"
+import { ChevronRight, Mail, Plus, type LucideIcon } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -57,11 +57,11 @@ export function NavMain({
   items: {
     title: string
     url: string
-    icon?: Icon
+    icon?: LucideIcon
     items?: {
       title: string
       url: string
-      icon?: Icon
+      icon?: LucideIcon
     }[]
   }[]
 }) {
@@ -87,14 +87,14 @@ export function NavMain({
 
   return (
     <SidebarGroup>
-      <SidebarGroupContent className="flex flex-col gap-2">
+      <SidebarGroupContent className="flex flex-col gap-2.5">
         <SidebarMenu>
           <SidebarMenuItem className="flex items-center gap-2">
             <SidebarMenuButton
               tooltip="Quick Create"
               className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
             >
-              <IconCirclePlusFilled />
+              <Plus className="size-[1.125rem]" strokeWidth={2.25} aria-hidden />
               <span>Quick Create</span>
             </SidebarMenuButton>
             <Button
@@ -102,7 +102,7 @@ export function NavMain({
               className="size-8 group-data-[collapsible=icon]:opacity-0"
               variant="outline"
             >
-              <IconMail />
+              <Mail className="size-[1.125rem]" strokeWidth={2} aria-hidden />
               <span className="sr-only">Inbox</span>
             </Button>
           </SidebarMenuItem>
@@ -122,10 +122,19 @@ export function NavMain({
                 >
                   <SidebarMenuItem>
                     <CollapsibleTrigger asChild>
-                      <SidebarMenuButton tooltip={item.title} isActive={isActive}>
+                      {/* No tooltip here: Tooltip wraps the button and breaks CollapsibleTrigger asChild composition */}
+                      <SidebarMenuButton
+                        isActive={isActive}
+                        title={item.title}
+                      >
                         {item.icon && <item.icon data-theme-icon />}
                         <span>{item.title}</span>
-                        <IconChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" data-theme-icon />
+                        <ChevronRight
+                          className="ml-auto size-[1.125rem] transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
+                          strokeWidth={2}
+                          data-theme-icon
+                          aria-hidden
+                        />
                       </SidebarMenuButton>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -136,7 +145,12 @@ export function NavMain({
                             <SidebarMenuSubItem key={subItem.title}>
                               <SidebarMenuSubButton asChild isActive={isSubActive}>
                                 <Link href={subItem.url}>
-                                  {subItem.icon && <subItem.icon className="h-4 w-4" data-theme-icon />}
+                                  {subItem.icon && (
+                                    <subItem.icon
+                                      className="size-[1.125rem] shrink-0"
+                                      data-theme-icon
+                                    />
+                                  )}
                                   <span>{subItem.title}</span>
                                 </Link>
                               </SidebarMenuSubButton>

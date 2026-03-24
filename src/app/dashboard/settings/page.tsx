@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label"
 // Custom style mappings
 const fontSizes = {
   sm: "0.875rem",
-  base: "1rem",
+  base: "0.9375rem",
   lg: "1.125rem",
   xl: "1.25rem",
 } as const

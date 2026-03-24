@@ -6,7 +6,10 @@
     "category": "Electronics",
     "status": "In Stock",
     "stock": 45,
-    "orders": 12
+    "orders": 12,
+    "price": "1899",
+    "supplier": "TechSupply Co.",
+    "lifecycle": "archived"
   },
   {
     "srNo": 2,
@@ -15,7 +18,10 @@
     "category": "Accessories",
     "status": "In Stock",
     "stock": 120,
-    "orders": 8
+    "orders": 8,
+    "price": "29",
+    "supplier": "AccessWorld",
+    "lifecycle": "active"
   },
   {
     "srNo": 3,
@@ -24,7 +30,10 @@
     "category": "Accessories",
     "status": "Low Stock",
     "stock": 5,
-    "orders": 15
+    "orders": 15,
+    "price": "149",
+    "supplier": "Assign supplier",
+    "lifecycle": "active"
   },
   {
     "srNo": 4,
@@ -33,7 +42,10 @@
     "category": "Accessories",
     "status": "In Stock",
     "stock": 200,
-    "orders": 25
+    "orders": 25,
+    "price": "12",
+    "supplier": "AccessWorld",
+    "lifecycle": "inactive"
   },
   {
     "srNo": 5,
@@ -42,7 +54,10 @@
     "category": "Electronics",
     "status": "Out of Stock",
     "stock": 0,
-    "orders": 3
+    "orders": 3,
+    "price": "399",
+    "supplier": "DisplayWorks",
+    "lifecycle": "active"
   },
   {
     "srNo": 6,
@@ -51,7 +66,10 @@
     "category": "Electronics",
     "status": "In Stock",
     "stock": 30,
-    "orders": 7
+    "orders": 7,
+    "price": "79",
+    "supplier": "TechSupply Co.",
+    "lifecycle": "active"
   },
   {
     "srNo": 7,
@@ -60,7 +78,10 @@
     "category": "Furniture",
     "status": "In Stock",
     "stock": 18,
-    "orders": 4
+    "orders": 4,
+    "price": "89",
+    "supplier": "Assign supplier",
+    "lifecycle": "inactive"
   },
   {
     "srNo": 8,
@@ -69,7 +90,10 @@
     "category": "Accessories",
     "status": "In Stock",
     "stock": 55,
-    "orders": 10
+    "orders": 10,
+    "price": "45",
+    "supplier": "CarryAll Ltd.",
+    "lifecycle": "active"
   },
   {
     "srNo": 9,
@@ -78,25 +102,34 @@
     "category": "Accessories",
     "status": "Low Stock",
     "stock": 8,
-    "orders": 6
+    "orders": 6,
+    "price": "34",
+    "supplier": "AccessWorld",
+    "lifecycle": "archived"
   },
   {
     "srNo": 10,
     "sku": "SKU-010",
     "name": "External SSD 1TB",
     "category": "Electronics",
-    "status": "In Stock",
-    "stock": 25,
-    "orders": 9
+    "status": "Out of Stock",
+    "stock": 0,
+    "orders": 9,
+    "price": "119",
+    "supplier": "TechSupply Co.",
+    "lifecycle": "inactive"
   },
   {
     "srNo": 11,
     "sku": "SKU-011",
     "name": "Headphones Wireless",
     "category": "Electronics",
-    "status": "In Stock",
-    "stock": 40,
-    "orders": 14
+    "status": "Out of Stock",
+    "stock": 0,
+    "orders": 14,
+    "price": "199",
+    "supplier": "Assign supplier",
+    "lifecycle": "active"
   },
   {
     "srNo": 12,
@@ -105,7 +138,10 @@
     "category": "Accessories",
     "status": "In Stock",
     "stock": 60,
-    "orders": 11
+    "orders": 11,
+    "price": "59",
+    "supplier": "TechSupply Co.",
+    "lifecycle": "active"
   },
   {
     "srNo": 13,
@@ -114,16 +150,22 @@
     "category": "Accessories",
     "status": "In Stock",
     "stock": 150,
-    "orders": 20
+    "orders": 20,
+    "price": "18",
+    "supplier": "AccessWorld",
+    "lifecycle": "inactive"
   },
   {
     "srNo": 14,
     "sku": "SKU-014",
     "name": "Tablet Stand",
     "category": "Accessories",
-    "status": "Low Stock",
-    "stock": 6,
-    "orders": 5
+    "status": "Out of Stock",
+    "stock": 0,
+    "orders": 5,
+    "price": "24",
+    "supplier": "CarryAll Ltd.",
+    "lifecycle": "active"
   },
   {
     "srNo": 15,
@@ -132,7 +174,9 @@
     "category": "Electronics",
     "status": "In Stock",
     "stock": 35,
-    "orders": 8
+    "orders": 8,
+    "price": "89",
+    "supplier": "SoundGear Inc.",
+    "lifecycle": "active"
   }
 ]
-
