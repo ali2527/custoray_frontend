@@ -7,7 +7,10 @@ import {
   IconAlertTriangleFilled,
   IconCircleCheckFilled,
   IconCircleXFilled,
+  IconCopy,
   IconDotsVertical,
+  IconEye,
+  IconPencil,
   IconRefresh,
   IconTrash,
 } from "@tabler/icons-react"
@@ -18,9 +21,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTable, type DataTableTab } from "@/components/data-table"
 import { toast } from "sonner"
 import { useFiscalTerms } from "@/context/fiscal-term-context"
@@ -103,24 +106,32 @@ const inventoryColumns: ColumnDef<InventoryItem>[] = [
   },
   {
     accessorKey: "srNo",
-    header: "Sr. No",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Sr. No" align="center" />
+    ),
     cell: ({ row }) => <div>{row.original.srNo}</div>,
   },
   {
     accessorKey: "sku",
-    header: "SKU",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="SKU" />
+    ),
     cell: ({ row }) => (
       <div className="font-medium">{row.original.sku}</div>
     ),
   },
   {
     accessorKey: "name",
-    header: "Name",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Name" />
+    ),
     cell: ({ row }) => <div>{row.original.name}</div>,
   },
   {
     accessorKey: "category",
-    header: "Category",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Category" />
+    ),
     cell: ({ row }) => (
       <Badge variant="outline" className="text-muted-foreground px-1.5">
         {row.original.category}
@@ -129,7 +140,9 @@ const inventoryColumns: ColumnDef<InventoryItem>[] = [
   },
   {
     accessorKey: "status",
-    header: "Status",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Status" />
+    ),
     cell: ({ row }) => {
       const status = row.original.status
       const isInStock = status === "In Stock"
@@ -152,8 +165,8 @@ const inventoryColumns: ColumnDef<InventoryItem>[] = [
   },
   {
     accessorKey: "stock",
-    header: () => (
-      <div className="flex w-full justify-center text-center">Stock</div>
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Stock" align="center" />
     ),
     cell: ({ row }) => (
       <div className="text-center font-medium">{row.original.stock}</div>
@@ -161,8 +174,8 @@ const inventoryColumns: ColumnDef<InventoryItem>[] = [
   },
   {
     accessorKey: "orders",
-    header: () => (
-      <div className="flex w-full justify-center text-center">Orders</div>
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Orders" align="center" />
     ),
     cell: ({ row }) => (
       <div className="text-center font-medium">{row.original.orders}</div>
@@ -170,6 +183,7 @@ const inventoryColumns: ColumnDef<InventoryItem>[] = [
   },
   {
     id: "actions",
+    enableSorting: false,
     cell: () => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -182,11 +196,19 @@ const inventoryColumns: ColumnDef<InventoryItem>[] = [
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-32">
-          <DropdownMenuItem>Edit</DropdownMenuItem>
-          <DropdownMenuItem>View Details</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem>
+            <IconEye />
+            View
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <IconPencil />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <IconCopy />
+            Duplicate
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     ),

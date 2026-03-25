@@ -1,44 +1,31 @@
 "use client"
 
+import { useMemo, useState, type ReactNode } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import {
   IconAlertTriangleFilled,
   IconArchive,
   IconCircleCheckFilled,
   IconCircleXFilled,
+  IconCopy,
   IconDotsVertical,
+  IconEye,
+  IconPencil,
   IconTrash,
-  IconTrendingUp,
+  IconX,
 } from "@tabler/icons-react"
-import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 import { toast } from "sonner"
 import { z } from "zod"
 
+import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTable, type DataTableTab } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
-  ChartConfig,
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart"
-import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerDescription,
-  DrawerFooter,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
@@ -50,33 +37,51 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
-import { useIsMobile } from "@/hooks/use-mobile"
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import data from "../data.json"
 
-export const productSchema = z.object({
+const STOCK_LEVELS = ["In Stock", "Low Stock", "Out of Stock"] as const
+
+const productSchema = z.object({
   srNo: z.number(),
   sku: z.string(),
   name: z.string(),
+  brand: z.string(),
   category: z.string(),
+  /** Shelf availability: In Stock / Low Stock / Out of Stock */
   status: z.string(),
+  /** Listing: Active, or none (no status — e.g. inactive lifecycle rows) */
+  productStatus: z.enum(["active", "none"]).default("none"),
   stock: z.number(),
   orders: z.number(),
   price: z.string(),
   supplier: z.string(),
   lifecycle: z.enum(["active", "inactive", "archived"]).default("active"),
+  /** Data URLs or remote URLs for gallery (demo) */
+  imageUrls: z.array(z.string()).default([]),
 })
 
 export type ProductRow = z.infer<typeof productSchema>
 
 const productTabs: DataTableTab[] = [
+  { value: "all", label: "All" },
   { value: "active", label: "Active" },
   { value: "archived", label: "Archived" },
 ]
 
 function productTabFilter(row: ProductRow, tab: string) {
+  if (tab === "all") return true
   if (tab === "archived") return row.lifecycle === "archived"
-  return row.lifecycle !== "archived"
+  if (tab === "active") return row.lifecycle === "active"
+  return true
 }
 
 function mapImportedProduct(
@@ -90,186 +95,324 @@ function mapImportedProduct(
   const lc = (row.lifecycle ?? "active").toLowerCase()
   const lifecycle =
     lc === "inactive" || lc === "archived" ? lc : "active"
+  const ps = (row.productStatus ?? "").toLowerCase()
+  const productStatus = ps === "active" ? "active" : "none"
+  let imageUrls: string[] = []
+  const rawImgs = row.imageUrls?.trim()
+  if (rawImgs) {
+    try {
+      const parsed = JSON.parse(rawImgs) as unknown
+      if (Array.isArray(parsed)) imageUrls = parsed.filter((x) => typeof x === "string")
+    } catch {
+      /* ignore */
+    }
+  }
   return {
     srNo: finalSr,
     sku: row.sku ?? "",
     name: row.name ?? "",
+    brand: row.brand ?? "",
     category: row.category ?? "",
     status: row.status ?? "In Stock",
+    productStatus,
     stock: Number(row.stock) || 0,
     orders: Number(row.orders) || 0,
     price: row.price ?? "0",
     supplier: (row.supplier ?? "").trim() || "Assign supplier",
     lifecycle,
+    imageUrls,
   }
 }
 
-const chartData = [
-  { month: "January", desktop: 186, mobile: 80 },
-  { month: "February", desktop: 305, mobile: 200 },
-  { month: "March", desktop: 237, mobile: 120 },
-  { month: "April", desktop: 73, mobile: 190 },
-  { month: "May", desktop: 209, mobile: 130 },
-  { month: "June", desktop: 214, mobile: 140 },
-]
+const EMPTY_PRODUCT: ProductRow = {
+  srNo: 0,
+  sku: "",
+  name: "",
+  brand: "",
+  category: "Electronics",
+  status: "In Stock",
+  productStatus: "none",
+  stock: 0,
+  orders: 0,
+  price: "0",
+  supplier: "",
+  lifecycle: "active",
+  imageUrls: [],
+}
 
-const chartConfig = {
-  desktop: {
-    label: "Desktop",
-    color: "var(--primary)",
-  },
-  mobile: {
-    label: "Mobile",
-    color: "var(--primary)",
-  },
-} satisfies ChartConfig
-
-function ProductCellViewer({ item }: { item: ProductRow }) {
-  const isMobile = useIsMobile()
-
+function ProductViewDetail({
+  label,
+  children,
+}: {
+  label: string
+  children: ReactNode
+}) {
   return (
-    <Drawer direction={isMobile ? "bottom" : "right"}>
-      <DrawerTrigger asChild>
-        <Button variant="link" className="text-foreground w-fit px-0 text-left">
-          {item.name}
-        </Button>
-      </DrawerTrigger>
-      <DrawerContent>
-        <DrawerHeader className="gap-1">
-          <DrawerTitle>{item.name}</DrawerTitle>
-          <DrawerDescription>
-            SKU {item.sku} · {item.category}
-          </DrawerDescription>
-        </DrawerHeader>
-        <div className="flex flex-col gap-4 overflow-y-auto px-4 text-sm">
-          {!isMobile && (
-            <>
-              <ChartContainer config={chartConfig}>
-                <AreaChart
-                  accessibilityLayer
-                  data={chartData}
-                  margin={{ left: 0, right: 10 }}
-                >
-                  <CartesianGrid vertical={false} />
-                  <XAxis
-                    dataKey="month"
-                    tickLine={false}
-                    axisLine={false}
-                    tickMargin={8}
-                    tickFormatter={(value) => value.slice(0, 3)}
-                    hide
-                  />
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent indicator="dot" />}
-                  />
-                  <Area
-                    dataKey="mobile"
-                    type="natural"
-                    fill="var(--color-mobile)"
-                    fillOpacity={0.6}
-                    stroke="var(--color-mobile)"
-                    stackId="a"
-                  />
-                  <Area
-                    dataKey="desktop"
-                    type="natural"
-                    fill="var(--color-desktop)"
-                    fillOpacity={0.4}
-                    stroke="var(--color-desktop)"
-                    stackId="a"
-                  />
-                </AreaChart>
-              </ChartContainer>
-              <Separator />
-              <div className="grid gap-2">
-                <div className="flex gap-2 font-medium leading-none">
-                  Orders trending for this SKU{" "}
-                  <IconTrendingUp className="size-4" />
-                </div>
-                <div className="text-muted-foreground">
-                  Summary chart mirrors the dashboard product table pattern. Hook
-                  your sales API here when ready.
-                </div>
-              </div>
-              <Separator />
-            </>
-          )}
-          <form className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-3">
-                <Label htmlFor={`sku-${item.srNo}`}>SKU</Label>
-                <Input id={`sku-${item.srNo}`} defaultValue={item.sku} />
-              </div>
-              <div className="flex flex-col gap-3">
-                <Label htmlFor={`name-${item.srNo}`}>Name</Label>
-                <Input id={`name-${item.srNo}`} defaultValue={item.name} />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-3">
-                <Label htmlFor={`category-${item.srNo}`}>Category</Label>
-                <Select defaultValue={item.category}>
-                  <SelectTrigger id={`category-${item.srNo}`} className="w-full">
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Electronics">Electronics</SelectItem>
-                    <SelectItem value="Accessories">Accessories</SelectItem>
-                    <SelectItem value="Furniture">Furniture</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex flex-col gap-3">
-                <Label htmlFor={`status-${item.srNo}`}>Status</Label>
-                <Select defaultValue={item.status}>
-                  <SelectTrigger id={`status-${item.srNo}`} className="w-full">
-                    <SelectValue placeholder="Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="In Stock">In Stock</SelectItem>
-                    <SelectItem value="Low Stock">Low Stock</SelectItem>
-                    <SelectItem value="Out of Stock">Out of Stock</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="flex flex-col gap-3">
-                <Label htmlFor={`stock-${item.srNo}`}>Stock</Label>
-                <Input
-                  id={`stock-${item.srNo}`}
-                  type="number"
-                  defaultValue={item.stock}
-                />
-              </div>
-              <div className="flex flex-col gap-3">
-                <Label htmlFor={`orders-${item.srNo}`}>Orders (period)</Label>
-                <Input
-                  id={`orders-${item.srNo}`}
-                  type="number"
-                  defaultValue={item.orders}
-                />
-              </div>
-            </div>
-            <div className="flex flex-col gap-3">
-              <Label htmlFor={`price-${item.srNo}`}>Unit price</Label>
-              <Input id={`price-${item.srNo}`} defaultValue={item.price} />
-            </div>
-          </form>
-        </div>
-        <DrawerFooter>
-          <Button>Save product</Button>
-          <DrawerClose asChild>
-            <Button variant="outline">Done</Button>
-          </DrawerClose>
-        </DrawerFooter>
-      </DrawerContent>
-    </Drawer>
+    <div className="grid grid-cols-[6.5rem_1fr] items-baseline gap-x-3 gap-y-1 text-sm">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd className="text-foreground min-w-0 font-medium">{children}</dd>
+    </div>
   )
 }
 
-const productColumns: ColumnDef<ProductRow>[] = [
+function ProductImagesField({
+  id,
+  initialUrls,
+}: {
+  id: string
+  initialUrls: string[]
+}) {
+  const [urls, setUrls] = useState<string[]>(initialUrls)
+
+  const addFiles = (files: FileList | null) => {
+    if (!files?.length) return
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith("image/")) continue
+      const reader = new FileReader()
+      reader.onload = () => setUrls((u) => [...u, String(reader.result)])
+      reader.readAsDataURL(file)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={id}>Images</Label>
+      {urls.length > 0 ? (
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {urls.map((url, i) => (
+            <div
+              key={`${i}-${url.slice(0, 48)}`}
+              className="group border-border bg-muted relative aspect-square overflow-hidden rounded-lg border"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="size-full object-cover" />
+              <button
+                type="button"
+                className="bg-background/90 text-foreground hover:bg-destructive/10 hover:text-destructive absolute top-1 right-1 flex size-7 items-center justify-center rounded-md border shadow-sm opacity-0 transition-opacity group-hover:opacity-100"
+                onClick={() => setUrls((u) => u.filter((_, j) => j !== i))}
+                aria-label="Remove image"
+              >
+                <IconX className="size-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="border-border bg-muted/50 text-muted-foreground flex aspect-[2/1] max-h-28 items-center justify-center rounded-lg border border-dashed text-sm">
+          No images yet
+        </div>
+      )}
+      <Input
+        id={id}
+        type="file"
+        accept="image/*"
+        multiple
+        className="hover:bg-muted/40 cursor-pointer text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-sm"
+        onChange={(e) => {
+          addFiles(e.target.files)
+          e.target.value = ""
+        }}
+      />
+      <p className="text-muted-foreground text-xs">
+        PNG, JPG, WebP — multiple files allowed. Previews are local only in this
+        demo.
+      </p>
+    </div>
+  )
+}
+
+function ProductViewSidebarBody({ item }: { item: ProductRow }) {
+  const imgs = item.imageUrls ?? []
+  return (
+    <div className="flex flex-col gap-4">
+      {imgs.length > 0 ? (
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+          {imgs.map((url, i) => (
+            <div
+              key={i}
+              className="border-border bg-muted aspect-square overflow-hidden rounded-lg border"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={url} alt="" className="size-full object-cover" />
+            </div>
+          ))}
+        </div>
+      ) : null}
+      <div className="flex flex-col gap-3">
+        <ProductViewDetail label="SKU">{item.sku}</ProductViewDetail>
+        <ProductViewDetail label="Brand">{item.brand || "—"}</ProductViewDetail>
+        <ProductViewDetail label="Category">{item.category}</ProductViewDetail>
+        <ProductViewDetail label="Stock">{item.status}</ProductViewDetail>
+        <ProductViewDetail label="Qty">{item.stock}</ProductViewDetail>
+        <ProductViewDetail label="Price">{item.price}</ProductViewDetail>
+        <ProductViewDetail label="Orders">{item.orders}</ProductViewDetail>
+        <ProductViewDetail label="Supplier">{item.supplier}</ProductViewDetail>
+        <ProductViewDetail label="Lifecycle">
+          <span className="capitalize">{item.lifecycle}</span>
+        </ProductViewDetail>
+        <ProductViewDetail label="Status">
+          {item.lifecycle === "archived" ? "Archived" : "Active"}
+        </ProductViewDetail>
+        <ProductViewDetail label="Listing">
+          {item.productStatus === "active" ? "Active" : "No status"}
+        </ProductViewDetail>
+      </div>
+    </div>
+  )
+}
+
+function ProductFormSidebarForm({
+  item,
+  formId,
+  onClose,
+  isNew,
+}: {
+  item: ProductRow
+  formId: string
+  onClose: () => void
+  isNew: boolean
+}) {
+  return (
+    <form
+      id={formId}
+      className="flex flex-col gap-4 text-sm"
+      onSubmit={(e) => {
+        e.preventDefault()
+        void (async () => {
+          try {
+            await toast.promise(
+              new Promise<void>((r) => setTimeout(r, 800)),
+              {
+                loading: isNew ? "Creating product…" : "Saving product…",
+                success: isNew ? "Product created (demo)" : "Saved",
+                error: "Something went wrong",
+              }
+            ).unwrap()
+            onClose()
+          } catch {
+            /* toast already showed error */
+          }
+        })()
+      }}
+    >
+      <ProductImagesField
+        key={`${formId}-images`}
+        id={`${formId}-images-input`}
+        initialUrls={item.imageUrls ?? []}
+      />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-sku`}>SKU</Label>
+          <Input id={`${formId}-sku`} name="sku" defaultValue={item.sku} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-name`}>Name</Label>
+          <Input id={`${formId}-name`} name="name" defaultValue={item.name} />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-brand`}>Brand</Label>
+          <Input id={`${formId}-brand`} name="brand" defaultValue={item.brand} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-category`}>Category</Label>
+          <Select name="category" defaultValue={item.category}>
+            <SelectTrigger id={`${formId}-category`} className="w-full">
+              <SelectValue placeholder="Category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="Electronics">Electronics</SelectItem>
+              <SelectItem value="Accessories">Accessories</SelectItem>
+              <SelectItem value="Furniture">Furniture</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-stock-level`}>Stock</Label>
+          <Select name="status" defaultValue={item.status}>
+            <SelectTrigger id={`${formId}-stock-level`} className="w-full">
+              <SelectValue placeholder="Stock" />
+            </SelectTrigger>
+            <SelectContent>
+              {STOCK_LEVELS.map((v) => (
+                <SelectItem key={v} value={v}>
+                  {v}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-listing`}>Listing</Label>
+          <Select name="productStatus" defaultValue={item.productStatus}>
+            <SelectTrigger id={`${formId}-listing`} className="w-full">
+              <SelectValue placeholder="Listing" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="none">No status</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-qty`}>Qty</Label>
+          <Input
+            id={`${formId}-qty`}
+            name="stock"
+            type="number"
+            defaultValue={item.stock}
+          />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-orders`}>Orders (period)</Label>
+          <Input
+            id={`${formId}-orders`}
+            name="orders"
+            type="number"
+            defaultValue={item.orders}
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-price`}>Unit price</Label>
+          <Input id={`${formId}-price`} name="price" defaultValue={item.price} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-lifecycle`}>Lifecycle</Label>
+          <Select name="lifecycle" defaultValue={item.lifecycle}>
+            <SelectTrigger id={`${formId}-lifecycle`} className="w-full">
+              <SelectValue placeholder="Lifecycle" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Active</SelectItem>
+              <SelectItem value="inactive">Inactive</SelectItem>
+              <SelectItem value="archived">Archived</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+      <div className="flex flex-col gap-2">
+        <Label htmlFor={`${formId}-supplier`}>Supplier</Label>
+        <Input
+          id={`${formId}-supplier`}
+          name="supplier"
+          defaultValue={item.supplier}
+        />
+      </div>
+    </form>
+  )
+}
+
+function getProductColumns(
+  openProductSidebar: (row: ProductRow, mode: "view" | "edit") => void
+): ColumnDef<ProductRow>[] {
+  return [
   {
     id: "select",
     header: ({ table }) => (
@@ -298,13 +441,31 @@ const productColumns: ColumnDef<ProductRow>[] = [
   },
   {
     accessorKey: "name",
-    header: "Product",
-    cell: ({ row }) => <ProductCellViewer item={row.original} />,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Product name" />
+    ),
+    cell: ({ row }) => (
+      <span className="text-foreground font-medium">{row.original.name}</span>
+    ),
     enableHiding: false,
+    meta: { dataTableFilter: false },
+  },
+  {
+    accessorKey: "brand",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Brand" />
+    ),
+    cell: ({ row }) => (
+      <span className="text-muted-foreground max-w-[10rem] truncate">
+        {row.original.brand || "—"}
+      </span>
+    ),
   },
   {
     accessorKey: "category",
-    header: "Category",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Category" />
+    ),
     cell: ({ row }) => (
       <div className="w-32">
         <Badge variant="outline" className="text-muted-foreground px-1.5">
@@ -315,12 +476,18 @@ const productColumns: ColumnDef<ProductRow>[] = [
   },
   {
     accessorKey: "status",
-    header: "Status",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Stock" />
+    ),
+    meta: {
+      dataTableFilterLabel: "Stock",
+      dataTableFilterVariant: "select",
+    },
     cell: ({ row }) => {
-      const status = row.original.status
-      const isInStock = status === "In Stock"
-      const isLowStock = status === "Low Stock"
-      const isOutOfStock = status === "Out of Stock"
+      const level = row.original.status
+      const isInStock = level === "In Stock"
+      const isLowStock = level === "Low Stock"
+      const isOutOfStock = level === "Out of Stock"
       return (
         <Badge variant="outline" className="text-muted-foreground px-1.5">
           {isInStock ? (
@@ -330,44 +497,22 @@ const productColumns: ColumnDef<ProductRow>[] = [
           ) : isOutOfStock ? (
             <IconCircleXFilled className="mr-1 fill-red-500 dark:fill-red-400" />
           ) : null}
-          {status}
+          {level}
         </Badge>
       )
     },
   },
   {
-    accessorKey: "stock",
-    header: () => (
-      <div className="flex w-full justify-center text-center">Stock</div>
-    ),
-    cell: ({ row }) => (
-      <form
-        className="flex justify-center"
-        onSubmit={(e) => {
-          e.preventDefault()
-          toast.promise(new Promise((resolve) => setTimeout(resolve, 1000)), {
-            loading: `Saving stock for ${row.original.name}`,
-            success: "Saved",
-            error: "Error",
-          })
-        }}
-      >
-        <Label htmlFor={`${row.original.srNo}-stock-inline`} className="sr-only">
-          Stock
-        </Label>
-        <Input
-          className="hover:bg-input/30 focus-visible:bg-background dark:hover:bg-input/30 dark:focus-visible:bg-input/30 h-8 w-16 border-transparent bg-transparent text-center shadow-none focus-visible:border dark:bg-transparent"
-          defaultValue={String(row.original.stock)}
-          id={`${row.original.srNo}-stock-inline`}
-        />
-      </form>
-    ),
-  },
-  {
     accessorKey: "price",
-    header: () => (
-      <div className="flex w-full justify-center text-center">Price</div>
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Price" align="center" />
     ),
+    sortingFn: (rowA, rowB, columnId) => {
+      const a = Number(rowA.getValue(columnId))
+      const b = Number(rowB.getValue(columnId))
+      return a === b ? 0 : a > b ? 1 : -1
+    },
+    meta: { dataTableFilter: false },
     cell: ({ row }) => (
       <form
         className="flex justify-center"
@@ -392,42 +537,73 @@ const productColumns: ColumnDef<ProductRow>[] = [
     ),
   },
   {
-    accessorKey: "supplier",
-    header: "Supplier",
+    accessorKey: "stock",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Qty" align="center" />
+    ),
+    meta: { dataTableFilter: false },
+    cell: ({ row }) => (
+      <form
+        className="flex justify-center"
+        onSubmit={(e) => {
+          e.preventDefault()
+          toast.promise(new Promise((resolve) => setTimeout(resolve, 1000)), {
+            loading: `Saving quantity for ${row.original.name}`,
+            success: "Saved",
+            error: "Error",
+          })
+        }}
+      >
+        <Label htmlFor={`${row.original.srNo}-qty-inline`} className="sr-only">
+          Qty
+        </Label>
+        <Input
+          className="hover:bg-input/30 focus-visible:bg-background dark:hover:bg-input/30 dark:focus-visible:bg-input/30 h-8 w-16 border-transparent bg-transparent text-center shadow-none focus-visible:border dark:bg-transparent"
+          defaultValue={String(row.original.stock)}
+          id={`${row.original.srNo}-qty-inline`}
+        />
+      </form>
+    ),
+  },
+  {
+    accessorKey: "productStatus",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Status" />
+    ),
+    meta: {
+      dataTableFilterLabel: "Status",
+      dataTableFilterVariant: "select",
+      dataTableFilterSelectLabels: {
+        active: "Active",
+        none: "No status",
+      },
+    },
     cell: ({ row }) => {
-      const v = row.original.supplier
-      const isSet = v !== "Assign supplier"
-      if (isSet) {
-        return v
+      const archived = row.original.lifecycle === "archived"
+      if (archived) {
+        return (
+          <Badge
+            variant="outline"
+            className="border-border px-1.5 text-foreground/80"
+          >
+            Archived
+          </Badge>
+        )
       }
       return (
-        <>
-          <Label htmlFor={`${row.original.srNo}-supplier`} className="sr-only">
-            Supplier
-          </Label>
-          <Select>
-            <SelectTrigger
-              className="w-38 **:data-[slot=select-value]:block **:data-[slot=select-value]:truncate"
-              size="sm"
-              id={`${row.original.srNo}-supplier`}
-            >
-              <SelectValue placeholder="Assign supplier" />
-            </SelectTrigger>
-            <SelectContent align="end">
-              <SelectItem value="TechSupply Co.">TechSupply Co.</SelectItem>
-              <SelectItem value="AccessWorld">AccessWorld</SelectItem>
-              <SelectItem value="DisplayWorks">DisplayWorks</SelectItem>
-              <SelectItem value="CarryAll Ltd.">CarryAll Ltd.</SelectItem>
-              <SelectItem value="SoundGear Inc.">SoundGear Inc.</SelectItem>
-            </SelectContent>
-          </Select>
-        </>
+        <Badge
+          variant="outline"
+          className="border-emerald-500/30 px-1.5 text-emerald-700 dark:text-emerald-400"
+        >
+          Active
+        </Badge>
       )
     },
   },
   {
     id: "actions",
-    cell: () => (
+    enableSorting: false,
+    cell: ({ row }) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -439,24 +615,152 @@ const productColumns: ColumnDef<ProductRow>[] = [
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-32">
-          <DropdownMenuItem>Edit</DropdownMenuItem>
-          <DropdownMenuItem>Duplicate</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem
+            onClick={() => openProductSidebar(row.original, "view")}
+          >
+            <IconEye />
+            View
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => openProductSidebar(row.original, "edit")}
+          >
+            <IconPencil />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <IconCopy />
+            Duplicate
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     ),
   },
 ]
+}
+
+type ProductSidebarState =
+  | { mode: "view"; product: ProductRow }
+  | { mode: "edit"; product: ProductRow }
+  | { mode: "add" }
+  | null
 
 export default function ProductsPage() {
   const rows = data as ProductRow[]
+  const [sidebar, setSidebar] = useState<ProductSidebarState>(null)
+  const [addFormKey, setAddFormKey] = useState(0)
+
+  const columns = useMemo(
+    () =>
+      getProductColumns((p, mode) => setSidebar({ product: p, mode })),
+    []
+  )
+
+  const closeSidebar = () => setSidebar(null)
+  const sheetMode = sidebar?.mode ?? "view"
+  const sheetProduct =
+    sidebar && sidebar.mode !== "add" ? sidebar.product : null
+  const formItem =
+    sidebar?.mode === "add" ? EMPTY_PRODUCT : sheetProduct ?? EMPTY_PRODUCT
+  const formId =
+    sidebar?.mode === "add"
+      ? "product-add-form"
+      : sheetProduct
+        ? `product-edit-${sheetProduct.srNo}`
+        : "product-edit"
 
   return (
+    <>
+    <Sheet
+      open={sidebar !== null}
+      onOpenChange={(open) => {
+        if (!open) closeSidebar()
+      }}
+    >
+      <SheetContent
+        side="right"
+        className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
+      >
+        {sidebar ? (
+          <>
+            <SheetHeader className="border-border/60 space-y-1 border-b px-6 py-5 text-left">
+              <SheetTitle className="text-lg leading-tight">
+                {sidebar.mode === "add"
+                  ? "Add product"
+                  : sidebar.mode === "edit"
+                    ? "Edit product"
+                    : sheetProduct?.name}
+              </SheetTitle>
+              <SheetDescription>
+                {sidebar.mode === "add" ? (
+                  "Fill in details and images. Saving is a demo only."
+                ) : sidebar.mode === "edit" && sheetProduct ? (
+                  <>
+                    {sheetProduct.name}
+                    <span className="text-muted-foreground">
+                      {" "}
+                      · SKU {sheetProduct.sku}
+                    </span>
+                  </>
+                ) : sheetProduct ? (
+                  <>
+                    SKU {sheetProduct.sku}
+                    {sheetProduct.brand ? ` · ${sheetProduct.brand}` : ""} ·{" "}
+                    {sheetProduct.category}
+                  </>
+                ) : null}
+              </SheetDescription>
+            </SheetHeader>
+            <div
+              key={
+                sidebar.mode === "add"
+                  ? "add"
+                  : `${sheetProduct?.srNo}-${sheetMode}`
+              }
+              className="min-h-0 flex-1 overflow-y-auto px-6 py-5"
+            >
+              {sidebar.mode === "view" && sheetProduct ? (
+                <ProductViewSidebarBody item={sheetProduct} />
+              ) : sidebar.mode === "edit" || sidebar.mode === "add" ? (
+                <ProductFormSidebarForm
+                  item={formItem}
+                  formId={formId}
+                  onClose={closeSidebar}
+                  isNew={sidebar.mode === "add"}
+                />
+              ) : null}
+            </div>
+            <SheetFooter className="border-border/60 gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end">
+              {sidebar.mode === "view" ? (
+                <SheetClose asChild>
+                  <Button variant="outline" className="w-full sm:w-auto">
+                    Close
+                  </Button>
+                </SheetClose>
+              ) : (
+                <>
+                  <SheetClose asChild>
+                    <Button variant="outline" type="button">
+                      Cancel
+                    </Button>
+                  </SheetClose>
+                  <Button type="submit" form={formId}>
+                    {sidebar.mode === "add" ? "Create product" : "Save product"}
+                  </Button>
+                </>
+              )}
+            </SheetFooter>
+          </>
+        ) : null}
+      </SheetContent>
+    </Sheet>
     <DataTable
       data={rows}
-      columns={productColumns}
+      columns={columns}
+      onAddClick={() => {
+        setAddFormKey((k) => k + 1)
+        setSidebar({ mode: "add" })
+      }}
       addButtonLabel="Add product"
       searchPlaceholder="Search products..."
       importRowMapper={mapImportedProduct}
@@ -484,8 +788,9 @@ export default function ProductsPage() {
         },
       ]}
       tabs={productTabs}
-      defaultTab="active"
+      defaultTab="all"
       tabFilter={productTabFilter}
     />
+    </>
   )
 }

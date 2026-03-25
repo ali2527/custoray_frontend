@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { IconTableImport, IconLoader, IconTrash } from "@tabler/icons-react"
+import { IconCloudUpload, IconLoader, IconTrash } from "@tabler/icons-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -268,7 +268,7 @@ export function DataTableImportDialog({
                 )}
               >
                 <div className="bg-primary/10 text-primary flex size-14 items-center justify-center rounded-full">
-                  <IconTableImport className="size-7" />
+                  <IconCloudUpload className="size-7" />
                 </div>
                 <div className="text-center">
                   <span className="text-foreground text-sm font-medium">

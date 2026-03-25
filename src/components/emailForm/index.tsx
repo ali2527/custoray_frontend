@@ -56,7 +56,7 @@ export function EmailForm({
           </form>
           <div className="bg-muted relative hidden md:flex flex-col justify-center">
             {resolvedTheme ? <Image
-                src={resolvedTheme == "dark" ? "/assets/logo-3.png" : "/assets/logo-2.png"}
+                src="/assets/logo-2.png"
                 alt="logo"
                 height={50}
                 width={140}

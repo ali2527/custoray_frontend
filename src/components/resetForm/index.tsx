@@ -68,7 +68,7 @@ Enter your new password to reset your password.              </CardDescription>
           </form>
           <div className="bg-muted relative hidden flex flex-col justify-center md:flex">
             {resolvedTheme ? <Image
-                src={resolvedTheme == "dark" ? "/assets/logo-3.png" : "/assets/logo-2.png"}
+                src="/assets/logo-2.png"
                 alt="logo"
                 height={50}
                 width={140}

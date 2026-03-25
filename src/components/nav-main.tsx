@@ -61,7 +61,6 @@ export function NavMain({
     items?: {
       title: string
       url: string
-      icon?: LucideIcon
     }[]
   }[]
 }) {
@@ -92,10 +91,10 @@ export function NavMain({
           <SidebarMenuItem className="flex items-center gap-2">
             <SidebarMenuButton
               tooltip="Quick Create"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 duration-200 ease-linear"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground min-w-8 text-xs duration-200 ease-linear"
             >
               <Plus className="size-[1.125rem]" strokeWidth={2.25} aria-hidden />
-              <span>Quick Create</span>
+              <span className="text-xs font-medium">Quick Create</span>
             </SidebarMenuButton>
             <Button
               size="icon"
@@ -145,12 +144,6 @@ export function NavMain({
                             <SidebarMenuSubItem key={subItem.title}>
                               <SidebarMenuSubButton asChild isActive={isSubActive}>
                                 <Link href={subItem.url}>
-                                  {subItem.icon && (
-                                    <subItem.icon
-                                      className="size-[1.125rem] shrink-0"
-                                      data-theme-icon
-                                    />
-                                  )}
                                   <span>{subItem.title}</span>
                                 </Link>
                               </SidebarMenuSubButton>

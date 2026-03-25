@@ -1,5 +1,7 @@
 "use client";
 import * as React from "react"
+import Image from "next/image"
+import Link from "next/link"
 import {
   AlertCircle,
   Banknote,
@@ -57,9 +59,7 @@ import {
   UsersRound,
   Wallet,
 } from "lucide-react"
-import { TermSwitcher } from "@/components/term-switcher"
 import { NavMain } from "@/components/nav-main"
-import { NavSecondary } from "@/components/nav-secondary"
 import { NavUser } from "@/components/nav-user"
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader } from "@/components/ui/sidebar";
 
@@ -271,12 +271,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar collapsible="icon" side={isRtl ? "right" : "left"} {...props}>
       <SidebarHeader>
-        <TermSwitcher />
+        <Link
+          href="/dashboard"
+          aria-label="Custoray home"
+          className="hover:bg-sidebar-accent/60 -mx-0.5 flex items-center rounded-lg px-2 py-1.5 transition-colors group-data-[collapsible=icon]:justify-center"
+        >
+          <div className="flex h-10 w-full min-w-0 items-center justify-start group-data-[collapsible=icon]:h-9 group-data-[collapsible=icon]:w-9 group-data-[collapsible=icon]:justify-center">
+            <Image
+              src="/assets/logo-2.png"
+              alt="Custoray"
+              width={320}
+              height={96}
+              className="h-10 w-auto max-w-full object-contain group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:max-h-8 group-data-[collapsible=icon]:w-auto group-data-[collapsible=icon]:max-w-8"
+              sizes="(max-width: 768px) 100vw, 280px"
+              priority
+            />
+          </div>
+        </Link>
       </SidebarHeader>
       <SidebarContent className="hide-scrollbar overflow-y-auto h-full">
         <NavMain items={data.navMain} />
-
-        <NavSecondary items={data.navSecondary} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={data.user} />

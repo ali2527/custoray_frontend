@@ -2,20 +2,24 @@
 
 import * as React from "react"
 import {
+  IconAdjustmentsHorizontal,
+  IconChevronDown,
   IconChevronLeft,
   IconChevronRight,
   IconChevronsLeft,
   IconChevronsRight,
   IconCircleCheckFilled,
+  IconCopy,
   IconDotsVertical,
-  IconFilter,
+  IconEye,
   IconLayoutGrid,
   IconLayoutList,
   IconLoader,
+  IconPencil,
   IconPlus,
   IconSearch,
-  IconTableExport,
-  IconTableImport,
+  IconCloudDownload,
+  IconCloudUpload,
   IconTrendingUp,
 } from "@tabler/icons-react"
 import {
@@ -39,6 +43,7 @@ import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 import { toast } from "sonner"
 import { z } from "zod"
 
+import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTableExportDialog } from "@/components/data-table-export-dialog"
 import { DataTableImportDialog } from "@/components/data-table-import-dialog"
 import { useIsMobile } from "@/hooks/use-mobile"
@@ -65,6 +70,7 @@ import {
 } from "@/components/ui/drawer"
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
@@ -142,7 +148,9 @@ export const defaultColumns: ColumnDef<z.infer<typeof schema>>[] = [
   },
   {
     accessorKey: "header",
-    header: "Header",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Header" />
+    ),
     cell: ({ row }) => {
       return <TableCellViewer item={row.original} />
     },
@@ -150,7 +158,9 @@ export const defaultColumns: ColumnDef<z.infer<typeof schema>>[] = [
   },
   {
     accessorKey: "type",
-    header: "Section Type",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Section Type" />
+    ),
     cell: ({ row }) => (
       <div className="w-32">
         <Badge variant="outline" className="text-muted-foreground px-1.5">
@@ -161,7 +171,9 @@ export const defaultColumns: ColumnDef<z.infer<typeof schema>>[] = [
   },
   {
     accessorKey: "status",
-    header: "Status",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Status" />
+    ),
     cell: ({ row }) => (
       <Badge variant="outline" className="text-muted-foreground px-1.5">
         {row.original.status === "Done" ? (
@@ -175,7 +187,22 @@ export const defaultColumns: ColumnDef<z.infer<typeof schema>>[] = [
   },
   {
     accessorKey: "target",
-    header: () => <div className="w-full text-right">Target</div>,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Target" align="end" />
+    ),
+    sortingFn: (rowA, rowB, columnId) => {
+      const a = Number(rowA.getValue(columnId))
+      const b = Number(rowB.getValue(columnId))
+      return Number.isNaN(a) || Number.isNaN(b)
+        ? String(rowA.getValue(columnId)).localeCompare(
+            String(rowB.getValue(columnId))
+          )
+        : a === b
+          ? 0
+          : a > b
+            ? 1
+            : -1
+    },
     cell: ({ row }) => (
       <form
         onSubmit={(e) => {
@@ -200,7 +227,22 @@ export const defaultColumns: ColumnDef<z.infer<typeof schema>>[] = [
   },
   {
     accessorKey: "limit",
-    header: () => <div className="w-full text-right">Limit</div>,
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Limit" align="end" />
+    ),
+    sortingFn: (rowA, rowB, columnId) => {
+      const a = Number(rowA.getValue(columnId))
+      const b = Number(rowB.getValue(columnId))
+      return Number.isNaN(a) || Number.isNaN(b)
+        ? String(rowA.getValue(columnId)).localeCompare(
+            String(rowB.getValue(columnId))
+          )
+        : a === b
+          ? 0
+          : a > b
+            ? 1
+            : -1
+    },
     cell: ({ row }) => (
       <form
         onSubmit={(e) => {
@@ -225,7 +267,9 @@ export const defaultColumns: ColumnDef<z.infer<typeof schema>>[] = [
   },
   {
     accessorKey: "reviewer",
-    header: "Reviewer",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Reviewer" />
+    ),
     cell: ({ row }) => {
       const isAssigned = row.original.reviewer !== "Assign reviewer"
 
@@ -259,6 +303,7 @@ export const defaultColumns: ColumnDef<z.infer<typeof schema>>[] = [
   },
   {
     id: "actions",
+    enableSorting: false,
     cell: () => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -271,12 +316,19 @@ export const defaultColumns: ColumnDef<z.infer<typeof schema>>[] = [
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-32">
-          <DropdownMenuItem>Edit</DropdownMenuItem>
-          <DropdownMenuItem>Make a copy</DropdownMenuItem>
-          <DropdownMenuItem>Favorite</DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem variant="destructive">Delete</DropdownMenuItem>
+        <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuItem>
+            <IconEye />
+            View
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <IconPencil />
+            Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem>
+            <IconCopy />
+            Duplicate
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     ),
@@ -314,6 +366,10 @@ type DataTableColumnMeta = {
   dataTableFilter?: boolean
   /** Override auto-detected filter control */
   dataTableFilterVariant?: "range" | "select" | "text"
+  /** Label in filter popover and grid field list (when header is not a string) */
+  dataTableFilterLabel?: string
+  /** Map option values to display labels in filter select */
+  dataTableFilterSelectLabels?: Record<string, string>
 }
 
 function mergeColumnFilters<TData>(
@@ -403,29 +459,54 @@ function activeColumnFilterCount(filters: ColumnFiltersState): number {
   return n
 }
 
+function hideableLeafColumns<TData>(table: TanStackTable<TData>) {
+  return table.getAllLeafColumns().filter((c) => c.getCanHide())
+}
+
 function DataTableFiltersPopover<TData>({
   table,
+  enableLayoutToggle,
+  layoutView,
+  onLayoutViewChange,
 }: {
   table: TanStackTable<TData>
+  enableLayoutToggle?: boolean
+  layoutView?: "list" | "grid"
+  onLayoutViewChange?: (view: "list" | "grid") => void
 }) {
   const columns = filterableLeafColumns(table)
+  const hideableColumns = hideableLeafColumns(table)
   const filterCount = activeColumnFilterCount(table.getState().columnFilters)
-
-  if (columns.length === 0) return null
+  const showFilters = columns.length > 0
+  const showLayout =
+    enableLayoutToggle === true &&
+    layoutView != null &&
+    onLayoutViewChange != null
+  const showColumns = hideableColumns.length > 0
+  const visibleHideableCount = hideableColumns.filter((c) =>
+    c.getIsVisible()
+  ).length
+  const allHideableVisible =
+    hideableColumns.length > 0 &&
+    hideableColumns.every((c) => c.getIsVisible())
 
   return (
-    <Popover>
+    <Popover modal={false}>
       <PopoverTrigger asChild>
         <Button
           type="button"
           variant="outline"
           size="icon"
-          className="border-border/80 bg-background text-muted-foreground hover:text-foreground relative size-9 shrink-0 shadow-xs"
-          aria-label="Open filters"
+          className={cn(
+            "border-border/70 bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground relative size-9 shrink-0 rounded-lg shadow-sm transition-colors",
+            filterCount > 0 &&
+              "border-primary/25 bg-primary/5 text-foreground ring-primary/15 ring-1"
+          )}
+          aria-label="Table options and filters"
         >
-          <IconFilter className="size-4" />
+          <IconAdjustmentsHorizontal className="size-4 opacity-90" />
           {filterCount > 0 ? (
-            <span className="bg-primary text-primary-foreground absolute -right-1 -top-1 flex size-4 items-center justify-center rounded-full text-[10px] font-semibold leading-none">
+            <span className="bg-primary text-primary-foreground border-background pointer-events-none absolute top-0 right-0 z-10 flex size-5 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-[10px] font-semibold tabular-nums leading-none shadow-sm">
               {filterCount > 9 ? "9+" : filterCount}
             </span>
           ) : null}
@@ -433,123 +514,277 @@ function DataTableFiltersPopover<TData>({
       </PopoverTrigger>
       <PopoverContent
         align="start"
-        className="border-border/80 w-[min(100vw-2rem,22rem)] max-w-[22rem] space-y-4 p-0 shadow-lg"
+        sideOffset={6}
+        className="border-border/70 text-popover-foreground w-[min(100vw-1.5rem,22rem)] max-w-[22rem] overflow-hidden rounded-xl border bg-popover p-0 shadow-xl"
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
-        <div className="border-border/60 flex items-center justify-between border-b px-4 py-3">
-          <div>
-            <p className="text-foreground text-sm font-semibold">Filters</p>
-            <p className="text-muted-foreground text-xs">
-              Narrow results by column
-            </p>
+        <div className="from-muted/50 border-border/60 bg-gradient-to-b to-popover border-b px-4 py-3.5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 space-y-1">
+              <h3 className="text-foreground text-sm font-semibold tracking-tight">
+                Table options
+              </h3>
+              <p className="text-muted-foreground text-[11px] leading-relaxed">
+                Layout, columns, page size, and column filters.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground h-8 shrink-0 border-border/80 px-2.5 text-xs font-medium"
+              disabled={filterCount === 0}
+              onClick={() => table.resetColumnFilters()}
+            >
+              Reset filters
+            </Button>
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground h-8 px-2 text-xs"
-            disabled={filterCount === 0}
-            onClick={() => table.resetColumnFilters()}
-          >
-            Clear all
-          </Button>
         </div>
-        <div className="max-h-[min(70vh,24rem)] space-y-4 overflow-y-auto px-4 pb-4">
-          {columns.map((column) => {
-            const variant = (column.columnDef.meta as DataTableColumnMeta | undefined)
-              ?.dataTableFilterVariant
-            const title = getColumnTitle(column)
-
-            if (variant === "range") {
-              const raw = column.getFilterValue() as [string, string] | undefined
-              const minV = raw?.[0] ?? ""
-              const maxV = raw?.[1] ?? ""
-              return (
-                <div key={column.id} className="space-y-2">
-                  <Label className="text-xs font-medium">{title}</Label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="Min"
-                      className="h-9"
-                      value={minV}
-                      onChange={(e) => {
-                        const nextMin = e.target.value
-                        const next: [string, string] = [nextMin, maxV]
-                        if (nextMin === "" && maxV === "")
-                          column.setFilterValue(undefined)
-                        else column.setFilterValue(next)
-                      }}
-                    />
-                    <span className="text-muted-foreground text-xs">–</span>
-                    <Input
-                      type="number"
-                      inputMode="decimal"
-                      placeholder="Max"
-                      className="h-9"
-                      value={maxV}
-                      onChange={(e) => {
-                        const nextMax = e.target.value
-                        const next: [string, string] = [minV, nextMax]
-                        if (minV === "" && nextMax === "")
-                          column.setFilterValue(undefined)
-                        else column.setFilterValue(next)
-                      }}
-                    />
-                  </div>
-                </div>
-              )
-            }
-
-            if (variant === "select") {
-              const opts = [...column.getFacetedUniqueValues().keys()]
-                .map(String)
-                .filter(Boolean)
-                .sort((a, b) => a.localeCompare(b))
-              const cur = (column.getFilterValue() as string | undefined) ?? ""
-              return (
-                <div key={column.id} className="space-y-2">
-                  <Label className="text-xs font-medium">{title}</Label>
-                  <Select
-                    value={cur === "" ? FILTER_ANY : cur}
-                    onValueChange={(v) =>
-                      column.setFilterValue(v === FILTER_ANY ? undefined : v)
-                    }
-                  >
-                    <SelectTrigger size="sm" className="h-9 w-full">
-                      <SelectValue placeholder="Any" />
-                    </SelectTrigger>
-                    <SelectContent position="popper" className="max-h-56">
-                      <SelectItem value={FILTER_ANY}>Any</SelectItem>
-                      {opts.map((opt) => (
-                        <SelectItem key={opt} value={opt}>
-                          {opt}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )
-            }
-
-            const textVal = (column.getFilterValue() as string | undefined) ?? ""
-            return (
-              <div key={column.id} className="space-y-2">
-                <Label className="text-xs font-medium">{title}</Label>
-                <Input
-                  placeholder={`Contains…`}
-                  className="h-9"
-                  value={textVal}
-                  onChange={(e) =>
-                    column.setFilterValue(
-                      e.target.value === "" ? undefined : e.target.value
-                    )
-                  }
-                />
+        <div className="max-h-[min(70vh,28rem)] overflow-y-auto px-4">
+          {showLayout ? (
+            <div className="border-border/80 space-y-2 border-b py-3">
+              <Label className="text-muted-foreground block text-[11px] font-semibold tracking-wide uppercase">
+                Layout
+              </Label>
+              <div
+                role="group"
+                aria-label="List or grid layout"
+                className="bg-muted/80 inline-flex h-9 w-full items-center rounded-md p-0.5 ring-1 ring-border/50"
+              >
+                <button
+                  type="button"
+                  aria-pressed={layoutView === "list"}
+                  onClick={() => onLayoutViewChange("list")}
+                  className={cn(
+                    "inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-sm px-2 text-sm font-medium transition-all",
+                    layoutView === "list"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <IconLayoutList className="size-4 shrink-0" />
+                  <span>List</span>
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={layoutView === "grid"}
+                  onClick={() => onLayoutViewChange("grid")}
+                  className={cn(
+                    "inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-sm px-2 text-sm font-medium transition-all",
+                    layoutView === "grid"
+                      ? "bg-background text-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <IconLayoutGrid className="size-4 shrink-0" />
+                  <span>Grid</span>
+                </button>
               </div>
-            )
-          })}
+            </div>
+          ) : null}
+          <div className="border-border/80 space-y-2 border-b py-3">
+            <Label
+              htmlFor="data-table-rows-per-page"
+              className="text-muted-foreground block text-[11px] font-semibold tracking-wide uppercase"
+            >
+              Rows per page
+            </Label>
+            <select
+              id="data-table-rows-per-page"
+              value={table.getState().pagination.pageSize}
+              onChange={(e) => table.setPageSize(Number(e.target.value))}
+              className="border-input/80 bg-background h-8 w-full rounded-md border px-2 text-sm shadow-none outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            >
+              {[10, 20, 30, 40, 50].map((pageSize) => (
+                <option key={pageSize} value={pageSize}>
+                  {pageSize}
+                </option>
+              ))}
+            </select>
+          </div>
+          {showColumns ? (
+            <div className="border-border/80 space-y-2 border-b py-3">
+              <Label
+                htmlFor="data-table-visible-columns"
+                className="text-muted-foreground block text-[11px] font-semibold tracking-wide uppercase"
+              >
+                Visible columns
+              </Label>
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    id="data-table-visible-columns"
+                    variant="outline"
+                    size="sm"
+                    className="border-input/80 bg-background h-8 w-full justify-between text-sm font-normal shadow-none"
+                  >
+                    <span className="truncate">
+                      {visibleHideableCount} of {hideableColumns.length}{" "}
+                      columns
+                    </span>
+                    <IconChevronDown className="text-muted-foreground size-4 shrink-0 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="max-h-56 min-w-[var(--radix-dropdown-menu-trigger-width)]"
+                >
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      for (const c of hideableColumns) {
+                        if (!c.getIsVisible()) c.toggleVisibility(true)
+                      }
+                    }}
+                    disabled={allHideableVisible}
+                  >
+                    Show all columns
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {hideableColumns.map((column) => {
+                    const title = getColumnTitle(column)
+                    return (
+                      <DropdownMenuCheckboxItem
+                        key={column.id}
+                        checked={column.getIsVisible()}
+                        onCheckedChange={(v) =>
+                          column.toggleVisibility(v === true)
+                        }
+                        onSelect={(e) => e.preventDefault()}
+                      >
+                        {title}
+                      </DropdownMenuCheckboxItem>
+                    )
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          ) : null}
+          {showFilters ? (
+            <>
+              <p className="text-muted-foreground border-border/80 border-b py-3 text-[11px] font-semibold tracking-wide uppercase">
+                Column filters
+              </p>
+              <div className="divide-border/80 divide-y">
+            {columns.map((column) => {
+              const variant = (
+                column.columnDef.meta as DataTableColumnMeta | undefined
+              )?.dataTableFilterVariant
+              const title = getColumnTitle(column)
+
+              const fieldBlock = (children: React.ReactNode) => (
+                <div className="space-y-2 py-3">
+                  <Label className="text-muted-foreground block text-[11px] font-semibold tracking-wide uppercase">
+                    {title}
+                  </Label>
+                  {children}
+                </div>
+              )
+
+              if (variant === "range") {
+                const raw = column.getFilterValue() as
+                  | [string, string]
+                  | undefined
+                const minV = raw?.[0] ?? ""
+                const maxV = raw?.[1] ?? ""
+                return (
+                  <div key={column.id}>
+                    {fieldBlock(
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          placeholder="Min"
+                          className="border-input/80 bg-background h-8 text-sm shadow-none"
+                          value={minV}
+                          onChange={(e) => {
+                            const nextMin = e.target.value
+                            const next: [string, string] = [nextMin, maxV]
+                            if (nextMin === "" && maxV === "")
+                              column.setFilterValue(undefined)
+                            else column.setFilterValue(next)
+                          }}
+                        />
+                        <span className="text-muted-foreground shrink-0 text-xs font-medium">
+                          to
+                        </span>
+                        <Input
+                          type="number"
+                          inputMode="decimal"
+                          placeholder="Max"
+                          className="border-input/80 bg-background h-8 text-sm shadow-none"
+                          value={maxV}
+                          onChange={(e) => {
+                            const nextMax = e.target.value
+                            const next: [string, string] = [minV, nextMax]
+                            if (minV === "" && nextMax === "")
+                              column.setFilterValue(undefined)
+                            else column.setFilterValue(next)
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )
+              }
+
+              if (variant === "select") {
+                const selectLabels = (
+                  column.columnDef.meta as DataTableColumnMeta | undefined
+                )?.dataTableFilterSelectLabels
+                const opts = [...column.getFacetedUniqueValues().keys()]
+                  .map(String)
+                  .filter((v) => v !== "" && v !== "undefined")
+                  .sort((a, b) => a.localeCompare(b))
+                const cur =
+                  (column.getFilterValue() as string | undefined) ?? ""
+                return (
+                  <div key={column.id}>
+                    {fieldBlock(
+                      <select
+                        className="border-input/80 bg-background h-8 w-full rounded-md border px-2 text-sm shadow-none outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                        value={cur === "" ? FILTER_ANY : cur}
+                        onChange={(e) => {
+                          const v = e.target.value
+                          column.setFilterValue(
+                            v === FILTER_ANY ? undefined : v
+                          )
+                        }}
+                      >
+                        <option value={FILTER_ANY}>All</option>
+                        {opts.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {selectLabels?.[opt] ?? opt}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )
+              }
+
+              const textVal =
+                (column.getFilterValue() as string | undefined) ?? ""
+              return (
+                <div key={column.id}>
+                  {fieldBlock(
+                    <Input
+                      placeholder="Contains text…"
+                      className="border-input/80 bg-background h-8 text-sm shadow-none"
+                      value={textVal}
+                      onChange={(e) =>
+                        column.setFilterValue(
+                          e.target.value === "" ? undefined : e.target.value
+                        )
+                      }
+                    />
+                  )}
+                </div>
+              )
+            })}
+              </div>
+            </>
+          ) : null}
         </div>
       </PopoverContent>
     </Popover>
@@ -558,6 +793,8 @@ function DataTableFiltersPopover<TData>({
 
 function getColumnTitle<TData>(column: Column<TData, unknown>): string {
   const def = column.columnDef
+  const meta = def.meta as DataTableColumnMeta | undefined
+  if (meta?.dataTableFilterLabel) return meta.dataTableFilterLabel
   if (typeof def.header === "string") return def.header
   if ("accessorKey" in def && def.accessorKey != null) {
     return String(def.accessorKey)
@@ -681,6 +918,8 @@ export function DataTable<TData>({
   onTabChange,
   tabFilter,
   enableLayoutToggle = true,
+  defaultColumnVisibility,
+  onAddClick,
 }: {
   data: TData[]
   columns: ColumnDef<TData>[]
@@ -697,6 +936,10 @@ export function DataTable<TData>({
   tabFilter?: (row: TData, tabValue: string) => boolean
   /** Pill toggle: list (table) vs grid (card layout). */
   enableLayoutToggle?: boolean
+  /** Initial column visibility (`false` = hidden). */
+  defaultColumnVisibility?: VisibilityState
+  /** Primary add button (e.g. open create sheet). */
+  onAddClick?: () => void
 }) {
   const [data, setData] = React.useState(() => initialData)
 
@@ -715,7 +958,7 @@ export function DataTable<TData>({
   )
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
-    React.useState<VisibilityState>({})
+    React.useState<VisibilityState>(() => defaultColumnVisibility ?? {})
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
@@ -909,30 +1152,6 @@ export function DataTable<TData>({
             Showing records {rangeFrom} to {rangeTo} of {filteredTotal}
           </div>
           <div className="flex w-full items-center gap-8 lg:w-fit">
-            <div className="hidden items-center gap-2 lg:flex">
-              <Label htmlFor="rows-per-page" className="text-sm font-medium">
-                Rows per page
-              </Label>
-              <Select
-                value={`${table.getState().pagination.pageSize}`}
-                onValueChange={(value) => {
-                  table.setPageSize(Number(value))
-                }}
-              >
-                <SelectTrigger size="sm" className="w-20" id="rows-per-page">
-                  <SelectValue
-                    placeholder={table.getState().pagination.pageSize}
-                  />
-                </SelectTrigger>
-                <SelectContent side="top">
-                  {[10, 20, 30, 40, 50].map((pageSize) => (
-                    <SelectItem key={pageSize} value={`${pageSize}`}>
-                      {pageSize}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             <div className="flex w-fit items-center justify-center text-sm font-medium">
               Page {table.getState().pagination.pageIndex + 1} of{" "}
               {table.getPageCount()}
@@ -1005,42 +1224,6 @@ export function DataTable<TData>({
       />
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
-          {enableLayoutToggle ? (
-            <div
-              role="group"
-              aria-label="List or grid layout"
-              className="bg-muted/80 inline-flex h-9 shrink-0 items-center rounded-md p-0.5 ring-1 ring-border/50"
-            >
-              <button
-                type="button"
-                aria-pressed={layoutView === "list"}
-                onClick={() => setLayoutView("list")}
-                className={cn(
-                  "inline-flex h-8 items-center gap-1.5 rounded-sm px-3 text-sm font-medium transition-all",
-                  layoutView === "list"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <IconLayoutList className="size-4 shrink-0" />
-                <span className="hidden sm:inline">List</span>
-              </button>
-              <button
-                type="button"
-                aria-pressed={layoutView === "grid"}
-                onClick={() => setLayoutView("grid")}
-                className={cn(
-                  "inline-flex h-8 items-center gap-1.5 rounded-sm px-3 text-sm font-medium transition-all",
-                  layoutView === "grid"
-                    ? "bg-background text-foreground shadow-sm"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <IconLayoutGrid className="size-4 shrink-0" />
-                <span className="hidden sm:inline">Grid</span>
-              </button>
-            </div>
-          ) : null}
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-md">
             <SearchInput
               placeholder={searchPlaceholder}
@@ -1049,7 +1232,12 @@ export function DataTable<TData>({
               icon={<IconSearch className="size-4" />}
               className="focus-visible:ring-0 focus-visible:ring-offset-0 hover:ring-0 focus:ring-0 focus:outline-none min-w-0 flex-1"
             />
-            <DataTableFiltersPopover table={table} />
+            <DataTableFiltersPopover
+              table={table}
+              enableLayoutToggle={enableLayoutToggle}
+              layoutView={layoutView}
+              onLayoutViewChange={setLayoutView}
+            />
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 lg:shrink-0">
@@ -1059,7 +1247,7 @@ export function DataTable<TData>({
             size="sm"
             onClick={() => setImportOpen(true)}
           >
-            <IconTableImport />
+            <IconCloudUpload />
             <span className="hidden sm:inline">Import</span>
           </Button>
           <Button
@@ -1068,10 +1256,15 @@ export function DataTable<TData>({
             size="sm"
             onClick={() => setExportOpen(true)}
           >
-            <IconTableExport />
+            <IconCloudDownload />
             <span className="hidden sm:inline">Export</span>
           </Button>
-          <Button variant="default" size="sm" type="button">
+          <Button
+            variant="default"
+            size="sm"
+            type="button"
+            onClick={() => onAddClick?.()}
+          >
             <IconPlus />
             <span className="hidden lg:inline">{addButtonLabel}</span>
           </Button>

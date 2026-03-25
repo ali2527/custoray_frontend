@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { FileJson, FileSpreadsheet, FileText } from "lucide-react"
+import { CloudDownload, FileJson, FileSpreadsheet, FileText } from "lucide-react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -125,6 +125,7 @@ export function DataTableExportDialog({
             search and filters are included.
           </DialogDescription>
           <div className="bg-primary/10 text-primary mt-4 inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 px-4 py-2 text-sm font-medium">
+            <CloudDownload className="size-4 shrink-0" aria-hidden />
             <span className="tabular-nums">{rowCount}</span>
             <span className="text-primary/90 font-normal">
               row{rowCount === 1 ? "" : "s"} ready to export
