@@ -1,10 +1,12 @@
 "use client"
 
+import Link from "next/link"
 import {
   Bell,
   CreditCard,
   LogOut,
   MoreVertical,
+  Settings,
   UserCircle,
 } from "lucide-react"
 
@@ -95,6 +97,12 @@ export function NavUser({
               <DropdownMenuItem>
                 <Bell className="size-4" strokeWidth={2} aria-hidden />
                 Notifications
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/dashboard/settings">
+                  <Settings className="size-4" strokeWidth={2} aria-hidden />
+                  Settings
+                </Link>
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />

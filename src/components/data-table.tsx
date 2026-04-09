@@ -478,7 +478,7 @@ function DataTableFiltersPopover<TData>({
   const hideableColumns = hideableLeafColumns(table)
   const filterCount = activeColumnFilterCount(table.getState().columnFilters)
   const showFilters = columns.length > 0
-  const showLayout =
+  const showLayoutToggle =
     enableLayoutToggle === true &&
     layoutView != null &&
     onLayoutViewChange != null
@@ -492,26 +492,48 @@ function DataTableFiltersPopover<TData>({
 
   return (
     <Popover modal={false}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className={cn(
-            "border-border/70 bg-background text-muted-foreground hover:bg-muted/50 hover:text-foreground relative size-9 shrink-0 rounded-lg shadow-sm transition-colors",
-            filterCount > 0 &&
-              "border-primary/25 bg-primary/5 text-foreground ring-primary/15 ring-1"
-          )}
-          aria-label="Table options and filters"
-        >
-          <IconAdjustmentsHorizontal className="size-4 opacity-90" />
-          {filterCount > 0 ? (
-            <span className="bg-primary text-primary-foreground border-background pointer-events-none absolute top-0 right-0 z-10 flex size-5 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-[10px] font-semibold tabular-nums leading-none shadow-sm">
-              {filterCount > 9 ? "9+" : filterCount}
-            </span>
-          ) : null}
-        </Button>
-      </PopoverTrigger>
+      <div className="border-border/70 bg-background inline-flex h-9 shrink-0 items-center overflow-hidden rounded-full border shadow-sm">
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "text-muted-foreground hover:bg-muted/50 hover:text-foreground relative size-9 rounded-none border-0 shadow-none",
+              filterCount > 0 && "bg-primary/5 text-foreground"
+            )}
+            aria-label="Open filters"
+          >
+            <IconAdjustmentsHorizontal className="size-4 opacity-90" />
+            {filterCount > 0 ? (
+              <span className="bg-primary text-primary-foreground border-background pointer-events-none absolute top-0 right-0 z-10 flex size-5 translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 text-[10px] font-semibold tabular-nums leading-none shadow-sm">
+                {filterCount > 9 ? "9+" : filterCount}
+              </span>
+            ) : null}
+          </Button>
+        </PopoverTrigger>
+        {showLayoutToggle ? (
+          <>
+            <div className="bg-border/70 h-5 w-px" aria-hidden />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="text-muted-foreground hover:bg-muted/50 hover:text-foreground size-9 rounded-none border-0 shadow-none"
+              aria-label="Toggle layout"
+              onClick={() =>
+                onLayoutViewChange(layoutView === "list" ? "grid" : "list")
+              }
+            >
+              {layoutView === "list" ? (
+                <IconLayoutList className="size-4 opacity-90" />
+              ) : (
+                <IconLayoutGrid className="size-4 opacity-90" />
+              )}
+            </Button>
+          </>
+        ) : null}
+      </div>
       <PopoverContent
         align="start"
         sideOffset={6}
@@ -525,7 +547,7 @@ function DataTableFiltersPopover<TData>({
                 Table options
               </h3>
               <p className="text-muted-foreground text-[11px] leading-relaxed">
-                Layout, columns, page size, and column filters.
+                Columns and column filters.
               </p>
             </div>
             <Button
@@ -541,123 +563,57 @@ function DataTableFiltersPopover<TData>({
           </div>
         </div>
         <div className="max-h-[min(70vh,28rem)] overflow-y-auto px-4">
-          {showLayout ? (
-            <div className="border-border/80 space-y-2 border-b py-3">
-              <Label className="text-muted-foreground block text-[11px] font-semibold tracking-wide uppercase">
-                Layout
-              </Label>
-              <div
-                role="group"
-                aria-label="List or grid layout"
-                className="bg-muted/80 inline-flex h-9 w-full items-center rounded-md p-0.5 ring-1 ring-border/50"
-              >
-                <button
-                  type="button"
-                  aria-pressed={layoutView === "list"}
-                  onClick={() => onLayoutViewChange("list")}
-                  className={cn(
-                    "inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-sm px-2 text-sm font-medium transition-all",
-                    layoutView === "list"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <IconLayoutList className="size-4 shrink-0" />
-                  <span>List</span>
-                </button>
-                <button
-                  type="button"
-                  aria-pressed={layoutView === "grid"}
-                  onClick={() => onLayoutViewChange("grid")}
-                  className={cn(
-                    "inline-flex h-8 flex-1 items-center justify-center gap-1.5 rounded-sm px-2 text-sm font-medium transition-all",
-                    layoutView === "grid"
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  <IconLayoutGrid className="size-4 shrink-0" />
-                  <span>Grid</span>
-                </button>
-              </div>
-            </div>
-          ) : null}
-          <div className="border-border/80 space-y-2 border-b py-3">
-            <Label
-              htmlFor="data-table-rows-per-page"
-              className="text-muted-foreground block text-[11px] font-semibold tracking-wide uppercase"
-            >
-              Rows per page
-            </Label>
-            <select
-              id="data-table-rows-per-page"
-              value={table.getState().pagination.pageSize}
-              onChange={(e) => table.setPageSize(Number(e.target.value))}
-              className="border-input/80 bg-background h-8 w-full rounded-md border px-2 text-sm shadow-none outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
-            >
-              {[10, 20, 30, 40, 50].map((pageSize) => (
-                <option key={pageSize} value={pageSize}>
-                  {pageSize}
-                </option>
-              ))}
-            </select>
-          </div>
           {showColumns ? (
             <div className="border-border/80 space-y-2 border-b py-3">
-              <Label
-                htmlFor="data-table-visible-columns"
-                className="text-muted-foreground block text-[11px] font-semibold tracking-wide uppercase"
-              >
-                Visible columns
-              </Label>
-              <DropdownMenu modal={false}>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    id="data-table-visible-columns"
-                    variant="outline"
-                    size="sm"
-                    className="border-input/80 bg-background h-8 w-full justify-between text-sm font-normal shadow-none"
-                  >
-                    <span className="truncate">
-                      {visibleHideableCount} of {hideableColumns.length}{" "}
-                      columns
-                    </span>
-                    <IconChevronDown className="text-muted-foreground size-4 shrink-0 opacity-70" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  align="start"
-                  className="max-h-56 min-w-[var(--radix-dropdown-menu-trigger-width)]"
+              <div className="flex items-center justify-between gap-2">
+                <Label className="text-muted-foreground block text-[11px] font-semibold tracking-wide uppercase">
+                  Show columns
+                </Label>
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground text-xs font-medium transition-colors disabled:opacity-50"
+                  disabled={allHideableVisible}
+                  onClick={() => {
+                    for (const c of hideableColumns) {
+                      if (!c.getIsVisible()) c.toggleVisibility(true)
+                    }
+                  }}
                 >
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      for (const c of hideableColumns) {
-                        if (!c.getIsVisible()) c.toggleVisibility(true)
-                      }
-                    }}
-                    disabled={allHideableVisible}
-                  >
-                    Show all columns
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {hideableColumns.map((column) => {
-                    const title = getColumnTitle(column)
-                    return (
-                      <DropdownMenuCheckboxItem
-                        key={column.id}
-                        checked={column.getIsVisible()}
-                        onCheckedChange={(v) =>
-                          column.toggleVisibility(v === true)
-                        }
-                        onSelect={(e) => e.preventDefault()}
-                      >
-                        {title}
-                      </DropdownMenuCheckboxItem>
-                    )
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  Reset
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <Button
+                  type="button"
+                  variant={allHideableVisible ? "default" : "outline"}
+                  size="sm"
+                  className="h-7 rounded-full px-2.5 text-xs"
+                  onClick={() => {
+                    for (const c of hideableColumns) c.toggleVisibility(true)
+                  }}
+                >
+                  All
+                </Button>
+                {hideableColumns.map((column) => {
+                  const title = getColumnTitle(column)
+                  const visible = column.getIsVisible()
+                  return (
+                    <Button
+                      key={column.id}
+                      type="button"
+                      variant={visible ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 rounded-full px-2.5 text-xs"
+                      onClick={() => column.toggleVisibility(!visible)}
+                    >
+                      {title}
+                    </Button>
+                  )
+                })}
+              </div>
+              <p className="text-muted-foreground text-[11px]">
+                Showing {visibleHideableCount} of {hideableColumns.length}
+              </p>
             </div>
           ) : null}
           {showFilters ? (
@@ -1151,10 +1107,24 @@ export function DataTable<TData>({
           <div className="text-muted-foreground flex min-w-0 flex-1 text-sm">
             Showing records {rangeFrom} to {rangeTo} of {filteredTotal}
           </div>
-          <div className="flex w-full items-center gap-8 lg:w-fit">
+          <div className="flex w-full items-center gap-4 lg:w-fit lg:gap-8">
             <div className="flex w-fit items-center justify-center text-sm font-medium">
               Page {table.getState().pagination.pageIndex + 1} of{" "}
               {table.getPageCount()}
+            </div>
+            <div className="hidden md:block">
+              <select
+                aria-label="Rows per page"
+                value={table.getState().pagination.pageSize}
+                onChange={(e) => table.setPageSize(Number(e.target.value))}
+                className="border-input/80 bg-background h-8 w-[4.25rem] rounded-md border px-2 text-sm shadow-none outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+              >
+                {[10, 20, 30, 40, 50].map((pageSize) => (
+                  <option key={pageSize} value={pageSize}>
+                    {pageSize}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="ml-auto flex items-center gap-2 lg:ml-0">
               <Button
@@ -1230,7 +1200,7 @@ export function DataTable<TData>({
               value={globalFilter}
               onChange={(e) => setGlobalFilter(e.target.value)}
               icon={<IconSearch className="size-4" />}
-              className="focus-visible:ring-0 focus-visible:ring-offset-0 hover:ring-0 focus:ring-0 focus:outline-none min-w-0 flex-1"
+              className="rounded-full shadow-sm focus-visible:ring-0 focus-visible:ring-offset-0 hover:ring-0 focus:ring-0 focus:outline-none min-w-0 flex-1"
             />
             <DataTableFiltersPopover
               table={table}
@@ -1245,6 +1215,7 @@ export function DataTable<TData>({
             type="button"
             variant="outline"
             size="sm"
+            className="rounded-full px-5 shadow-sm"
             onClick={() => setImportOpen(true)}
           >
             <IconCloudUpload />
@@ -1254,6 +1225,7 @@ export function DataTable<TData>({
             type="button"
             variant="outline"
             size="sm"
+            className="rounded-full px-5 shadow-sm"
             onClick={() => setExportOpen(true)}
           >
             <IconCloudDownload />
@@ -1261,8 +1233,9 @@ export function DataTable<TData>({
           </Button>
           <Button
             variant="default"
-            size="sm"
+            
             type="button"
+            className="rounded-full px-4 md:py-4 shadow-sm"
             onClick={() => onAddClick?.()}
           >
             <IconPlus />

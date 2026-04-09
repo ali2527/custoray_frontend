@@ -81,7 +81,7 @@ const data = {
       icon: Package,
       items: [
         { title: "Products", url: "/dashboard/inventory/products", icon: Package },
-        { title: "Brand", url: "/dashboard/inventory/brand", icon: Tag },
+        { title: "Brands", url: "/dashboard/inventory/brands", icon: Tag },
         { title: "Variants", url: "/dashboard/inventory/variants", icon: Box },
         { title: "Categories", url: "/dashboard/inventory/categories", icon: Folders },
         { title: "Year closing", url: "/dashboard/inventory/year-closing", icon: Calendar },
