@@ -47,7 +47,7 @@ const languages = [
 export default function Settings() {
   const [theme, setTheme] = useState<"light" | "dark" | "system">("system")
   const [fontSize, setFontSize] = useState<keyof typeof fontSizes>("base")
-  const [colorTheme, setColorTheme] = useState("default")
+  const [colorTheme, setColorTheme] = useState("green")
   const [language, setLanguage] = useState("en")
   const [rtlEnabled, setRtlEnabled] = useState(false)
 

@@ -51,18 +51,18 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
+  --primary: #92c720;
   --primary-foreground: oklch(0.985 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
+  --accent: #92c7201a;
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --ring: #92c720;
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -71,7 +71,7 @@
   --sidebar: oklch(0.985 0 0);
   /* Slightly darker grey nav labels */
   --sidebar-foreground: oklch(0.48 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary: #92c720;
   --sidebar-primary-foreground: oklch(0.985 0 0);
   --sidebar-accent: oklch(0.97 0 0);
   --sidebar-accent-foreground: oklch(0.205 0 0);
@@ -278,10 +278,10 @@
 }
 
 [data-theme='green'] {
-  --primary: hsl(142.1 76.2% 36.3%);
-  --sidebar-primary: hsl(142.1 76.2% 36.3%);
-  --accent: hsl(142.1 76.2% 36.3% / 0.1);
-  --ring: hsl(142.1 76.2% 36.3%);
+  --primary: #92c720;
+  --sidebar-primary: #92c720;
+  --accent: #92c7201a;
+  --ring: #92c720;
 }
 
 [data-theme='blue'] {
@@ -398,7 +398,7 @@
 [data-sidebar="menu-button"][data-active="true"] [data-theme-icon],
 [data-sidebar="menu-sub-button"]:hover [data-theme-icon],
 [data-sidebar="menu-sub-button"][data-active="true"] [data-theme-icon] {
-  color: color-mix(in srgb, hsl(var(--primary)) 70%, white) !important;
+  color: color-mix(in srgb, var(--primary) 70%, white) !important;
 }
 
 [data-theme="red"] [data-sidebar="menu-button"]:hover [data-theme-icon],
@@ -419,7 +419,7 @@
 [data-theme="green"] [data-sidebar="menu-button"][data-active="true"] [data-theme-icon],
 [data-theme="green"] [data-sidebar="menu-sub-button"]:hover [data-theme-icon],
 [data-theme="green"] [data-sidebar="menu-sub-button"][data-active="true"] [data-theme-icon] {
-  color: rgb(34 197 94) !important;
+  color: #92c720 !important;
 }
 
 [data-theme="purple"] [data-sidebar="menu-button"]:hover [data-theme-icon],

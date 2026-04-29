@@ -102,7 +102,7 @@ const brandColumns: ColumnDef<BrandRow>[] = [
     accessorKey: "srNo",
     header: ({ column }) => <DataTableColumnHeader column={column} title="ID" />,
     cell: ({ row }) => (
-      <div className="flex h-10 min-w-14 items-center text-left tabular-nums">
+      <div className="flex h-9 min-w-14 items-center text-left tabular-nums">
         {row.original.srNo}
       </div>
     ),
@@ -112,7 +112,7 @@ const brandColumns: ColumnDef<BrandRow>[] = [
     accessorKey: "name",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Brand" />,
     cell: ({ row }) => (
-      <div className="flex h-10 min-w-32 items-center">
+      <div className="flex h-9 min-w-32 items-center">
         <span className="text-foreground font-medium">{row.original.name}</span>
       </div>
     ),
@@ -124,7 +124,7 @@ const brandColumns: ColumnDef<BrandRow>[] = [
       <DataTableColumnHeader column={column} title="Description" />
     ),
     cell: ({ row }) => (
-      <div className="flex h-10 min-w-52 items-center">
+      <div className="flex h-9 min-w-52 items-center">
         <span className="text-muted-foreground truncate">
           {row.original.description}
         </span>
@@ -138,7 +138,7 @@ const brandColumns: ColumnDef<BrandRow>[] = [
       <DataTableColumnHeader column={column} title="Products" />
     ),
     cell: ({ row }) => (
-      <div className="flex h-10 min-w-20 items-center">
+      <div className="flex h-9 min-w-20 items-center">
         <span className="block tabular-nums">{row.original.products}</span>
       </div>
     ),
@@ -147,7 +147,7 @@ const brandColumns: ColumnDef<BrandRow>[] = [
     accessorKey: "status",
     header: ({ column }) => <DataTableColumnHeader column={column} title="Status" />,
     cell: ({ row }) => (
-      <div className="flex h-10 min-w-24 items-center">
+      <div className="flex h-9 min-w-24 items-center">
         <Badge
           variant="outline"
           className={

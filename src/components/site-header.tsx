@@ -8,6 +8,9 @@ import { TermSwitcher } from "@/components/term-switcher"
 
 function titleForPath(pathname: string | null): string {
   if (!pathname) return "Documents"
+  if (pathname === "/dashboard/customers" || pathname.startsWith("/dashboard/customers/")) {
+    return "Customers"
+  }
   if (pathname === "/dashboard/inventory") return "Inventory"
   if (pathname.startsWith("/dashboard/inventory/")) {
     if (pathname.includes("year-closing")) return "Year closing"

@@ -1192,7 +1192,7 @@ export function DataTable<TData>({
             .rows.map((r) => ({ ...(r.original as Record<string, unknown>) }))
         }
       />
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      <div className="mb-3 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-md">
             <SearchInput

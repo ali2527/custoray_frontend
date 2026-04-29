@@ -84,12 +84,11 @@ const data = {
         { title: "Brands", url: "/dashboard/inventory/brands", icon: Tag },
         { title: "Variants", url: "/dashboard/inventory/variants", icon: Box },
         { title: "Categories", url: "/dashboard/inventory/categories", icon: Folders },
-        { title: "Year closing", url: "/dashboard/inventory/year-closing", icon: Calendar },
       ],
     },
     {
       title: "Customers",
-      url: "#",
+      url: "/dashboard/customers",
       icon: Users,
     },
     {
