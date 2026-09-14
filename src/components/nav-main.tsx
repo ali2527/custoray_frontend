@@ -56,14 +56,18 @@ function getThemeIconColor(): string {
   return themeColorMap[theme] || ""
 }
 
+type NavSubItem = {
+  title: string
+  url: string
+  tourAnchor?: string
+}
+
 type NavItem = {
   title: string
   url: string
   icon?: LucideIcon
-  items?: {
-    title: string
-    url: string
-  }[]
+  tourAnchor?: string
+  items?: NavSubItem[]
 }
 
 const navRowClass = "min-h-10 h-auto gap-3 px-3 py-2"
@@ -73,7 +77,7 @@ function NavSubLinkItem({
   subItem,
   pathname,
 }: {
-  subItem: { title: string; url: string }
+  subItem: NavSubItem
   pathname: string | null
 }) {
   const isSubActive =
@@ -82,7 +86,7 @@ function NavSubLinkItem({
       subItem.url !== "#" &&
       pathname?.startsWith(subItem.url))
   return (
-    <SidebarMenuSubItem>
+    <SidebarMenuSubItem data-tour={subItem.tourAnchor}>
       <SidebarMenuSubButton
         asChild
         isActive={isSubActive}
@@ -106,7 +110,7 @@ function NavMainLinkItem({
   isActive: boolean
 }) {
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem data-tour={item.tourAnchor}>
       <SidebarMenuButton
         asChild
         tooltip={item.title}
@@ -150,7 +154,7 @@ function NavCollapsibleItem({
   }
 
   return (
-    <SidebarMenuItem>
+    <SidebarMenuItem data-tour={item.tourAnchor}>
       <Collapsible open={open} onOpenChange={handleOpenChange} className="group/collapsible w-full">
         <CollapsibleTrigger asChild>
           <SidebarMenuButton

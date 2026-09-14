@@ -943,6 +943,9 @@ export function DataTable<TData>({
   enableLayoutToggle = true,
   defaultColumnVisibility,
   onAddClick,
+  addButtonTourId,
+  tableTourId,
+  filterTourId,
   onDataChange,
   showAddButton = true,
   showImportButton = true,
@@ -974,6 +977,9 @@ export function DataTable<TData>({
   defaultColumnVisibility?: VisibilityState
   /** Primary add button (e.g. open create sheet). */
   onAddClick?: () => void
+  addButtonTourId?: string
+  tableTourId?: string
+  filterTourId?: string
   /** Notified when table data changes (e.g. CSV import). */
   onDataChange?: (data: TData[]) => void
   showAddButton?: boolean
@@ -1183,7 +1189,7 @@ export function DataTable<TData>({
   }, [table])
 
   const tableContent = (
-    <div className="relative flex flex-col gap-4 overflow-auto">
+    <div className="relative flex flex-col gap-4 overflow-auto" data-tour={tableTourId}>
         {layoutView === "list" || !enableLayoutToggle ? (
           <div className="overflow-hidden rounded-md border">
             <Table>
@@ -1344,7 +1350,10 @@ export function DataTable<TData>({
       <div className="mb-3 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
           {showSearch || showFilters ? (
-            <div className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-md">
+            <div
+              className="flex min-w-0 flex-1 items-center gap-2 sm:max-w-md"
+              data-tour={filterTourId}
+            >
               {showSearch ? (
                 <SearchInput
                   placeholder={resolvedSearchPlaceholder}
@@ -1399,6 +1408,7 @@ export function DataTable<TData>({
               variant="default"
               type="button"
               className="h-9 rounded-full px-5 shadow-sm has-[>svg]:px-5"
+              data-tour={addButtonTourId}
               onClick={() => onAddClick?.()}
             >
               <IconPlus className="size-4 shrink-0" />

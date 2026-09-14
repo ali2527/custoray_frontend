@@ -44,6 +44,7 @@ export function CompanySettingsForm() {
 
   return (
     <SettingsSection
+      data-tour="welcome-company"
       title={t("company.title")}
       description={t("company.description")}
       footer={

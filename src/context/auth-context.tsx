@@ -82,7 +82,7 @@ type AuthContextValue = {
   completeTwoFactor: (code: string) => Promise<LoginResult>
   logout: (redirectTo?: string) => void
   refreshAccess: () => Promise<AccessInfo | null>
-  switchCompany: (tenantId: string) => Promise<void>
+  switchCompany: (companyId: string) => Promise<void>
   createCompany: (businessName: string) => Promise<void>
   canView: boolean
   canEdit: boolean
@@ -94,7 +94,9 @@ const AuthContext = React.createContext<AuthContextValue | null>(null)
 
 function sessionFromMe(me: SessionPayload): AuthSession {
   const membership =
-    me.companies?.find((company) => company.id === me.tenant.id) ?? me.companies?.[0]
+    me.companies?.find((company) => company.id === me.activeCompanyId) ??
+    me.companies?.find((company) => company.id === me.tenant.id) ??
+    me.companies?.[0]
   return {
     userId: me.user.id,
     name: me.user.name,
@@ -110,7 +112,7 @@ function companiesFromMe(me: SessionPayload): CompanyMembership[] {
   if (me.companies?.length) return me.companies
   return [
     {
-      id: me.tenant.id,
+      id: me.activeCompanyId || me.tenant.id,
       name: me.companySettings?.name || me.tenant.name,
       slug: me.tenant.slug,
       plan: me.plan.displayName,
@@ -138,8 +140,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveSession(nextSession)
     setSession(nextSession)
     setCompanies(nextCompanies)
-    setActiveCompanyId(me.tenant.id)
-    saveActiveCompanyId(me.tenant.id)
+    const nextCompanyId =
+      me.activeCompanyId && nextCompanies.some((company) => company.id === me.activeCompanyId)
+        ? me.activeCompanyId
+        : nextCompanies[0]?.id ?? me.tenant.id
+    setActiveCompanyId(nextCompanyId)
+    saveActiveCompanyId(nextCompanyId)
     setAccess(nextAccess)
     return nextAccess
   }, [])
@@ -364,16 +370,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [access, applyRemoteSession])
 
   const switchCompany = React.useCallback(
-    async (tenantId: string) => {
+    async (companyId: string) => {
       if (process.env.NEXT_PUBLIC_API_URL && session) {
-        const me = await apiSwitchCompany(tenantId)
+        const me = await apiSwitchCompany(companyId)
         const nextAccess = applyRemoteSession(me)
         window.location.assign(nextAccess.allowed ? "/home" : "/trial-ended")
         return
       }
 
-      setActiveCompanyId(tenantId)
-      saveActiveCompanyId(tenantId)
+      setActiveCompanyId(companyId)
+      saveActiveCompanyId(companyId)
     },
     [session, applyRemoteSession]
   )

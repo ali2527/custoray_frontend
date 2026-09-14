@@ -47,7 +47,7 @@ const MODULE_LABELS: Record<string, string> = {
   documents: "Documents & invoices",
   pos: "Point of sale",
   qr_storefront: "QR storefront",
-  reports: "Reports & analytics",
+  reports: "Analytics",
   employees: "Employees & payroll",
   tax: "Tax",
   fiscal: "Fiscal year",
@@ -74,7 +74,7 @@ export const PLAN_INCLUDES: Record<string, string[]> = {
   ],
   professional: [
     "Everything in Business",
-    "Reports & analytics",
+    "Analytics",
     "Employees & payroll",
     "Tax",
     "Fiscal year",

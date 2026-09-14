@@ -120,7 +120,7 @@ export default function YearClosingPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card data-tour="welcome-term-create">
           <CardHeader>
             <CardTitle>Current term</CardTitle>
             <CardDescription>

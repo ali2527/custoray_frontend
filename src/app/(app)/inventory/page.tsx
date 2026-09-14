@@ -220,7 +220,7 @@ export default function Inventory() {
       : undefined
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4" data-tour="welcome-inventory-page">
       {viewing && !viewing.isActive && (
         <div
           className="bg-muted/50 text-muted-foreground rounded-lg border px-4 py-3 text-sm"

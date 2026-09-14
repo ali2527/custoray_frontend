@@ -176,7 +176,7 @@ export default function BrandsPage() {
   )
 
   return (
-    <>
+    <div data-tour="welcome-brands-page">
       <DataTable
         data={brandsData}
         columns={brandColumns}
@@ -215,6 +215,6 @@ export default function BrandsPage() {
         type="brand"
         existingValues={brandsData.map((b) => b.name)}
       />
-    </>
+    </div>
   )
 }

@@ -1,9 +1,9 @@
 {
-  "title": "Reports",
-  "sales": "Sales reports",
-  "purchases": "Purchase reports",
-  "inventory": "Inventory reports",
-  "payments": "Payment reports",
+  "title": "Analytics",
+  "sales": "Sales analytics",
+  "purchases": "Purchase analytics",
+  "inventory": "Inventory analytics",
+  "payments": "Payment analytics",
   "presets": {
     "thisMonth": "This month",
     "lastMonth": "Last month",

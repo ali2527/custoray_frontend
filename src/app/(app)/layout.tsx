@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardProviders } from "@/components/dashboard-providers";
 import { SubscriptionGate } from "@/components/saas/subscription-gate";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { WelcomeFlow } from "@/components/welcome/welcome-flow";
 import { SiteHeader } from "@/components/site-header";
 import React from "react";
 
@@ -26,6 +27,7 @@ export default function DashboardLayout({
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
+        <WelcomeFlow />
         <div className="flex flex-1 flex-col">
           <div className="@container/main flex flex-1 flex-col gap-2">
             <div className="flex flex-1 flex-col gap-4 px-4 py-4 md:gap-6 md:py-6 lg:px-6">

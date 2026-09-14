@@ -56,6 +56,7 @@ export function TermSwitcher({ triggerClassName }: { triggerClassName?: string }
               ? t("termSwitcher.selectWithLabel", { label: triggerLabel })
               : t("termSwitcher.select")
           }
+          data-tour="welcome-term"
         >
           <Calendar className="size-4" strokeWidth={2} aria-hidden />
         </Button>

@@ -260,6 +260,7 @@ export function PosCartCheckout({
         type="button"
         className="h-12 w-full text-[15px] font-semibold"
         disabled={disabled || processing}
+        data-tour="welcome-pos-btn"
         onClick={onCompleteSale}
       >
         {actionLabel}

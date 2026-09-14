@@ -66,6 +66,7 @@ type NavKey =
   | "sidebar.salesHistory"
   | "sidebar.returnsHistory"
   | "sidebar.reports"
+  | "sidebar.analytics"
   | "sidebar.settings"
   | "sidebar.employees"
   | "sidebar.team"
@@ -205,7 +206,7 @@ const navMain: NavDef[] = [
   },
   {
     id: "reports",
-    titleKey: "sidebar.reports",
+    titleKey: "sidebar.analytics",
     url: "#",
     icon: FileBarChart,
     items: [
@@ -253,10 +254,24 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           title: t(item.titleKey),
           url: item.url,
           icon: item.icon,
+          tourAnchor:
+            item.id === "dashboard"
+              ? "welcome-nav-dashboard"
+              : item.id === "customers"
+                ? "welcome-nav-customers"
+                : item.id === "sales"
+                  ? "welcome-nav-sales"
+                  : undefined,
           items: item.items?.map((sub) => ({
             title: t(sub.titleKey),
             url: sub.url,
             icon: sub.icon,
+            tourAnchor:
+              sub.url === "/inventory/products"
+                ? "welcome-nav-products"
+                : sub.url === "/pos"
+                  ? "welcome-nav-pos"
+                  : undefined,
           })),
         })),
     [canAdmin, t]

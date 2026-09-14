@@ -29,8 +29,17 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAuth } from "@/context/auth-context"
+import { PhoneCodeSelect } from "@/components/signup/phone-code-select"
 import { SIGNUP_COUNTRIES } from "@/lib/countries"
 import { SIGNUP_INDUSTRIES } from "@/lib/industries"
+import {
+  formatInternationalNumber,
+  formatNationalNumber,
+  isPhoneCountry,
+  phoneProfile,
+  validateSignupPhone,
+} from "@/lib/phone-mask"
+import { queueWelcomeFlow } from "@/lib/welcome-flow"
 import { FALLBACK_PLANS } from "@/lib/subscription-access"
 import { cn } from "@/lib/utils"
 
@@ -39,7 +48,9 @@ const SELECT_TRIGGER = cn(
   "w-full justify-between px-3 font-normal shadow-none data-[size=default]:h-10"
 )
 
-type FieldErrors = Partial<Record<"ownerName" | "email" | "password" | "businessName" | "industry" | "phone" | "terms", string>>
+type FieldErrors = Partial<
+  Record<"ownerName" | "email" | "password" | "businessName" | "industry" | "country" | "phone" | "terms", string>
+>
 
 function planFromUrl(code: string | null | undefined) {
   const match = FALLBACK_PLANS.find((plan) => plan.code === code)
@@ -99,7 +110,8 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
     password: "",
     businessName: "",
     industry: "",
-    country: "Pakistan",
+    country: "",
+    phoneCountry: "",
     phone: "",
   })
 
@@ -116,6 +128,37 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
   function update<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues((prev) => ({ ...prev, [key]: value }))
     setErrors((prev) => ({ ...prev, [key]: undefined }))
+  }
+
+  function setCountry(country: string) {
+    setValues((prev) => {
+      const followCountry = !prev.phoneCountry || prev.phoneCountry === prev.country
+      const phoneCountry = followCountry && isPhoneCountry(country) ? country : prev.phoneCountry
+      return {
+        ...prev,
+        country,
+        phoneCountry,
+        phone: formatNationalNumber(phoneCountry, prev.phone),
+      }
+    })
+    setErrors((prev) => ({ ...prev, country: undefined, phone: undefined }))
+  }
+
+  function setPhoneCountry(phoneCountry: string) {
+    setValues((prev) => ({
+      ...prev,
+      phoneCountry,
+      phone: formatNationalNumber(phoneCountry, prev.phone),
+    }))
+    setErrors((prev) => ({ ...prev, phone: undefined }))
+  }
+
+  function setPhone(raw: string) {
+    setValues((prev) => ({
+      ...prev,
+      phone: formatNationalNumber(prev.phoneCountry || prev.country, raw),
+    }))
+    setErrors((prev) => ({ ...prev, phone: undefined }))
   }
 
   function goToCompany(event: FormEvent<HTMLFormElement>) {
@@ -136,7 +179,11 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
     const next: FieldErrors = {}
     if (values.businessName.trim().length < 2) next.businessName = t("signup.errors.company")
     if (!values.industry) next.industry = t("signup.errors.industry")
-    if (values.phone.trim().length < 7) next.phone = t("signup.errors.phone")
+    if (!values.country) next.country = t("signup.errors.country")
+    const phoneCountry = values.phoneCountry || values.country
+    const phoneError = validateSignupPhone(phoneCountry, values.phone)
+    if (phoneError === "required") next.phone = t("signup.errors.phoneRequired")
+    else if (phoneError === "invalid") next.phone = t("signup.errors.phone")
     if (!acceptedTerms) next.terms = t("signup.errors.terms")
     setErrors(next)
     if (Object.keys(next).length) return
@@ -147,7 +194,7 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
       const result = await signup({
         ownerName: values.ownerName.trim(),
         email: values.email.trim(),
-        phone: values.phone.trim(),
+        phone: formatInternationalNumber(values.phoneCountry || values.country, values.phone),
         country: values.country,
         password: values.password,
         businessName: values.businessName.trim(),
@@ -159,8 +206,8 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
         toast.error(result.error)
         return
       }
-      toast.success(t("signup.toastWelcome"))
-      router.replace(result.accessAllowed ? "/onboarding" : "/trial-ended")
+      queueWelcomeFlow()
+      router.replace(result.accessAllowed ? "/home/?welcome=1" : "/trial-ended")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("signup.toastFailed"))
     } finally {
@@ -331,48 +378,59 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
               </Select>
               <FieldError message={errors.industry} />
             </div>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="grid gap-1.5">
-                <Label htmlFor="country">{t("signup.country")}</Label>
-                <Select
-                  value={values.country}
-                  onValueChange={(value) => update("country", value)}
-                >
-                  <SelectTrigger id="country" className={SELECT_TRIGGER}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SIGNUP_COUNTRIES.map((country) => (
-                      <SelectItem key={country} value={country} className="text-xs">
-                        {country}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            <div className="grid gap-1.5">
+              <Label htmlFor="country">{t("signup.country")}</Label>
+              <Select value={values.country || undefined} onValueChange={setCountry}>
+                <SelectTrigger id="country" className={SELECT_TRIGGER}>
+                  <SelectValue placeholder={t("signup.countryPlaceholder")} />
+                </SelectTrigger>
+                <SelectContent>
+                  {SIGNUP_COUNTRIES.map((country) => (
+                    <SelectItem key={country} value={country} className="text-xs">
+                      {country}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FieldError message={errors.country} />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="phone">
+                {t("signup.phone")}
+                <span className="text-destructive"> *</span>
+              </Label>
+              <div
+                className={cn(
+                  AUTH_INPUT,
+                  "relative flex items-center overflow-hidden px-0",
+                  errors.phone && "border-destructive"
+                )}
+              >
+                <PhoneCodeSelect
+                  value={values.phoneCountry}
+                  onValueChange={setPhoneCountry}
+                  invalid={Boolean(errors.phone)}
+                />
+                <Input
+                  id="phone"
+                  name="phone"
+                  type="tel"
+                  inputMode="numeric"
+                  autoComplete="tel-national"
+                  required
+                  placeholder={phoneProfile(values.phoneCountry || values.country).placeholder}
+                  value={values.phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  aria-invalid={Boolean(errors.phone)}
+                  aria-required="true"
+                  className="h-full min-w-0 w-0 flex-1 rounded-none border-0 bg-transparent px-2 pr-9 text-xs shadow-none focus-visible:ring-0"
+                />
+                <Phone
+                  className="text-muted-foreground pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2"
+                  aria-hidden
+                />
               </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="phone">{t("signup.phone")}</Label>
-                <div className="relative">
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    placeholder={t("signup.phonePlaceholder")}
-                    autoComplete="tel"
-                    required
-                    minLength={7}
-                    value={values.phone}
-                    onChange={(e) => update("phone", e.target.value)}
-                    aria-invalid={Boolean(errors.phone)}
-                    className={`${AUTH_INPUT} pr-10`}
-                  />
-                  <Phone
-                    className="text-muted-foreground pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2"
-                    aria-hidden
-                  />
-                </div>
-                <FieldError message={errors.phone} />
-              </div>
+              <FieldError message={errors.phone} />
             </div>
             <div className="grid gap-1">
               <label className="flex items-center gap-2 text-xs">

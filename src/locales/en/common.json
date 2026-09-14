@@ -247,6 +247,54 @@
     "last3Months": "Last 3 months",
     "last30Days": "Last 30 days",
     "last7Days": "Last 7 days",
+    "periodThisMonth": "This month",
+    "cameIn": "Came in",
+    "cameInTitle": "Purchases received",
+    "cameInHint": "{{count}} received · gross {{amount}}",
+    "wentOut": "Went out",
+    "wentOutTitle": "Sales completed",
+    "wentOutHint": "{{count}} invoices · gross {{amount}}",
+    "netPosition": "Net",
+    "netPositive": "Sales ahead of purchases",
+    "netNegative": "Purchases ahead of sales",
+    "netHint": "Sales out minus purchases in",
+    "activity": "Activity",
+    "activityTitle": "Orders this period",
+    "activityHint": "{{sales}} sales · {{purchases}} purchases",
+    "inVsOut": "Purchases vs sales",
+    "inVsOutHint": "Daily purchases and sales · {{period}}",
+    "chartPurchases": "Purchases",
+    "chartSales": "Sales",
+    "noChartData": "No purchases or sales in this period.",
+    "recentPurchases": "Recent purchases",
+    "latestPurchases": "Latest purchase orders in this period",
+    "noPurchases": "No purchases in this period.",
+    "netSales": "Net sales",
+    "trendingUp": "Trending up this period",
+    "trendingDown": "Softening this period",
+    "grossAfterReturns": "Gross {{amount}} after returns",
+    "invoices": "Invoices",
+    "itemsSold": "{{count}} items sold",
+    "invoicesInPeriod": "{{count}} invoices in this period",
+    "returnRate": "{{rate}}% returns · {{amount}}",
+    "customers": "Customers",
+    "activeCustomers": "Active customers",
+    "customersOnFile": "{{count}} on file",
+    "lowStock": "Low stock",
+    "needsReorder": "Needs reorder attention",
+    "stockHealthy": "Stock levels look healthy",
+    "pendingHint": "{{count}} open invoices · {{amount}} outstanding",
+    "thresholdHint": "Alert at {{threshold}} units or below",
+    "recentSales": "Recent sales",
+    "latestInvoices": "Latest invoices in this period",
+    "noInvoices": "No invoices in this period.",
+    "viewAll": "View all",
+    "lowStockProducts": "Low stock",
+    "reorderSoon": "At or below {{threshold}} units",
+    "noLowStock": "No products are below the stock threshold.",
+    "product": "Product",
+    "sku": "SKU",
+    "stock": "Stock",
     "selectValue": "Select a value",
     "visitors": "Visitors",
     "desktop": "Desktop",
@@ -287,6 +335,150 @@
       "inProcess": "In Process",
       "inProgress": "In Progress",
       "notStarted": "Not Started"
+    }
+  },
+  "welcome": {
+    "congratulations": "Welcome to Custoray",
+    "congratulationsName": "Welcome, {{name}}",
+    "workspaceReady": "Your workspace is ready. You have full access to Custoray.",
+    "noticeLabel": "Welcome notice",
+    "trialNoticeTitle": "{{plan}} trial · {{days}} days",
+    "trialNoticeBody": "Your {{plan}} trial is complimentary through {{date}}. You will not be billed before then.",
+    "paidNoticeBody": "Your {{plan}} plan is active. You can set up your company, books, and first products whenever you are ready.",
+    "trialTitle": "Your free trial is live",
+    "trialBody": "Use this time to set up your company, books, and first products. You will not be billed until the trial ends.",
+    "trialEnds": "Trial ends {{date}}.",
+    "trialBadge": "{{days}} days remaining",
+    "accessFull": "Full access",
+    "summaryPlan": "Plan",
+    "summaryAccess": "Access",
+    "summaryEnds": "Ends",
+    "getStarted": "Get started",
+    "startTour": "Start tour",
+    "tourIntro": "On each page we point out the sidebar link, the table, the add button, and search/filters.",
+    "continue": "Continue",
+    "guide": {
+      "stepOf": "Step {{current}} of {{total}}",
+      "termTitle": "What is a fiscal term?",
+      "termBody": "A term is your accounting period — usually 12 months. Sales, stock, and reports are grouped by the term you are in, like a financial year.",
+      "termCurrent": "Term {{sequence}} is already started for you.",
+      "termLength": "How long should this term run?",
+      "termMonths": "{{months}} months",
+      "termEnds": "Planned end {{date}}",
+      "termHint": "You can change this later from Year closing.",
+      "settingsTitle": "Basic company details",
+      "settingsBody": "These appear on invoices. You can add your logo and address later in Settings.",
+      "companyName": "Company name",
+      "companyPhone": "Phone",
+      "companyEmail": "Email",
+      "readyTitle": "You're ready",
+      "readyTitleName": "You're ready, {{name}}",
+      "readyBody": "Your term and company details are set. Next we'll open the dashboard and walk through each page: sidebar, table, buttons, and filters."
+    },
+    "nextPage": "Next",
+    "prevPage": "Back",
+    "perks": {
+      "dashboard": "Track sales, customers, and activity on your dashboard",
+      "inventory": "Add products, brands, and categories",
+      "customers": "Keep buyers and their history in one place",
+      "pos": "Take payments from the POS register"
+    },
+    "skip": "Skip",
+    "next": "Next",
+    "back": "Previous",
+    "done": "Finish",
+    "progress": "{{current}} of {{total}}",
+    "steps": {
+      "dashboard": {
+        "nav": {
+          "title": "Dashboard",
+          "body": "Open home from the sidebar whenever you want a snapshot of the business."
+        },
+        "table": {
+          "title": "Recent sales",
+          "body": "Latest invoices land here as you sell."
+        },
+        "btn": {
+          "title": "View all",
+          "body": "Jump from this list into the full sales page."
+        },
+        "filter": {
+          "title": "Purchases vs sales",
+          "body": "This chart is the month at a glance — buying versus selling, day by day."
+        }
+      },
+      "products": {
+        "nav": {
+          "title": "Products",
+          "body": "Inventory → Products. This is the catalog you sell from."
+        },
+        "table": {
+          "title": "Product list",
+          "body": "Every item, stock, and price in one table."
+        },
+        "btn": {
+          "title": "Add product",
+          "body": "Use this to create a new item before you take a sale."
+        },
+        "filter": {
+          "title": "Search and filters",
+          "body": "Search by name or SKU, or open filters to narrow the list."
+        }
+      },
+      "customers": {
+        "nav": {
+          "title": "Customers",
+          "body": "People and businesses you sell to live under this sidebar link."
+        },
+        "table": {
+          "title": "Customer list",
+          "body": "Names, balances, and contact details in one table."
+        },
+        "btn": {
+          "title": "Add customer",
+          "body": "Create a customer here, then pick them on a sale or at the POS."
+        },
+        "filter": {
+          "title": "Search and filters",
+          "body": "Find a customer quickly, or filter by status."
+        }
+      },
+      "sales": {
+        "nav": {
+          "title": "Sales",
+          "body": "Invoices and what customers owe — open it from the sidebar."
+        },
+        "table": {
+          "title": "Sales list",
+          "body": "Each row is an invoice. Open one to see lines and payments."
+        },
+        "btn": {
+          "title": "New sale",
+          "body": "Create an invoice from here when it is not a walk-in POS sale."
+        },
+        "filter": {
+          "title": "Search and filters",
+          "body": "Search invoices, or filter by status and date columns."
+        }
+      },
+      "pos": {
+        "nav": {
+          "title": "POS register",
+          "body": "The walk-in counter. Open POS → Register from the sidebar."
+        },
+        "table": {
+          "title": "Catalog",
+          "body": "Tap a product to add it to the cart."
+        },
+        "btn": {
+          "title": "Complete sale",
+          "body": "When the cart is ready, charge the customer with this button."
+        },
+        "filter": {
+          "title": "Search catalog",
+          "body": "Type a name or SKU to find a product fast. Brand tabs sit just below."
+        }
+      }
     }
   }
 }

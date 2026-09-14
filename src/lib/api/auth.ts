@@ -35,6 +35,7 @@ export type SessionPayload = {
   stores: Array<{ id: string; storeId: string; name: string; isDefault: boolean }>;
   branches?: Array<{ id: string; storeId: string; name: string; isDefault: boolean }>;
   organization?: { id: string; name: string; slug: string };
+  activeCompanyId?: string;
   delegatedAccess?: { impersonatedBy: string; mode: "impersonation" } | null;
   companySettings: { name: string; currency: string } | null;
   onboarding: { steps: Record<string, boolean>; completedAt: string | null } | null;
@@ -136,10 +137,10 @@ export async function apiPatchAccount(input: {
   })
 }
 
-export async function apiSwitchCompany(tenantId: string) {
+export async function apiSwitchCompany(companyId: string) {
   return apiFetch<SessionPayload>("/auth/switch-company", {
     method: "POST",
-    body: JSON.stringify({ tenantId }),
+    body: JSON.stringify({ companyId }),
   });
 }
 
