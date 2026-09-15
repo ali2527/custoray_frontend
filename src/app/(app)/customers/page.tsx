@@ -497,14 +497,10 @@ export default function CustomersPage() {
         }}
       />
 
-      <div data-tour="welcome-customers-page">
       <DataTable
         data={customers}
         columns={columns}
         addButtonLabel={t("addButton")}
-        addButtonTourId="welcome-customers-btn"
-        tableTourId="welcome-customers-table"
-        filterTourId="welcome-customers-filter"
         searchPlaceholder={t("search")}
         importRowMapper={mapImportedCustomer}
         importSampleFilename="customers-sample.csv"
@@ -537,7 +533,6 @@ export default function CustomersPage() {
         defaultTab="all"
         tabFilter={customerTabFilter}
       />
-      </div>
     </>
   )
 }

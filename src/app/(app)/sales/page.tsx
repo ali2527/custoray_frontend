@@ -1228,7 +1228,6 @@ export default function SalesReportPage() {
         </SheetContent>
       </Sheet>
 
-      <div data-tour="welcome-sales-page">
       {viewMode === "bill" ? (
         <DataTable
           data={orders}
@@ -1236,9 +1235,6 @@ export default function SalesReportPage() {
           searchPlaceholder={t("search.bills")}
           exportFilename="sales-bills-export.csv"
           addButtonLabel={t("addButton")}
-          addButtonTourId="welcome-sales-btn"
-          tableTourId="welcome-sales-table"
-          filterTourId="welcome-sales-filter"
           onAddClick={openAddSaleSidebar}
           importSampleFilename="sales-sample.csv"
           importSampleCsvContent={salesImportSampleCsv}
@@ -1264,9 +1260,6 @@ export default function SalesReportPage() {
           searchPlaceholder={t("search.items")}
           exportFilename="sales-items-export.csv"
           addButtonLabel={t("addButton")}
-          addButtonTourId="welcome-sales-btn"
-          tableTourId="welcome-sales-table"
-          filterTourId="welcome-sales-filter"
           onAddClick={openAddSaleSidebar}
           importSampleFilename="sales-sample.csv"
           importSampleCsvContent={salesImportSampleCsv}
@@ -1286,7 +1279,6 @@ export default function SalesReportPage() {
           tabFilter={salesLineTabFilter}
         />
       )}
-      </div>
     </>
   )
 }

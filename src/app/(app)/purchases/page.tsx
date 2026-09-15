@@ -1000,7 +1000,6 @@ export default function PurchasesPage() {
         </SheetContent>
       </Sheet>
 
-      <div data-tour="welcome-purchases-page">
       {viewMode === "bill" ? (
           <DataTable
             data={purchases}
@@ -1066,7 +1065,6 @@ export default function PurchasesPage() {
             tabFilter={purchaseLineTabFilter}
           />
         )}
-      </div>
     </>
   )
 }

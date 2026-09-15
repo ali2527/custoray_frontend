@@ -645,16 +645,14 @@ export function PosTerminal() {
                   walkInCustomerId={WALK_IN_CUSTOMER_ID}
                   className="w-full shrink-0 sm:w-[220px] lg:w-[240px]"
                 />
-                <div className="min-w-0 flex-1" data-tour="welcome-pos-filter">
-                  <SearchInput
-                    ref={searchInputRef}
-                    placeholder={t("searchCatalog")}
-                    value={search}
-                    onChange={(event) => setSearch(event.target.value)}
-                    icon={<IconSearch className="size-4" />}
-                    className={cn(searchInputClass, "min-w-0 flex-1")}
-                  />
-                </div>
+                <SearchInput
+                  ref={searchInputRef}
+                  placeholder={t("searchCatalog")}
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  icon={<IconSearch className="size-4" />}
+                  className={cn(searchInputClass, "min-w-0 flex-1")}
+                />
               </div>
               <p className="text-muted-foreground hidden shrink-0 px-1 text-xs tabular-nums xl:block">
                 {filteredProducts.length}{" "}
@@ -677,10 +675,7 @@ export function PosTerminal() {
             />
 
             {filteredProducts.length > 0 ? (
-              <div
-                data-tour="welcome-pos-catalog"
-                className="bg-muted/20 min-h-[18rem] flex-1 overflow-y-auto p-3"
-              >
+              <div className="bg-muted/20 min-h-[18rem] flex-1 overflow-y-auto p-3">
                 <div className={cn("grid auto-rows-fr gap-3", catalogGridClass(settings.catalogColumns))}>
                   {filteredProducts.map((product) => (
                     <PosProductCard
@@ -700,10 +695,7 @@ export function PosTerminal() {
                 </div>
               </div>
             ) : (
-              <div
-                data-tour="welcome-pos-catalog"
-                className="bg-muted/20 flex flex-1 flex-col items-center justify-center gap-2 px-4 py-16 text-center"
-              >
+              <div className="bg-muted/20 flex flex-1 flex-col items-center justify-center gap-2 px-4 py-16 text-center">
                 <div className="bg-muted/60 text-muted-foreground flex size-12 items-center justify-center rounded-2xl">
                   {isSale ? (
                     <IconShoppingCart className="size-5" />

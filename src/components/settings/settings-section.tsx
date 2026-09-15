@@ -14,7 +14,6 @@ type SettingsSectionProps = {
   footer?: ReactNode
   className?: string
   contentClassName?: string
-  "data-tour"?: string
 }
 
 export function SettingsSection({
@@ -27,11 +26,9 @@ export function SettingsSection({
   footer,
   className,
   contentClassName,
-  "data-tour": dataTour,
 }: SettingsSectionProps) {
   return (
     <section
-      data-tour={dataTour}
       className={cn(
         "bg-card shadow-sm shadow-black/[0.04] ring-1 ring-border/40",
         compact ? "rounded-xl" : "rounded-2xl",

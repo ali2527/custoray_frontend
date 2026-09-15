@@ -513,7 +513,6 @@ export default function CategoriesPage() {
           ) : null}
         </SheetContent>
       </Sheet>
-      <div data-tour="welcome-categories-page">
       <DataTable
         data={rows}
         columns={columns}
@@ -567,7 +566,6 @@ export default function CategoriesPage() {
         defaultTab="all"
         tabFilter={categoryTabFilter}
       />
-      </div>
     </>
   )
 }

@@ -5,6 +5,7 @@ import Link from "next/link"
 import { useTranslation } from "react-i18next"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 
+import { SetupProgressCard } from "@/components/dashboard/setup-progress-card"
 import { SectionCards, type DashboardStat } from "@/components/section-cards"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -175,7 +176,7 @@ function InOutChart({
   } satisfies ChartConfig
 
   return (
-    <div className={cn(panelClass, "overflow-hidden")} data-tour="welcome-dashboard-chart">
+    <div className={cn(panelClass, "overflow-hidden")}>
       <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-2">
         <div>
           <p className="text-sm font-semibold tracking-tight">
@@ -254,7 +255,7 @@ function RecentSales({ orders }: { orders: OrderRow[] }) {
   const { t: tr } = useTranslation("reports")
 
   return (
-    <div className={cn(panelClass, "overflow-hidden")}>
+    <div className={cn(panelClass, "h-full overflow-hidden")}>
       <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
         <div>
           <p className="text-sm font-semibold tracking-tight">
@@ -265,41 +266,42 @@ function RecentSales({ orders }: { orders: OrderRow[] }) {
           </p>
         </div>
         <Button variant="ghost" size="sm" className="h-8 shrink-0 px-2.5" asChild>
-          <Link href="/sales" data-tour="welcome-dashboard-btn">{t("dashboard.viewAll")}</Link>
+          <Link href="/sales">{t("dashboard.viewAll")}</Link>
         </Button>
       </div>
 
-      {orders.length === 0 ? (
-        <p
-          data-tour="welcome-dashboard-table"
-          className="text-muted-foreground flex items-center justify-center px-5 py-12 text-center text-sm"
-        >
-          {t("dashboard.noInvoices")}
-        </p>
-      ) : (
-        <div className="border-border/50 border-t" data-tour="welcome-dashboard-table">
-          <Table>
-            <TableHeader>
+      <div className="border-border/50 border-t">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
+                {tr("salesPage.invoice")}
+              </TableHead>
+              <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
+                {tr("salesPage.customer")}
+              </TableHead>
+              <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
+                {tr("salesPage.date")}
+              </TableHead>
+              <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
+                {tr("salesPage.status")}
+              </TableHead>
+              <TableHead className="text-muted-foreground h-10 px-4 text-right text-[11px] font-semibold tracking-wide uppercase">
+                {tr("salesPage.total")}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {orders.length === 0 ? (
               <TableRow className="hover:bg-transparent">
-                <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
-                  {tr("salesPage.invoice")}
-                </TableHead>
-                <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
-                  {tr("salesPage.customer")}
-                </TableHead>
-                <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
-                  {tr("salesPage.date")}
-                </TableHead>
-                <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
-                  {tr("salesPage.status")}
-                </TableHead>
-                <TableHead className="text-muted-foreground h-10 px-4 text-right text-[11px] font-semibold tracking-wide uppercase">
-                  {tr("salesPage.total")}
-                </TableHead>
+                <TableCell colSpan={5} className="p-0">
+                  <div className="text-muted-foreground flex min-h-[14rem] items-center justify-center px-5 text-center text-sm">
+                    {t("dashboard.noInvoices")}
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {orders.map((order) => {
+            ) : (
+              orders.map((order) => {
                 const pos = isPosOrder(order)
                 return (
                   <TableRow key={order.id} className="border-border/50">
@@ -342,11 +344,11 @@ function RecentSales({ orders }: { orders: OrderRow[] }) {
                     </TableCell>
                   </TableRow>
                 )
-              })}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+              })
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }
@@ -356,7 +358,7 @@ function RecentPurchases({ purchases }: { purchases: PurchaseRow[] }) {
   const { t: tr } = useTranslation("reports")
 
   return (
-    <div className={cn(panelClass, "overflow-hidden")}>
+    <div className={cn(panelClass, "h-full overflow-hidden")}>
       <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-3">
         <div>
           <p className="text-sm font-semibold tracking-tight">
@@ -371,34 +373,38 @@ function RecentPurchases({ purchases }: { purchases: PurchaseRow[] }) {
         </Button>
       </div>
 
-      {purchases.length === 0 ? (
-        <p className="text-muted-foreground flex items-center justify-center px-5 py-12 text-center text-sm">
-          {t("dashboard.noPurchases")}
-        </p>
-      ) : (
-        <div className="border-border/50 border-t">
-          <Table>
-            <TableHeader>
+      <div className="border-border/50 border-t">
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
+                {tr("purchasesPage.poNumber")}
+              </TableHead>
+              <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
+                {tr("purchasesPage.vendor")}
+              </TableHead>
+              <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
+                {tr("purchasesPage.date")}
+              </TableHead>
+              <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
+                {tr("purchasesPage.status")}
+              </TableHead>
+              <TableHead className="text-muted-foreground h-10 px-4 text-right text-[11px] font-semibold tracking-wide uppercase">
+                {tr("purchasesPage.total")}
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {purchases.length === 0 ? (
               <TableRow className="hover:bg-transparent">
-                <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
-                  {tr("purchasesPage.poNumber")}
-                </TableHead>
-                <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
-                  {tr("purchasesPage.vendor")}
-                </TableHead>
-                <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
-                  {tr("purchasesPage.date")}
-                </TableHead>
-                <TableHead className="text-muted-foreground h-10 px-4 text-[11px] font-semibold tracking-wide uppercase">
-                  {tr("purchasesPage.status")}
-                </TableHead>
-                <TableHead className="text-muted-foreground h-10 px-4 text-right text-[11px] font-semibold tracking-wide uppercase">
-                  {tr("purchasesPage.total")}
-                </TableHead>
+                <TableCell colSpan={5} className="p-0">
+                  <div className="text-muted-foreground flex min-h-[14rem] items-center justify-center px-5 text-center text-sm">
+                    {t("dashboard.noPurchases")}
+                  </div>
+                </TableCell>
               </TableRow>
-            </TableHeader>
-            <TableBody>
-              {purchases.map((purchase) => (
+            ) : (
+              purchases.map((purchase) => (
                 <TableRow key={purchase.id} className="border-border/50">
                   <TableCell className="px-4 py-3 font-medium tabular-nums">
                     {purchase.purchaseNumber}
@@ -426,11 +432,11 @@ function RecentPurchases({ purchases }: { purchases: PurchaseRow[] }) {
                     {formatDashMoney(purchase.totalAmount)}
                   </TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </div>
   )
 }
@@ -528,8 +534,9 @@ export function HomeDashboard() {
   ]
 
   return (
-    <div key={i18n.language} className="flex flex-col gap-4" data-tour="welcome-dashboard-page">
+    <div key={i18n.language} className="flex flex-col gap-4">
       <SectionCards stats={stats} />
+      <SetupProgressCard />
 
       <InOutChart data={inOutData} periodLabel={periodLabel} />
 

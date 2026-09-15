@@ -176,7 +176,7 @@ export default function BrandsPage() {
   )
 
   return (
-    <div data-tour="welcome-brands-page">
+    <div>
       <DataTable
         data={brandsData}
         columns={brandColumns}

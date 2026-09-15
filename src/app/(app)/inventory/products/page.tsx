@@ -1142,14 +1142,10 @@ export default function ProductsPage() {
         setLookupDefaults((prev) => ({ ...prev, brand: value }))
       }}
     />
-    <div data-tour="welcome-products-page">
     <DataTable
       data={products}
       columns={columns}
       addButtonLabel={t("addButton")}
-      addButtonTourId="welcome-products-btn"
-      tableTourId="welcome-products-table"
-      filterTourId="welcome-products-filter"
       onAddClick={() => {
         setAddFormKey((k) => k + 1)
         setSidebar({ mode: "add" })
@@ -1185,7 +1181,6 @@ export default function ProductsPage() {
       defaultTab="all"
       tabFilter={productTabFilter}
     />
-    </div>
     </>
   )
 }

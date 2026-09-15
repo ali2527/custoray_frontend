@@ -292,6 +292,18 @@
     "lowStockProducts": "Low stock",
     "reorderSoon": "At or below {{threshold}} units",
     "noLowStock": "No products are below the stock threshold.",
+    "setup": {
+      "title": "Your setup progress",
+      "hint": "Complete a few quick steps to set up your workspace.",
+      "completedOf": "{{completed}} of {{total}} completed",
+      "start": "Start setup",
+      "completed": "Completed",
+      "settings": "Business settings",
+      "product": "Add a product",
+      "customer": "Add a customer",
+      "invoice": "Create an invoice",
+      "addProduct": "Add product"
+    },
     "product": "Product",
     "sku": "SKU",
     "stock": "Stock",
@@ -353,30 +365,65 @@
     "summaryPlan": "Plan",
     "summaryAccess": "Access",
     "summaryEnds": "Ends",
-    "getStarted": "Get started",
-    "startTour": "Start tour",
-    "tourIntro": "On each page we point out the sidebar link, the table, the add button, and search/filters.",
+    "getStarted": "Go to dashboard",
+    "letsGetStarted": "Let's get started",
     "continue": "Continue",
     "guide": {
       "stepOf": "Step {{current}} of {{total}}",
-      "termTitle": "What is a fiscal term?",
-      "termBody": "A term is your accounting period — usually 12 months. Sales, stock, and reports are grouped by the term you are in, like a financial year.",
-      "termCurrent": "Term {{sequence}} is already started for you.",
+      "termTitle": "Create your first term",
+      "termBody": "A term is your accounting period — usually 12 months, like a financial year. Sales, stock, and reports stay grouped in this term until you close it.",
       "termLength": "How long should this term run?",
       "termMonths": "{{months}} months",
       "termEnds": "Planned end {{date}}",
       "termHint": "You can change this later from Year closing.",
-      "settingsTitle": "Basic company details",
-      "settingsBody": "These appear on invoices. You can add your logo and address later in Settings.",
-      "companyName": "Company name",
-      "companyPhone": "Phone",
-      "companyEmail": "Email",
+      "displayTitle": "Personalize your workspace",
+      "displayBody": "Choose the look and feel that works for you.",
+      "languageLabel": "Language",
+      "fontLabel": "Font size",
+      "themeModeLabel": "Theme",
+      "themeLabel": "Primary color",
+      "productTitle": "Add your first product",
+      "productLead": "A name and price are enough to start. You can add more later from Inventory.",
+      "productBody": "This product will appear in sales, POS, and inventory.",
+      "productName": "Product name",
+      "productNamePlaceholder": "e.g. Cotton shirt",
+      "productNameRequired": "Enter a product name.",
+      "productSku": "SKU",
+      "productSkuPlaceholder": "Auto-generated if empty",
+      "productPrice": "Sale price",
+      "productSubmit": "Add product",
+      "listsTitle": "How should lists look?",
+      "listsBody": "By invoice shows one row per bill (by customer). By item shows one row per product line. You can still switch this on each page.",
+      "salesList": "Sales",
+      "purchasesList": "Purchases",
+      "listBill": "By invoice",
+      "listBillHint": "One row per bill, grouped by customer.",
+      "listItem": "By item",
+      "listItemHint": "One row per product line.",
       "readyTitle": "You're ready",
       "readyTitleName": "You're ready, {{name}}",
-      "readyBody": "Your term and company details are set. Next we'll open the dashboard and walk through each page: sidebar, table, buttons, and filters."
+      "readyBody": "Your workspace is set. Open the dashboard to add products and start selling.",
+      "readyRecap": "Here's what you chose",
+      "readyTerm": "Term length",
+      "readyLanguage": "Language",
+      "readyFont": "Font size",
+      "readySales": "Sales list",
+      "readyPurchases": "Purchases list"
     },
-    "nextPage": "Next",
-    "prevPage": "Back",
+    "milestones": {
+      "welcomeLabel": "Welcome",
+      "termLabel": "Term",
+      "lookLabel": "Look",
+      "productLabel": "Product",
+      "welcome": "Welcome to Custoray",
+      "welcomeHint": "Next, set your accounting term.",
+      "term": "Term saved",
+      "termHint": "Sales, stock, and reports will use this period.",
+      "appearance": "Look saved",
+      "appearanceHint": "Language, text size, and color are ready.",
+      "product": "First product added",
+      "productHint": "You can add more anytime from Inventory."
+    },
     "perks": {
       "dashboard": "Track sales, customers, and activity on your dashboard",
       "inventory": "Add products, brands, and categories",
@@ -384,101 +431,9 @@
       "pos": "Take payments from the POS register"
     },
     "skip": "Skip",
+    "skipForNow": "Skip for now",
     "next": "Next",
     "back": "Previous",
-    "done": "Finish",
-    "progress": "{{current}} of {{total}}",
-    "steps": {
-      "dashboard": {
-        "nav": {
-          "title": "Dashboard",
-          "body": "Open home from the sidebar whenever you want a snapshot of the business."
-        },
-        "table": {
-          "title": "Recent sales",
-          "body": "Latest invoices land here as you sell."
-        },
-        "btn": {
-          "title": "View all",
-          "body": "Jump from this list into the full sales page."
-        },
-        "filter": {
-          "title": "Purchases vs sales",
-          "body": "This chart is the month at a glance — buying versus selling, day by day."
-        }
-      },
-      "products": {
-        "nav": {
-          "title": "Products",
-          "body": "Inventory → Products. This is the catalog you sell from."
-        },
-        "table": {
-          "title": "Product list",
-          "body": "Every item, stock, and price in one table."
-        },
-        "btn": {
-          "title": "Add product",
-          "body": "Use this to create a new item before you take a sale."
-        },
-        "filter": {
-          "title": "Search and filters",
-          "body": "Search by name or SKU, or open filters to narrow the list."
-        }
-      },
-      "customers": {
-        "nav": {
-          "title": "Customers",
-          "body": "People and businesses you sell to live under this sidebar link."
-        },
-        "table": {
-          "title": "Customer list",
-          "body": "Names, balances, and contact details in one table."
-        },
-        "btn": {
-          "title": "Add customer",
-          "body": "Create a customer here, then pick them on a sale or at the POS."
-        },
-        "filter": {
-          "title": "Search and filters",
-          "body": "Find a customer quickly, or filter by status."
-        }
-      },
-      "sales": {
-        "nav": {
-          "title": "Sales",
-          "body": "Invoices and what customers owe — open it from the sidebar."
-        },
-        "table": {
-          "title": "Sales list",
-          "body": "Each row is an invoice. Open one to see lines and payments."
-        },
-        "btn": {
-          "title": "New sale",
-          "body": "Create an invoice from here when it is not a walk-in POS sale."
-        },
-        "filter": {
-          "title": "Search and filters",
-          "body": "Search invoices, or filter by status and date columns."
-        }
-      },
-      "pos": {
-        "nav": {
-          "title": "POS register",
-          "body": "The walk-in counter. Open POS → Register from the sidebar."
-        },
-        "table": {
-          "title": "Catalog",
-          "body": "Tap a product to add it to the cart."
-        },
-        "btn": {
-          "title": "Complete sale",
-          "body": "When the cart is ready, charge the customer with this button."
-        },
-        "filter": {
-          "title": "Search catalog",
-          "body": "Type a name or SKU to find a product fast. Brand tabs sit just below."
-        }
-      }
-    }
+    "done": "Finish"
   }
 }
