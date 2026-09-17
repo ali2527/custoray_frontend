@@ -82,7 +82,10 @@ export function CustomerDetail({
           />
         </div>
       ) : (
-        <div className="bg-muted/40 text-muted-foreground mx-auto flex size-28 flex-col items-center justify-center rounded-2xl border border-dashed">
+        <div
+          className="bg-muted/40 text-muted-foreground mx-auto flex size-28 flex-col items-center justify-center rounded-2xl border border-dashed"
+          aria-label={t("viewSheet.noPhoto")}
+        >
           <IconUser className="size-10 opacity-70" />
         </div>
       )}

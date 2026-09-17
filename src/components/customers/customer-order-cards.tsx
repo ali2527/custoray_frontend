@@ -45,9 +45,7 @@ function OrderCard({ order, compact }: { order: OrderRow; compact?: boolean }) {
               {formatDate(order.orderDate)}
             </p>
           </div>
-          <Badge variant="outline">
-            {tc(`status.${order.status}`)}
-          </Badge>
+          <Badge variant="outline">{tc(`status.${order.status}`)}</Badge>
         </div>
         {compact ? null : (
           <p className="text-muted-foreground line-clamp-2 text-xs">
@@ -121,10 +119,12 @@ function ReturnCard({ doc, compact }: { doc: ReturnRow; compact?: boolean }) {
             {t("timeline.return")}
           </Badge>
         </div>
-        <p className="text-muted-foreground line-clamp-2 text-xs">
-          {itemPreview}
-          {extraItems > 0 ? ` +${extraItems}` : ""}
-        </p>
+        {compact ? null : (
+          <p className="text-muted-foreground line-clamp-2 text-xs">
+            {itemPreview}
+            {extraItems > 0 ? ` +${extraItems}` : ""}
+          </p>
+        )}
         <div className="text-xs">
           <p className="text-muted-foreground">{t("timeline.returnAmount")}</p>
           <p className="font-medium tabular-nums text-red-700 dark:text-red-400">
@@ -193,11 +193,19 @@ export function CustomerOrderCards({
 
   return (
     <div className="flex flex-col gap-2">
-      {visible.map((item) =>}
+      {visible.map((item) =>
         item.kind === "invoice" ? (
-          <OrderCard key={`invoice-${item.order.id}`} order={item.order} compact={compact} />
+          <OrderCard
+            key={`invoice-${item.order.id}`}
+            order={item.order}
+            compact={compact}
+          />
         ) : (
-          <ReturnCard key={`return-${item.doc.id}`} doc={item.doc} compact={compact} />
+          <ReturnCard
+            key={`return-${item.doc.id}`}
+            doc={item.doc}
+            compact={compact}
+          />
         )
       )}
     </div>
