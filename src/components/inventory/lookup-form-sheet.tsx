@@ -37,7 +37,10 @@ export function LookupFormSheet({
   onOpenChange: (open: boolean) => void
   type: LookupType
   existingValues: string[]
-  onCreate?: (value: string) => void
+  onCreate?: (
+    value: string,
+    meta?: { description?: string; status?: string }
+  ) => void | Promise<void>
 }) {
   const { t } = useTranslation("inventory")
   const label = t(`columns.${type}`)
@@ -70,7 +73,7 @@ export function LookupFormSheet({
         <form
           id={`lookup-${type}-form`}
           className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-5 text-sm"
-          onSubmit={(e) => {
+          onSubmit={async (e) => {
             e.preventDefault()
             const value = name.trim()
             if (!value) {
@@ -81,13 +84,24 @@ export function LookupFormSheet({
               toast.error(t("lookup.alreadyExists", { label }))
               return
             }
-            onCreate?.(value)
-            toast.success(t("lookup.added", { label }))
-            closeAndReset()
+            try {
+              await onCreate?.(value, {
+                description: description.trim() || undefined,
+                status,
+              })
+              toast.success(t("lookup.added", { label }))
+              closeAndReset()
+            } catch (error) {
+              toast.error(
+                error instanceof Error ? error.message : t("lookup.alreadyExists", { label })
+              )
+            }
           }}
         >
           <div className="flex flex-col gap-2">
-            <Label htmlFor={`lookup-${type}-name`}>{t("lookup.nameLabel", { label })}</Label>
+            <Label htmlFor={`lookup-${type}-name`}>
+              {t("lookup.nameLabel", { label })}
+            </Label>
             <Input
               id={`lookup-${type}-name`}
               value={name}
@@ -97,7 +111,9 @@ export function LookupFormSheet({
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor={`lookup-${type}-description`}>{t("fields.description")}</Label>
+            <Label htmlFor={`lookup-${type}-description`}>
+              {t("fields.description")}
+            </Label>
             <Input
               id={`lookup-${type}-description`}
               value={description}

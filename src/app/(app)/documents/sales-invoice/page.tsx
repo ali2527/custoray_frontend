@@ -37,6 +37,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { useOrders } from "@/context/orders-context"
+import { markSetupMilestone } from "@/lib/setup-progress"
 import { useInvoiceLineReturn } from "@/hooks/use-invoice-line-return"
 import {
   confirmDeleteAction,
@@ -483,6 +484,7 @@ export default function SalesInvoicePage() {
         importSampleFilename="sales-invoices-sample.csv"
         exportFilename="sales-invoices-export.csv"
         onDataChange={setOrders}
+        onRowsImported={() => markSetupMilestone("invoice")}
         onAddClick={() => setSidebar({ mode: "add" })}
         bulkActions={[
           {

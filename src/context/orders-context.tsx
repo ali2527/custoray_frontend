@@ -8,6 +8,7 @@ import {
   nextInvoiceNumber,
   parsePersistedOrders,
 } from "@/lib/orders"
+import { markSetupMilestone } from "@/lib/setup-progress"
 
 type OrdersContextValue = {
   orders: OrderRow[]
@@ -61,6 +62,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       }
       return [...prev, created]
     })
+    markSetupMilestone("invoice")
     return created
   }, [])
 

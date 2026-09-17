@@ -23,7 +23,7 @@ import {
 } from "@/lib/returns"
 import type { CustomerRow } from "@/lib/customers"
 
-function OrderCard({ order }: { order: OrderRow }) {
+function OrderCard({ order, compact }: { order: OrderRow; compact?: boolean }) {
   const { t } = useTranslation("customers")
   const { t: tc } = useTranslation("common")
   const balance = computeBalance(order)
@@ -87,7 +87,7 @@ function OrderCard({ order }: { order: OrderRow }) {
   )
 }
 
-function ReturnCard({ doc }: { doc: ReturnRow }) {
+function ReturnCard({ doc, compact }: { doc: ReturnRow; compact?: boolean }) {
   const { t } = useTranslation("customers")
   const itemPreview = doc.lines
     .slice(0, 2)
@@ -132,7 +132,15 @@ function ReturnCard({ doc }: { doc: ReturnRow }) {
   )
 }
 
-export function CustomerOrderCards({ customer }: { customer: CustomerRow }) {
+export function CustomerOrderCards({
+  customer,
+  limit,
+  compact = false,
+}: {
+  customer: CustomerRow
+  limit?: number
+  compact?: boolean
+}) {
   const { t } = useTranslation("customers")
   const { orders } = useOrders()
   const { returns } = useReturns()
@@ -154,24 +162,34 @@ export function CustomerOrderCards({ customer }: { customer: CustomerRow }) {
     })),
   ].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id)
 
+  const visible = typeof limit === "number" ? timeline.slice(0, limit) : timeline
+
   if (timeline.length === 0) {
     return (
-      <div className="border-border/60 bg-muted/20 flex flex-col items-center gap-2 rounded-lg border border-dashed px-4 py-12 text-center">
+      <div
+        className={
+          compact
+            ? "border-border/60 bg-muted/20 flex flex-col items-center gap-1 rounded-lg border border-dashed px-3 py-8 text-center"
+            : "border-border/60 bg-muted/20 flex flex-col items-center gap-2 rounded-lg border border-dashed px-4 py-12 text-center"
+        }
+      >
         <IconReceipt className="text-muted-foreground size-8 stroke-[1.25]" />
         <p className="text-muted-foreground text-sm">{t("timeline.empty")}</p>
-        <Link
-          href="/documents/sales-invoice"
-          className="text-foreground text-sm font-medium underline-offset-4 hover:underline"
-        >
-          {t("timeline.createInvoice")}
-        </Link>
+        {compact ? null : (
+          <Link
+            href="/documents/sales-invoice"
+            className="text-foreground text-sm font-medium underline-offset-4 hover:underline"
+          >
+            {t("timeline.createInvoice")}
+          </Link>
+        )}
       </div>
     )
   }
 
   return (
     <div className="flex flex-col gap-2">
-      {timeline.map((item) =>
+      {visible.map((item) =>}
         item.kind === "invoice" ? (
           <OrderCard key={`invoice-${item.order.id}`} order={item.order} />
         ) : (

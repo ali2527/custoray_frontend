@@ -58,6 +58,7 @@ import {
   type BillItemViewMode,
 } from "@/lib/app-preferences"
 import { buildSampleCsv } from "@/lib/csv"
+import { markSetupMilestone } from "@/lib/setup-progress"
 import {
   computeBalance,
   computeOrderTotal,
@@ -898,6 +899,7 @@ export default function SalesReportPage() {
         }
         return acc
       })
+      if (added > 0) markSetupMilestone("invoice")
       return added
     },
     [setOrders]

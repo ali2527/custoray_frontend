@@ -1,6 +1,6 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { useParams } from "next/navigation"
 import Link from "next/link"
 import { IconArrowLeft } from "@tabler/icons-react"
 import { useTranslation } from "react-i18next"
@@ -8,16 +8,17 @@ import { useTranslation } from "react-i18next"
 import { CustomerAvatar } from "@/components/customers/customer-avatar"
 import { CustomerOrderCards } from "@/components/customers/customer-order-cards"
 import { Button } from "@/components/ui/button"
+import { PageLoader } from "@/components/ui/page-loader"
 import { useCustomers } from "@/context/customers-context"
 import { computeBalance, formatMoney } from "@/lib/customers"
-import { pathMatch } from "@/lib/route-ids"
 
 export default function CustomerTimelinePage() {
-  const pathname = usePathname()
-  const id = pathMatch(pathname, /^\/customers\/([^/]+)\/timeline$/)
+  const params = useParams<{ id: string }>()
   const { t } = useTranslation("customers")
-  const { getCustomer } = useCustomers()
-  const customer = getCustomer(Number(id))
+  const { getCustomer, loading } = useCustomers()
+  const customer = getCustomer(Number(params.id))
+
+  if (loading) return <PageLoader />
 
   if (!customer) {
     return (

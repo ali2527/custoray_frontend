@@ -138,6 +138,19 @@
     "showBalanceHistory": "Show customer balance in customer history",
     "showBalanceHistoryDesc": "Include opening and closing balances in the full customer record."
   },
+  "products": {
+    "title": "Product SKUs",
+    "description": "Choose whether new products get an automatic SKU or you enter one yourself.",
+    "autoTitle": "Auto SKU",
+    "autoDescription": "Assign the next SKU with your prefix. Imports ignore the SKU column.",
+    "customTitle": "Custom SKU",
+    "customDescription": "Enter SKUs yourself when adding or importing products.",
+    "prefix": "SKU prefix",
+    "prefixPlaceholder": "SKU",
+    "prefixHint": "New products will use {{first}}, then {{second}}, and so on.",
+    "customHint": "Add and import products with your own SKU values. The SKU column is required on upload.",
+    "tableHint": "These options apply when you add or import products."
+  },
   "preferences": {
     "title": "App preferences",
     "description": "Default views and behavior across the app.",

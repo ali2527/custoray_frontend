@@ -40,6 +40,7 @@ import { CompanySwitcher } from "@/components/company-switcher"
 import { PlanStatusCard } from "@/components/saas/plan-status-card"
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/auth-context"
+import { useCatalogFieldSettings } from "@/hooks/use-catalog-field-settings"
 import { cn } from "@/lib/utils"
 
 type NavKey =
@@ -246,6 +247,7 @@ function SidebarBrand() {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { canAdmin } = useAuth()
   const { t } = useTranslation("nav")
+  const { settings: catalogTables } = useCatalogFieldSettings()
   const navItems = React.useMemo(
     () =>
       navMain
@@ -254,13 +256,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           title: t(item.titleKey),
           url: item.url,
           icon: item.icon,
-          items: item.items?.map((sub) => ({
-            title: t(sub.titleKey),
-            url: sub.url,
-            icon: sub.icon,
-          })),
+          items: item.items
+            ?.filter((sub) => {
+              if (sub.url === "/inventory/brands") return catalogTables.brand
+              if (sub.url === "/inventory/categories") return catalogTables.category
+              if (sub.url === "/inventory/variants") return catalogTables.variant
+              return true
+            })
+            .map((sub) => ({
+              title: t(sub.titleKey),
+              url: sub.url,
+              icon: sub.icon,
+            })),
         })),
-    [canAdmin, t]
+    [canAdmin, catalogTables, t]
   )
   const [isRtl, setIsRtl] = React.useState(false)
 

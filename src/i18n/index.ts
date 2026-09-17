@@ -141,6 +141,14 @@ function getInitialLanguage() {
   return isAppLanguage(language) ? language : DEFAULT_LANGUAGE
 }
 
+function applyResourceBundles() {
+  for (const [lng, namespaces] of Object.entries(resources)) {
+    for (const [ns, bundle] of Object.entries(namespaces)) {
+      i18n.addResourceBundle(lng, ns, bundle, true, true)
+    }
+  }
+}
+
 if (!i18n.isInitialized) {
   void i18n.init({
     resources,
@@ -151,8 +159,10 @@ if (!i18n.isInitialized) {
     interpolation: { escapeValue: false },
     returnNull: false,
     initImmediate: false,
-    react: { useSuspense: false, bindI18n: "languageChanged loaded" },
+    react: { useSuspense: false, bindI18n: "languageChanged loaded added" },
   } as InitOptions)
+} else {
+  applyResourceBundles()
 }
 
 export default i18n

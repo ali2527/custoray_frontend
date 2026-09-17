@@ -1,10 +1,9 @@
 "use client"
 
-import { useEffect, useState, type FormEvent, type ReactNode } from "react"
+import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { toast } from "sonner"
 
-import { Monitor, Moon, Sun } from "lucide-react"
+import { CalendarRange, Check, Monitor, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Input } from "@/components/ui/input"
@@ -18,24 +17,16 @@ import {
 } from "@/components/ui/select"
 import { useAppearance } from "@/components/theme/appearance-provider"
 import { useFiscalTerms } from "@/context/fiscal-term-context"
-import { useProducts } from "@/context/products-context"
 import {
   ACCENT_PRESETS,
   LANGUAGES,
   type AppLanguage,
   type FontSizeKey,
 } from "@/lib/appearance-prefs"
-import {
-  INVENTORY_PRODUCTS_STORAGE_KEY,
-  productFromFormData,
-  productSchema,
-  type ProductRow,
-} from "@/lib/products"
 import { addMonthsIso, formatShortDate } from "@/lib/fiscal-terms"
 import { cn } from "@/lib/utils"
 
-export const WELCOME_SETUP_STEPS = 4
-export const WELCOME_PRODUCT_FORM_ID = "welcome-first-product"
+export const WELCOME_SETUP_STEPS = 3
 
 const TENURE_OPTIONS = [6, 12, 24] as const
 const FONT_OPTIONS: FontSizeKey[] = ["sm", "base", "lg", "xl"]
@@ -47,65 +38,19 @@ const PRESET_I18N_KEY: Record<string, "green" | "red" | "blue" | "purple" | "nav
   violet: "navy",
 }
 
-function Pill({
-  selected,
-  children,
-  onClick,
-}: {
-  selected: boolean
-  children: ReactNode
-  onClick: () => void
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "h-8 rounded-full border px-3 text-[12.5px] font-medium transition-colors",
-        selected
-          ? "border-primary bg-primary text-primary-foreground"
-          : "border-border bg-background text-foreground hover:bg-muted/60"
-      )}
-    >
-      {children}
-    </button>
-  )
-}
-
-function persistInventoryProduct(product: ProductRow) {
-  if (typeof window === "undefined") return
+function toDateInputValue(iso: string): string {
   try {
-    const raw = window.localStorage.getItem(INVENTORY_PRODUCTS_STORAGE_KEY)
-    let list: ProductRow[] = []
-    if (raw) {
-      const parsed = productSchema.array().safeParse(JSON.parse(raw))
-      if (parsed.success) list = parsed.data
-    }
-    if (list.some((item) => item.sku === product.sku || item.name === product.name)) {
-      list = list.map((item) =>
-        item.sku === product.sku || item.name === product.name ? product : item
-      )
-    } else {
-      list = [...list, product]
-    }
-    window.localStorage.setItem(INVENTORY_PRODUCTS_STORAGE_KEY, JSON.stringify(list))
+    return new Date(iso).toISOString().slice(0, 10)
   } catch {
-    /* ignore */
+    return ""
   }
 }
 
-export function WelcomeSetupBody({
-  step,
-  onProductCreated,
-}: {
-  step: number
-  onProductCreated?: () => void
-}) {
+export function WelcomeSetupBody({ step }: { step: number }) {
   const { t } = useTranslation("common")
   const { t: tSettings } = useTranslation("settings")
-  const { state, updateActiveTenure } = useFiscalTerms()
+  const { state, updateActiveTenure, updateActiveStart } = useFiscalTerms()
   const { prefs, update: updateAppearance } = useAppearance()
-  const { products, addProduct } = useProducts()
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
   const [tenure, setTenure] = useState(state.active.tenureMonths || 12)
@@ -118,7 +63,10 @@ export function WelcomeSetupBody({
     setTenure(state.active.tenureMonths || 12)
   }, [state.active.tenureMonths])
 
-  const plannedEnd = formatShortDate(addMonthsIso(state.active.startedAt, tenure))
+  const startValue = toDateInputValue(state.active.startedAt)
+  const plannedEndIso = addMonthsIso(state.active.startedAt, tenure)
+  const plannedEnd = formatShortDate(plannedEndIso)
+  const startLabel = formatShortDate(state.active.startedAt)
   const fontLabels: Record<FontSizeKey, string> = {
     sm: tSettings("language.fontSizeSm"),
     base: tSettings("language.fontSizeBase"),
@@ -126,62 +74,82 @@ export function WelcomeSetupBody({
     xl: tSettings("language.fontSizeXl"),
   }
 
-  function handleProductSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const fd = new FormData(event.currentTarget)
-    const name = String(fd.get("name") ?? "").trim()
-    if (!name) {
-      toast.error(t("welcome.guide.productNameRequired"))
-      return
-    }
-    const parsed = productFromFormData(fd, 0, products)
-    const created = addProduct({
-      sku: parsed.sku,
-      name: parsed.name,
-      brand: parsed.brand,
-      category: parsed.category,
-      variant: parsed.variant,
-      status: parsed.status,
-      productStatus: parsed.productStatus,
-      stock: parsed.stock,
-      orders: parsed.orders,
-      costPrice: parsed.costPrice,
-      salePrice: parsed.salePrice,
-      lifecycle: parsed.lifecycle,
-      imageUrls: parsed.imageUrls,
-    })
-    persistInventoryProduct(created)
-    onProductCreated?.()
-  }
-
   if (step === 1) {
     return (
-      <div className="space-y-4">
+      <div className="space-y-5">
         <p className="text-foreground/80 text-[13px] leading-relaxed">
           {t("welcome.guide.termBody")}
         </p>
-        <div>
+
+        <div className="space-y-2">
           <p className="text-[13px] font-medium">{t("welcome.guide.termLength")}</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {TENURE_OPTIONS.map((months) => (
-              <Pill
-                key={months}
-                selected={tenure === months}
-                onClick={() => {
-                  setTenure(months)
-                  updateActiveTenure(months)
-                }}
-              >
-                {t("welcome.guide.termMonths", { months })}
-              </Pill>
-            ))}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            {TENURE_OPTIONS.map((months) => {
+              const selected = tenure === months
+              const recommended = months === 12
+              return (
+                <button
+                  key={months}
+                  type="button"
+                  onClick={() => {
+                    setTenure(months)
+                    updateActiveTenure(months)
+                  }}
+                  className={cn(
+                    "relative rounded-xl border px-3 py-3 text-start transition-colors",
+                    selected
+                      ? "border-primary bg-primary/8 ring-1 ring-primary/40"
+                      : "border-border bg-background hover:bg-muted/50"
+                  )}
+                >
+                  {selected ? (
+                    <span className="bg-primary text-primary-foreground absolute end-2.5 top-2.5 flex size-5 items-center justify-center rounded-full">
+                      <Check className="size-3" strokeWidth={3} />
+                    </span>
+                  ) : null}
+                  <p className="text-[13px] font-semibold">
+                    {t("welcome.guide.termMonths", { months })}
+                  </p>
+                  <p className="text-muted-foreground mt-1 text-[12px] leading-snug">
+                    {t(`welcome.guide.termOption${months}`)}
+                  </p>
+                  {recommended ? (
+                    <p className="text-primary mt-2 text-[11px] font-medium">
+                      {t("welcome.guide.termRecommended")}
+                    </p>
+                  ) : null}
+                </button>
+              )
+            })}
           </div>
-          <p className="text-muted-foreground mt-2 text-[12px]">
-            {t("welcome.guide.termEnds", { date: plannedEnd })}
-          </p>
-          <p className="text-muted-foreground mt-1 text-[12px]">
-            {t("welcome.guide.termHint")}
-          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="welcome-term-start" className="text-[12.5px]">
+            {t("welcome.guide.termStart")}
+          </Label>
+          <Input
+            id="welcome-term-start"
+            type="date"
+            value={startValue}
+            onChange={(event) => {
+              if (event.target.value) updateActiveStart(event.target.value)
+            }}
+            className="h-10"
+          />
+        </div>
+
+        <div className="bg-primary/8 border-primary/20 flex items-start gap-3 rounded-xl border px-3.5 py-3">
+          <CalendarRange className="text-primary mt-0.5 size-4 shrink-0" />
+          <div>
+            <p className="text-[13px] font-medium">{t("welcome.guide.termSummaryTitle")}</p>
+            <p className="text-muted-foreground mt-0.5 text-[12.5px] leading-relaxed">
+              {t("welcome.guide.termSummary", { start: startLabel, end: plannedEnd })}
+            </p>
+            <p className="text-muted-foreground mt-1 text-[12px]">
+              {t("welcome.guide.termHint")}
+            </p>
+          </div>
         </div>
       </div>
     )
@@ -290,55 +258,6 @@ export function WelcomeSetupBody({
           </Select>
         </div>
       </div>
-    )
-  }
-
-  if (step === 3) {
-    return (
-      <form
-        id={WELCOME_PRODUCT_FORM_ID}
-        className="space-y-4"
-        onSubmit={handleProductSubmit}
-      >
-        <p className="text-foreground/80 text-[13px] leading-relaxed">
-          {t("welcome.guide.productBody")}
-        </p>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${WELCOME_PRODUCT_FORM_ID}-name`} className="text-[12.5px]">
-            {t("welcome.guide.productName")}
-          </Label>
-          <Input
-            id={`${WELCOME_PRODUCT_FORM_ID}-name`}
-            name="name"
-            required
-            placeholder={t("welcome.guide.productNamePlaceholder")}
-          />
-        </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${WELCOME_PRODUCT_FORM_ID}-sku`} className="text-[12.5px]">
-              {t("welcome.guide.productSku")}
-            </Label>
-            <Input
-              id={`${WELCOME_PRODUCT_FORM_ID}-sku`}
-              name="sku"
-              placeholder={t("welcome.guide.productSkuPlaceholder")}
-            />
-          </div>
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${WELCOME_PRODUCT_FORM_ID}-salePrice`} className="text-[12.5px]">
-              {t("welcome.guide.productPrice")}
-            </Label>
-            <Input
-              id={`${WELCOME_PRODUCT_FORM_ID}-salePrice`}
-              name="salePrice"
-              required
-              inputMode="decimal"
-              placeholder="100.00"
-            />
-          </div>
-        </div>
-      </form>
     )
   }
 

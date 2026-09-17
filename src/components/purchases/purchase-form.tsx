@@ -162,7 +162,7 @@ export function PurchaseForm({ formId, purchase, onSubmit }: PurchaseFormProps) 
   }, [])
 
   const handleAddProduct = useCallback(
-    (e: FormEvent<HTMLFormElement>) => {
+    async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault()
       if (quickAdd?.type !== "product") return
 
@@ -173,13 +173,17 @@ export function PurchaseForm({ formId, purchase, onSubmit }: PurchaseFormProps) 
         return
       }
 
-      const created = addProduct(parsed)
-      updateLine(quickAdd.lineIndex, {
-        productName: created.name,
-        unitPrice: created.costPrice,
-      })
-      setQuickAdd(null)
-      toast.success("Product added.")
+      try {
+        const created = await addProduct(parsed)
+        updateLine(quickAdd.lineIndex, {
+          productName: created.name,
+          unitPrice: created.costPrice,
+        })
+        setQuickAdd(null)
+        toast.success("Product added.")
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not save product.")
+      }
     },
     [addProduct, products, quickAdd, updateLine]
   )

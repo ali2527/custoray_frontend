@@ -4,6 +4,8 @@ import { useCallback, useMemo, useState, type FormEvent } from "react"
 import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import {
+  IconBan,
+  IconCircleCheck,
   IconCopy,
   IconDotsVertical,
   IconEye,
@@ -30,6 +32,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { PageLoader } from "@/components/ui/page-loader"
 import {
   Sheet,
   SheetClose,
@@ -44,13 +47,20 @@ import {
   confirmDeleteAction,
   confirmDuplicateAction,
 } from "@/lib/confirm-action"
+import { buildSampleCsv } from "@/lib/csv"
 import {
   computeBalance,
+  customerErrorMessage,
   customerFromFormData,
+  customerTabFilter,
+  CUSTOMER_IMPORT_COLUMNS,
+  CUSTOMER_IMPORT_SAMPLE_ROW,
+  CUSTOMER_STATUS_OPTIONS,
   EMPTY_CUSTOMER,
   formatMoney,
-  mapImportedCustomer,
+  mapImportedCustomerWrite,
   type CustomerRow,
+  type CustomerStatus,
 } from "@/lib/customers"
 
 type CustomerSidebarState =
@@ -58,11 +68,6 @@ type CustomerSidebarState =
   | { mode: "edit"; customer: CustomerRow }
   | { mode: "add" }
   | null
-
-function customerTabFilter(row: CustomerRow, tab: string) {
-  if (tab === "all") return true
-  return row.status === tab
-}
 
 function getCustomerColumns(
   t: TFunction<"customers">,
@@ -135,7 +140,7 @@ function getCustomerColumns(
       ),
       cell: ({ row }) => (
         <span className="text-muted-foreground text-sm leading-snug whitespace-normal">
-          {row.original.description}
+          {row.original.description || "—"}
         </span>
       ),
       meta: { dataTableFilter: false, cellClassName: "whitespace-normal max-w-xs" },
@@ -204,7 +209,9 @@ function getCustomerColumns(
         <DataTableColumnHeader column={column} title={t("columns.phone")} />
       ),
       cell: ({ row }) => (
-        <span className="text-muted-foreground tabular-nums text-xs">{row.original.phone}</span>
+        <span className="text-muted-foreground tabular-nums text-xs">
+          {row.original.phone || "—"}
+        </span>
       ),
       meta: { dataTableFilter: false },
     },
@@ -247,7 +254,7 @@ function getCustomerColumns(
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => onViewRecord(row.original)}>
               <IconFileText />
-              {t("record")}
+              {t("actions.viewRecord")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openCustomerSidebar(row.original, "edit")}>
               <IconPencil />
@@ -274,11 +281,14 @@ export default function CustomersPage() {
   const router = useRouter()
   const {
     customers,
-    setCustomers,
+    loading,
     addCustomer,
     updateCustomer,
     removeCustomer,
     duplicateCustomer,
+    removeMany,
+    setStatus,
+    bulkCreate,
   } = useCustomers()
   const [sidebar, setSidebar] = useState<CustomerSidebarState>(null)
   const [recordCustomer, setRecordCustomer] = useState<CustomerRow | null>(null)
@@ -295,13 +305,17 @@ export default function CustomersPage() {
       ) {
         return
       }
-      removeCustomer(customer.id)
-      if (sidebar?.mode !== "add" && sidebar?.customer.id === customer.id) {
-        closeSidebar()
+      try {
+        await removeCustomer(customer.id)
+        if (sidebar?.mode !== "add" && sidebar?.customer.id === customer.id) {
+          closeSidebar()
+        }
+        toast.success(t("toasts.removedNamed", { name: customer.name }))
+      } catch (error) {
+        toast.error(customerErrorMessage(error, t("toasts.saveFailed")))
       }
-      toast.message(t("toasts.removedNamed", { name: customer.name }))
     },
-    [removeCustomer, sidebar]
+    [removeCustomer, sidebar, t]
   )
 
   const handleDuplicate = useCallback(
@@ -314,14 +328,18 @@ export default function CustomersPage() {
       ) {
         return
       }
-      const copy = duplicateCustomer(customer.id)
-      if (copy) toast.success(t("toasts.duplicatedNamed", { name: customer.name }))
+      try {
+        const copy = await duplicateCustomer(customer.id)
+        if (copy) toast.success(t("toasts.duplicatedNamed", { name: customer.name }))
+      } catch (error) {
+        toast.error(customerErrorMessage(error, t("toasts.saveFailed")))
+      }
     },
-    [duplicateCustomer]
+    [duplicateCustomer, t]
   )
 
   const handleSubmit = useCallback(
-    (e: FormEvent<HTMLFormElement>) => {
+    async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault()
       const fd = new FormData(e.currentTarget)
       const name = String(fd.get("name") ?? "").trim()
@@ -330,23 +348,64 @@ export default function CustomersPage() {
         return
       }
 
-      if (sidebar?.mode === "add") {
-        addCustomer(customerFromFormData(fd, 0))
-        toast.success(t("toasts.created"))
-        closeSidebar()
-        return
-      }
+      try {
+        if (sidebar?.mode === "add") {
+          await addCustomer(customerFromFormData(fd, EMPTY_CUSTOMER))
+          toast.success(t("toasts.created"))
+          closeSidebar()
+          return
+        }
 
-      if (sidebar?.mode === "edit" && sidebar.customer) {
-        updateCustomer(
-          sidebar.customer.id,
-          customerFromFormData(fd, sidebar.customer.id)
-        )
-        toast.success(t("toasts.saved"))
-        closeSidebar()
+        if (sidebar?.mode === "edit" && sidebar.customer) {
+          await updateCustomer(
+            sidebar.customer.id,
+            customerFromFormData(fd, sidebar.customer)
+          )
+          toast.success(t("toasts.saved"))
+          closeSidebar()
+        }
+      } catch (error) {
+        toast.error(customerErrorMessage(error, t("toasts.saveFailed")))
       }
     },
-    [sidebar, addCustomer, updateCustomer]
+    [sidebar, addCustomer, updateCustomer, t]
+  )
+
+  const handleImportRows = useCallback(
+    async (imported: Record<string, string>[]) => {
+      const payload = imported
+        .map((row) => mapImportedCustomerWrite(row))
+        .filter((row): row is NonNullable<typeof row> => row != null)
+        .slice(0, 100)
+      if (payload.length === 0) return 0
+      const res = await bulkCreate(payload)
+      const added = res.added ?? res.items?.length ?? 0
+      const failed = imported.length - payload.length + (res.errors?.length ?? 0)
+      if (failed > 0) {
+        toast.error(t("toasts.importPartial", { added, failed }))
+      }
+      return added
+    },
+    [bulkCreate, t]
+  )
+
+  const handleBulkStatus = useCallback(
+    async (selected: CustomerRow[], status: CustomerStatus, successMessage: string) => {
+      const ids = selected.map((row) => row.apiId).filter(Boolean)
+      if (ids.length === 0) return
+      const result = await setStatus(ids, status)
+      if (result.failed > 0) {
+        toast.error(
+          t("toasts.importPartial", {
+            added: result.updated,
+            failed: result.failed,
+          })
+        )
+        return
+      }
+      toast.success(successMessage)
+    },
+    [setStatus, t]
   )
 
   const columns = useMemo(
@@ -369,7 +428,9 @@ export default function CustomersPage() {
   ]
 
   const sheetCustomer =
-    sidebar && sidebar.mode !== "add" ? sidebar.customer : null
+    sidebar && sidebar.mode !== "add"
+      ? (customers.find((row) => row.id === sidebar.customer.id) ?? sidebar.customer)
+      : null
   const formCustomer =
     sidebar?.mode === "add" ? EMPTY_CUSTOMER : sheetCustomer ?? EMPTY_CUSTOMER
   const formId =
@@ -378,6 +439,8 @@ export default function CustomersPage() {
       : sheetCustomer
         ? `customer-edit-${sheetCustomer.id}`
         : "customer-edit"
+
+  if (loading) return <PageLoader />
 
   return (
     <>
@@ -390,7 +453,7 @@ export default function CustomersPage() {
         <SheetContent
           side="right"
           className={`flex w-full flex-col gap-0 overflow-hidden p-0 ${
-            sidebar?.mode === "view" ? "sm:max-w-lg" : "sm:max-w-md"
+            sidebar?.mode === "view" ? "sm:max-w-xl" : "sm:max-w-md"
           }`}
         >
           {sidebar ? (
@@ -413,8 +476,10 @@ export default function CustomersPage() {
                     </>
                   ) : sheetCustomer ? (
                     <>
-                      ID {sheetCustomer.id}
-                      {sheetCustomer.phone ? ` · ${sheetCustomer.phone}` : ""}
+                      {t(`status.${sheetCustomer.status}`, { ns: "common" })}
+                      {sheetCustomer.phone && sheetCustomer.phone !== "—"
+                        ? ` · ${sheetCustomer.phone}`
+                        : ""}
                     </>
                   ) : null}
                 </SheetDescription>
@@ -428,7 +493,13 @@ export default function CustomersPage() {
                 className="min-h-0 flex-1 overflow-y-auto px-6 py-5"
               >
                 {sidebar.mode === "view" && sheetCustomer ? (
-                  <CustomerDetail customer={sheetCustomer} />
+                  <CustomerDetail
+                    customer={sheetCustomer}
+                    onViewTimeline={() =>
+                      router.push(`/customers/${sheetCustomer.id}/timeline`)
+                    }
+                    onViewRecord={() => setRecordCustomer(sheetCustomer)}
+                  />
                 ) : sidebar.mode === "edit" || sidebar.mode === "add" ? (
                   <CustomerForm
                     formId={formId}
@@ -438,39 +509,29 @@ export default function CustomersPage() {
                 ) : null}
               </div>
               <SheetFooter className="border-border/60 gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end">
-                {sidebar.mode === "view" ? (
+                {sidebar.mode === "view" && sheetCustomer ? (
                   <>
+                    <SheetClose asChild>
+                      <Button variant="outline" className="w-full sm:w-auto">
+                        {t("actions.close", { ns: "common" })}
+                      </Button>
+                    </SheetClose>
                     <Button
-                      variant="outline"
+                      type="button"
                       className="w-full sm:w-auto"
                       onClick={() =>
-                        sheetCustomer &&
-                        router.push(`/customers/${sheetCustomer.id}/timeline`)
-                      }
-                    >
-                      {t("actions.viewTimeline")}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full sm:w-auto"
-                      onClick={() => sheetCustomer && setRecordCustomer(sheetCustomer)}
-                    >
-                      {t("actions.viewRecord")}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="w-full sm:w-auto"
-                      onClick={() =>
-                        sheetCustomer &&
                         setSidebar({ mode: "edit", customer: sheetCustomer })
                       }
                     >
                       {t("actions.edit")}
                     </Button>
-                    <SheetClose asChild>
-                      <Button className="w-full sm:w-auto">{t("actions.close", { ns: "common" })}</Button>
-                    </SheetClose>
                   </>
+                ) : sidebar.mode === "view" ? (
+                  <SheetClose asChild>
+                    <Button variant="outline" className="w-full sm:w-auto">
+                      {t("actions.close", { ns: "common" })}
+                    </Button>
+                  </SheetClose>
                 ) : (
                   <>
                     <SheetClose asChild>
@@ -500,15 +561,49 @@ export default function CustomersPage() {
       <DataTable
         data={customers}
         columns={columns}
+        settingsKey="customers"
+        showColumnFilters={false}
         addButtonLabel={t("addButton")}
         searchPlaceholder={t("search")}
-        importRowMapper={mapImportedCustomer}
         importSampleFilename="customers-sample.csv"
+        importSampleCsvContent={buildSampleCsv(
+          [...CUSTOMER_IMPORT_COLUMNS],
+          CUSTOMER_IMPORT_SAMPLE_ROW
+        )}
+        importColumns={[...CUSTOMER_IMPORT_COLUMNS]}
+        importSelectColumns={{
+          status: [...CUSTOMER_STATUS_OPTIONS],
+        }}
+        importRequiredSelectColumns={[]}
         exportFilename="customers-export.csv"
-        onDataChange={setCustomers}
+        onImportRows={handleImportRows}
         onAddClick={() => setSidebar({ mode: "add" })}
         defaultColumnVisibility={{ status: false }}
         bulkActions={[
+          {
+            id: "active",
+            label: t("actions.setActive"),
+            icon: <IconCircleCheck className="size-4" />,
+            onClick: (selected) => {
+              void handleBulkStatus(
+                selected,
+                "active",
+                t("toasts.setActiveCount", { count: selected.length })
+              )
+            },
+          },
+          {
+            id: "inactive",
+            label: t("actions.setInactive"),
+            icon: <IconBan className="size-4" />,
+            onClick: (selected) => {
+              void handleBulkStatus(
+                selected,
+                "inactive",
+                t("toasts.setInactiveCount", { count: selected.length })
+              )
+            },
+          },
           {
             id: "delete",
             label: t("actions.deleteSelected"),
@@ -523,9 +618,18 @@ export default function CustomersPage() {
               ) {
                 return
               }
-              const ids = new Set(selected.map((c) => c.id))
-              setCustomers((prev) => prev.filter((r) => !ids.has(r.id)))
-              toast.message(t("toasts.removedCount", { count: selected.length }))
+              const ids = selected.map((row) => row.apiId).filter(Boolean)
+              const result = await removeMany(ids)
+              if (result.failed > 0) {
+                toast.error(
+                  t("toasts.importPartial", {
+                    added: result.deleted,
+                    failed: result.failed,
+                  })
+                )
+                return
+              }
+              toast.success(t("toasts.removedCount", { count: selected.length }))
             },
           },
         ]}

@@ -5,7 +5,6 @@ import Link from "next/link"
 import { useTranslation } from "react-i18next"
 import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
 
-import { SetupProgressCard } from "@/components/dashboard/setup-progress-card"
 import { SectionCards, type DashboardStat } from "@/components/section-cards"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -536,7 +535,6 @@ export function HomeDashboard() {
   return (
     <div key={i18n.language} className="flex flex-col gap-4">
       <SectionCards stats={stats} />
-      <SetupProgressCard />
 
       <InOutChart data={inOutData} periodLabel={periodLabel} />
 

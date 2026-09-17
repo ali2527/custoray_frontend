@@ -46,9 +46,14 @@ import { z } from "zod"
 
 import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTableExportDialog } from "@/components/data-table-export-dialog"
-import { DataTableImportDialog } from "@/components/data-table-import-dialog"
+import { DataTableImportDialog, type ImportSelectColumns } from "@/components/data-table-import-dialog"
 import { useIsMobile } from "@/hooks/use-mobile"
-import { buildSampleCsv } from "@/lib/csv"
+import { buildSampleCsv, pickObjectKeys } from "@/lib/csv"
+import {
+  loadTableSettings,
+  saveTableSettings,
+  type DataTableLayoutView,
+} from "@/lib/data-table-settings"
 import {
   confirmDuplicateAction,
 } from "@/lib/confirm-action"
@@ -525,17 +530,21 @@ function DataTableFiltersPopover<TData>({
   layoutView,
   onLayoutViewChange,
   tableOptionsExtra,
+  showColumnFilters = true,
 }: {
   table: TanStackTable<TData>
   enableLayoutToggle?: boolean
   layoutView?: "list" | "grid"
   onLayoutViewChange?: (view: "list" | "grid") => void
   tableOptionsExtra?: React.ReactNode
+  showColumnFilters?: boolean
 }) {
   const { t } = useTranslation()
-  const columns = filterableLeafColumns(table)
+  const columns = showColumnFilters ? filterableLeafColumns(table) : []
   const hideableColumns = hideableLeafColumns(table)
-  const filterCount = activeColumnFilterCount(table.getState().columnFilters)
+  const filterCount = showColumnFilters
+    ? activeColumnFilterCount(table.getState().columnFilters)
+    : 0
   const showFilters = columns.length > 0
   const showLayoutToggle =
     enableLayoutToggle === true &&
@@ -579,7 +588,7 @@ function DataTableFiltersPopover<TData>({
               type="button"
               variant="ghost"
               size="icon"
-            className="text-muted-foreground hover:bg-muted/50 hover:text-foreground size-9 rounded-r-full rounded-l-none border-0 shadow-none"
+              className="text-muted-foreground hover:bg-muted/50 hover:text-foreground size-9 rounded-r-full rounded-l-none border-0 shadow-none"
               aria-label={t("table.toggleLayout")}
               onClick={() =>
                 onLayoutViewChange(layoutView === "list" ? "grid" : "list")
@@ -610,22 +619,21 @@ function DataTableFiltersPopover<TData>({
                 {t("table.tableOptionsHint")}
               </p>
             </div>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="text-muted-foreground hover:text-foreground h-8 shrink-0 border-border/80 px-2.5 text-xs font-medium"
-              disabled={filterCount === 0}
-              onClick={() => table.resetColumnFilters()}
-            >
-              {t("table.resetFilters")}
-            </Button>
+            {showFilters ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="text-muted-foreground hover:text-foreground h-8 shrink-0 border-border/80 px-2.5 text-xs font-medium"
+                disabled={filterCount === 0}
+                onClick={() => table.resetColumnFilters()}
+              >
+                {t("table.resetFilters")}
+              </Button>
+            ) : null}
           </div>
         </div>
-        <div className="max-h-[min(70vh,28rem)] overflow-y-auto px-4">
-          {tableOptionsExtra ? (
-            <div className="border-border/80 border-b py-3">{tableOptionsExtra}</div>
-          ) : null}
+        <div className="max-h-[min(70vh,32rem)] overflow-y-auto px-4">
           {showColumns ? (
             <div className="border-border/80 space-y-2 border-b py-3">
               <div className="flex items-center justify-between gap-2">
@@ -685,7 +693,7 @@ function DataTableFiltersPopover<TData>({
           {showFilters ? (
             <>
               <p className="text-muted-foreground border-border/80 border-b py-3 text-[11px] font-semibold tracking-wide uppercase">
-                Column filters
+                {t("table.columnFilters")}
               </p>
               <div className="divide-border/80 divide-y">
             {columns.map((column) => {
@@ -806,6 +814,9 @@ function DataTableFiltersPopover<TData>({
             })}
               </div>
             </>
+          ) : null}
+          {tableOptionsExtra ? (
+            <div className="border-border/80 border-t py-3">{tableOptionsExtra}</div>
           ) : null}
         </div>
       </PopoverContent>
@@ -941,19 +952,25 @@ export function DataTable<TData>({
   onTabChange,
   tabFilter,
   enableLayoutToggle = true,
+  settingsKey,
   defaultColumnVisibility,
   onAddClick,
   onDataChange,
+  onRowsImported,
   showAddButton = true,
   showImportButton = true,
   showExportButton = true,
   showSearch = true,
   showFilters = true,
+  showColumnFilters = true,
   toolbarExtra,
   toolbarActions,
   tableOptionsExtra,
   onImportRows,
   importSampleCsvContent,
+  importSelectColumns,
+  importRequiredSelectColumns,
+  importColumns,
 }: {
   data: TData[]
   columns: ColumnDef<TData>[]
@@ -962,6 +979,8 @@ export function DataTable<TData>({
   importRowMapper?: (row: Record<string, string>, existing: TData[]) => TData | null
   importSampleFilename?: string
   exportFilename?: string
+  importSelectColumns?: ImportSelectColumns
+  importRequiredSelectColumns?: string[]
   bulkActions?: DataTableBulkAction<TData>[]
   tabs?: DataTableTab[]
   tab?: string
@@ -970,17 +989,23 @@ export function DataTable<TData>({
   tabFilter?: (row: TData, tabValue: string) => boolean
   /** Pill toggle: list (table) vs grid (card layout). */
   enableLayoutToggle?: boolean
+  /** Persist columns and layout for this table. */
+  settingsKey?: string
   /** Initial column visibility (`false` = hidden). */
   defaultColumnVisibility?: VisibilityState
   /** Primary add button (e.g. open create sheet). */
   onAddClick?: () => void
   /** Notified when table data changes (e.g. CSV import). */
   onDataChange?: (data: TData[]) => void
+  /** Called after a CSV import that added at least one row. */
+  onRowsImported?: (added: number) => void
   showAddButton?: boolean
   showImportButton?: boolean
   showExportButton?: boolean
   showSearch?: boolean
   showFilters?: boolean
+  /** Column filter fields inside table settings. */
+  showColumnFilters?: boolean
   /** Custom controls rendered visibly beside the table search. */
   toolbarExtra?: React.ReactNode
   /** Custom action buttons rendered between Export and Add. */
@@ -988,9 +1013,11 @@ export function DataTable<TData>({
   /** Custom controls rendered at the top of the table options popover. */
   tableOptionsExtra?: React.ReactNode
   /** Custom CSV import handler; return number of rows added. */
-  onImportRows?: (rows: Record<string, string>[]) => number
+  onImportRows?: (rows: Record<string, string>[]) => number | Promise<number>
   /** Override import sample CSV content (e.g. when table rows differ from import shape). */
   importSampleCsvContent?: string
+  /** Keep only these columns from uploaded CSVs (ignores extra fields). */
+  importColumns?: string[]
 }) {
   const { t } = useTranslation()
   const resolvedAddLabel = addButtonLabel ?? t("table.add")
@@ -1028,6 +1055,43 @@ export function DataTable<TData>({
   const [rowSelection, setRowSelection] = React.useState({})
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>(() => defaultColumnVisibility ?? {})
+  const [layoutView, setLayoutView] =
+    React.useState<DataTableLayoutView>("list")
+  const [tableSettingsReady, setTableSettingsReady] = React.useState(
+    () => !settingsKey
+  )
+
+  React.useEffect(() => {
+    if (!settingsKey) return
+    const stored = loadTableSettings(settingsKey)
+    if (stored.columnVisibility) {
+      setColumnVisibility((current) => ({
+        ...current,
+        ...stored.columnVisibility,
+      }))
+    }
+    if (stored.layoutView) setLayoutView(stored.layoutView)
+    setTableSettingsReady(true)
+  }, [settingsKey])
+
+  React.useEffect(() => {
+    if (!settingsKey || !tableSettingsReady) return
+    saveTableSettings(settingsKey, { columnVisibility, layoutView })
+  }, [settingsKey, tableSettingsReady, columnVisibility, layoutView])
+  const resolvedColumnVisibility = React.useMemo(() => {
+    const next: VisibilityState = { ...columnVisibility }
+    for (const col of columnsProp) {
+      if (col.enableHiding === false) {
+        const id =
+          col.id ??
+          ("accessorKey" in col && col.accessorKey != null
+            ? String(col.accessorKey)
+            : undefined)
+        if (id) next[id] = true
+      }
+    }
+    return next
+  }, [columnVisibility, columnsProp])
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
@@ -1057,15 +1121,24 @@ export function DataTable<TData>({
     columns: columnsWithFilter,
     state: {
       sorting,
-      columnVisibility,
+      columnVisibility: resolvedColumnVisibility,
       rowSelection,
       columnFilters,
       pagination,
       globalFilter,
     },
-    getRowId: (row) => {
-      const record = row as { id?: string | number; srNo?: string | number }
-      return String(record.id ?? record.srNo ?? Math.random())
+    getRowId: (row, index) => {
+      const record = row as {
+        id?: string | number
+        srNo?: string | number
+        sku?: string
+      }
+      if (record.id != null && String(record.id) !== "") return String(record.id)
+      if (record.srNo != null && String(record.srNo) !== "") {
+        return `sr-${record.srNo}`
+      }
+      if (record.sku) return `sku-${record.sku}`
+      return `row-${index}`
     },
     enableRowSelection: true,
     enableGlobalFilter: true,
@@ -1095,7 +1168,6 @@ export function DataTable<TData>({
     showSearch || showFilters || Boolean(toolbarExtra) || showToolbarActions
   const [importOpen, setImportOpen] = React.useState(false)
   const [exportOpen, setExportOpen] = React.useState(false)
-  const [layoutView, setLayoutView] = React.useState<"list" | "grid">("list")
 
   const csvKeys = React.useMemo(() => {
     const row = data[0] as Record<string, unknown> | undefined
@@ -1116,15 +1188,17 @@ export function DataTable<TData>({
         return
       }
       if (onImportRows) {
-        const added = onImportRows(rows)
-        queueMicrotask(() => {
+        void Promise.resolve(onImportRows(rows)).then((added) => {
           if (added > 0) {
+            onRowsImported?.(added)
             toast.success(t("toast.importedRows", { count: added }))
           } else {
-            toast.message(
-              t("toast.noRowsAdded")
-            )
+            toast.message(t("toast.noRowsAdded"))
           }
+        }).catch((error: unknown) => {
+          toast.error(
+            error instanceof Error ? error.message : t("toast.noRowsAdded")
+          )
         })
         return
       }
@@ -1139,6 +1213,7 @@ export function DataTable<TData>({
         const added = acc.length - prev.length
         queueMicrotask(() => {
           if (added > 0) {
+            onRowsImported?.(added)
             toast.success(t("toast.importedRows", { count: added }))
           } else {
             toast.message(
@@ -1149,7 +1224,7 @@ export function DataTable<TData>({
         return acc
       })
     },
-    [importRowMapper, onImportRows, updateData]
+    [importRowMapper, onImportRows, onRowsImported, updateData]
   )
 
   const selectedRowCount = table.getFilteredSelectedRowModel().rows.length
@@ -1185,7 +1260,7 @@ export function DataTable<TData>({
   const tableContent = (
     <div className="relative flex flex-col gap-4 overflow-auto">
         {layoutView === "list" || !enableLayoutToggle ? (
-          <div className="overflow-hidden rounded-md border">
+          <div className="overflow-x-auto rounded-md border">
             <Table>
               <TableHeader className="bg-muted sticky top-0 z-10">
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -1328,6 +1403,9 @@ export function DataTable<TData>({
         sampleCsvContent={sampleCsvContent}
         sampleFilename={importSampleFilename}
         onComplete={handleImportComplete}
+        selectColumns={importSelectColumns}
+        requiredSelectColumns={importRequiredSelectColumns}
+        columns={importColumns}
       />
       <DataTableExportDialog
         open={exportOpen}
@@ -1335,9 +1413,10 @@ export function DataTable<TData>({
         rowCount={table.getFilteredRowModel().rows.length}
         filename={exportFilename}
         getRows={() =>
-          table
-            .getFilteredRowModel()
-            .rows.map((r) => ({ ...(r.original as Record<string, unknown>) }))
+          table.getFilteredRowModel().rows.map((r) => {
+            const row = { ...(r.original as Record<string, unknown>) }
+            return importColumns?.length ? pickObjectKeys(row, importColumns) : row
+          })
         }
       />
       {showToolbar ? (
@@ -1354,13 +1433,14 @@ export function DataTable<TData>({
                   className="rounded-full shadow-sm focus-visible:ring-0 focus-visible:ring-offset-0 hover:ring-0 focus:ring-0 focus:outline-none min-w-0 flex-1"
                 />
               ) : null}
-              {showFilters ? (
+              {showFilters || enableLayoutToggle || Boolean(tableOptionsExtra) ? (
                 <DataTableFiltersPopover
                   table={table}
                   enableLayoutToggle={enableLayoutToggle}
                   layoutView={layoutView}
                   onLayoutViewChange={setLayoutView}
                   tableOptionsExtra={tableOptionsExtra}
+                  showColumnFilters={showColumnFilters}
                 />
               ) : null}
             </div>
@@ -1430,7 +1510,7 @@ export function DataTable<TData>({
                     <TabsTrigger
                       key={t.value}
                       value={t.value}
-                      className="text-muted-foreground hover:text-foreground data-[state=active]:text-primary relative z-10 shrink-0 rounded-none border-0 border-b-2 border-transparent bg-transparent px-3 py-2.5 text-sm font-medium shadow-none transition-colors data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:shadow-none"
+                      className="text-muted-foreground hover:text-foreground data-[state=active]:text-primary relative z-10 h-auto flex-none shrink-0 rounded-none border-0 border-b-2 border-transparent bg-transparent px-3 py-2.5 text-sm font-medium shadow-none transition-colors data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:font-semibold data-[state=active]:shadow-none"
                     >
                       {t.label}
                     </TabsTrigger>

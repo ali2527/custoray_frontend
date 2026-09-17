@@ -1,108 +1,130 @@
 "use client"
 
 import * as React from "react"
+
+import { useCustomersQuery } from "@/hooks/use-customers"
 import {
+  mapApiBuyerToRow,
+  toApiCustomerWrite,
   type CustomerRow,
-  CUSTOMERS_STORAGE_KEY,
-  initialCustomers,
-  parsePersistedCustomers,
 } from "@/lib/customers"
 
 type CustomersContextValue = {
   customers: CustomerRow[]
-  setCustomers: React.Dispatch<React.SetStateAction<CustomerRow[]>>
+  loading: boolean
   getCustomer: (id: number) => CustomerRow | undefined
-  addCustomer: (customer: Omit<CustomerRow, "id">) => CustomerRow
-  updateCustomer: (id: number, patch: Partial<CustomerRow>) => void
-  removeCustomer: (id: number) => void
-  duplicateCustomer: (id: number) => CustomerRow | null
+  addCustomer: (customer: Omit<CustomerRow, "id" | "apiId">) => Promise<CustomerRow>
+  updateCustomer: (id: number, patch: Partial<CustomerRow>) => Promise<void>
+  removeCustomer: (id: number) => Promise<void>
+  duplicateCustomer: (id: number) => Promise<CustomerRow | null>
+  removeMany: (ids: string[]) => Promise<{ deleted: number; failed: number }>
+  setStatus: (ids: string[], status: CustomerRow["status"]) => Promise<{
+    updated: number
+    failed: number
+  }>
+  bulkCreate: ReturnType<typeof useCustomersQuery>["bulkCreate"]
 }
 
 const CustomersContext = React.createContext<CustomersContextValue | null>(null)
 
 export function CustomersProvider({ children }: { children: React.ReactNode }) {
-  const [customers, setCustomers] = React.useState<CustomerRow[]>(() => [
-    ...initialCustomers,
-  ])
-  const [hydrated, setHydrated] = React.useState(false)
-
-  React.useEffect(() => {
-    const saved = parsePersistedCustomers(
-      typeof window !== "undefined"
-        ? window.localStorage.getItem(CUSTOMERS_STORAGE_KEY)
-        : null
-    )
-    if (saved) setCustomers(saved)
-    setHydrated(true)
-  }, [])
-
-  React.useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return
-    window.localStorage.setItem(CUSTOMERS_STORAGE_KEY, JSON.stringify(customers))
-  }, [customers, hydrated])
+  const {
+    customers,
+    isLoading,
+    create,
+    update,
+    removeMany,
+    setStatus,
+    bulkCreate,
+  } = useCustomersQuery()
+  const customersRef = React.useRef(customers)
+  customersRef.current = customers
 
   const getCustomer = React.useCallback(
     (id: number) => customers.find((c) => c.id === id),
     [customers]
   )
 
-  const addCustomer = React.useCallback((customer: Omit<CustomerRow, "id">) => {
-    let created = { ...customer, id: 0 } as CustomerRow
-    setCustomers((prev) => {
-      const maxId = prev.reduce((m, x) => Math.max(m, x.id), 0)
-      created = { ...customer, id: maxId + 1 }
-      return [...prev, created]
-    })
-    return created
-  }, [])
+  const addCustomer = React.useCallback(
+    async (customer: Omit<CustomerRow, "id" | "apiId">) => {
+      const saved = await create(toApiCustomerWrite({ ...customer, id: 0, apiId: "" }))
+      return mapApiBuyerToRow(saved, 0)
+    },
+    [create]
+  )
 
-  const updateCustomer = React.useCallback((id: number, patch: Partial<CustomerRow>) => {
-    setCustomers((prev) =>
-      prev.map((c) => (c.id === id ? { ...c, ...patch, id: c.id } : c))
-    )
-  }, [])
-
-  const removeCustomer = React.useCallback((id: number) => {
-    setCustomers((prev) => prev.filter((c) => c.id !== id))
-  }, [])
-
-  const duplicateCustomer = React.useCallback((id: number) => {
-    let copy: CustomerRow | null = null
-    setCustomers((prev) => {
-      const source = prev.find((c) => c.id === id)
-      if (!source) return prev
-      const maxId = prev.reduce((m, x) => Math.max(m, x.id), 0)
-      copy = {
-        ...source,
-        id: maxId + 1,
-        name: `${source.name} (copy)`,
-        openingBalance: "0",
-        totalSales: "0",
-        totalPayments: "0",
-        imageUrl: "",
+  const updateCustomer = React.useCallback(
+    async (id: number, patch: Partial<CustomerRow>) => {
+      const current = customersRef.current.find((c) => c.id === id)
+      if (!current?.apiId) return
+      const next = { ...current, ...patch, id: current.id, apiId: current.apiId }
+      const payload: Partial<ReturnType<typeof toApiCustomerWrite>> = {}
+      if (patch.name !== undefined) payload.name = next.name
+      if (patch.phone !== undefined) payload.phone = next.phone
+      if (patch.description !== undefined) payload.description = next.description
+      if (patch.status !== undefined) payload.status = next.status
+      if (patch.openingBalance !== undefined) {
+        payload.openingBalance = Number(next.openingBalance) || 0
       }
-      return [...prev, copy]
-    })
-    return copy
-  }, [])
+      if (patch.imageUrl !== undefined) payload.imageUrl = next.imageUrl
+      if (Object.keys(payload).length === 0) return
+      await update({ id: current.apiId, data: payload })
+    },
+    [update]
+  )
+
+  const removeCustomer = React.useCallback(
+    async (id: number) => {
+      const current = customersRef.current.find((c) => c.id === id)
+      if (!current?.apiId) return
+      await removeMany([current.apiId])
+    },
+    [removeMany]
+  )
+
+  const duplicateCustomer = React.useCallback(
+    async (id: number) => {
+      const source = customersRef.current.find((c) => c.id === id)
+      if (!source) return null
+      return addCustomer({
+        name: `${source.name} (copy)`,
+        description: source.description,
+        openingBalance: "0.00",
+        totalSales: "0.00",
+        totalPayments: "0.00",
+        phone: source.phone,
+        status: source.status,
+        imageUrl: "",
+      })
+    },
+    [addCustomer]
+  )
 
   const value = React.useMemo(
     () => ({
       customers,
-      setCustomers,
+      loading: isLoading,
       getCustomer,
       addCustomer,
       updateCustomer,
       removeCustomer,
       duplicateCustomer,
+      removeMany,
+      setStatus: (ids: string[], status: CustomerRow["status"]) =>
+        setStatus({ ids, status }),
+      bulkCreate,
     }),
     [
       customers,
+      isLoading,
       getCustomer,
       addCustomer,
       updateCustomer,
       removeCustomer,
       duplicateCustomer,
+      removeMany,
+      setStatus,
+      bulkCreate,
     ]
   )
 

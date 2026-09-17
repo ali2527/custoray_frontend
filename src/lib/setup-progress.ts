@@ -37,11 +37,24 @@ export function saveSetupProgress(progress: SetupProgress) {
   }
 }
 
+export const SETUP_PROGRESS_EVENT = "custoray-setup-progress"
+
+export type SetupProgressEventDetail = {
+  id?: SetupMilestoneId
+  newlyCompleted?: boolean
+}
+
 export function markSetupMilestone(id: SetupMilestoneId) {
-  const next = { ...loadSetupProgress(), [id]: true }
+  const previous = loadSetupProgress()
+  if (previous[id]) return previous
+  const next = { ...previous, [id]: true }
   saveSetupProgress(next)
   if (typeof window !== "undefined") {
-    window.dispatchEvent(new Event("custoray-setup-progress"))
+    window.dispatchEvent(
+      new CustomEvent<SetupProgressEventDetail>(SETUP_PROGRESS_EVENT, {
+        detail: { id, newlyCompleted: true },
+      })
+    )
   }
   return next
 }

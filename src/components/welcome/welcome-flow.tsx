@@ -17,7 +17,6 @@ import {
 import { GreenTrack } from "@/components/welcome/green-progress"
 import {
   WelcomeSetupBody,
-  WELCOME_PRODUCT_FORM_ID,
   WELCOME_SETUP_STEPS,
 } from "@/components/welcome/welcome-setup"
 import { useAuth } from "@/context/auth-context"
@@ -110,22 +109,8 @@ export function WelcomeFlow() {
       setSetupStep(2)
       return
     }
-    if (setupStep === 2) {
-      markSetupMilestone("settings")
-      toast.success(t("welcome.milestones.appearance"))
-      setSetupStep(3)
-      return
-    }
-    const form = document.getElementById(
-      WELCOME_PRODUCT_FORM_ID
-    ) as HTMLFormElement | null
-    form?.requestSubmit()
-  }
-
-  function handleProductCreated() {
     markSetupMilestone("settings")
-    markSetupMilestone("product")
-    toast.success(t("welcome.milestones.product"))
+    toast.success(t("welcome.milestones.appearance"))
     finishSetup()
   }
 
@@ -140,17 +125,15 @@ export function WelcomeFlow() {
       ? t("welcome.guide.termTitle")
       : setupStep === 2
         ? t("welcome.guide.displayTitle")
-        : setupStep === 3
-          ? t("welcome.guide.productTitle")
-          : firstName
-            ? t("welcome.congratulationsName", { name: firstName })
-            : t("welcome.congratulations")
+        : firstName
+          ? t("welcome.congratulationsName", { name: firstName })
+          : t("welcome.congratulations")
 
   const setupDescription =
-    setupStep === 3
-      ? t("welcome.guide.productLead")
-      : setupStep === 2
-        ? t("welcome.guide.displayBody")
+    setupStep === 2
+      ? t("welcome.guide.displayBody")
+      : setupStep === 1
+        ? t("welcome.guide.termLead")
         : setupStep === 0
           ? t("welcome.workspaceReady")
           : null
@@ -250,10 +233,7 @@ export function WelcomeFlow() {
 
           {setupStep >= 1 ? (
             <div className="mt-4">
-              <WelcomeSetupBody
-                step={setupStep}
-                onProductCreated={handleProductCreated}
-              />
+              <WelcomeSetupBody step={setupStep} />
             </div>
           ) : null}
 
@@ -272,7 +252,7 @@ export function WelcomeFlow() {
               {setupStep === 0
                 ? t("welcome.letsGetStarted")
                 : isLastStep
-                  ? t("welcome.guide.productSubmit")
+                  ? t("welcome.getStarted")
                   : t("welcome.continue")}
             </Button>
             <Button

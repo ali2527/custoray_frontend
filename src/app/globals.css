@@ -619,3 +619,50 @@ html:has([data-font='xl']) {
   border-radius: 10px;
   font-weight: 600;
 }
+
+@keyframes setup-step-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes setup-bar-shine {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(180%);
+  }
+}
+
+@keyframes setup-connector-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.setup-step-pop {
+  animation: setup-step-pop 0.55s ease;
+}
+
+.setup-bar-shine {
+  animation: setup-bar-shine 0.85s ease-out;
+}
+
+.setup-connector-run {
+  transform-origin: left;
+  animation: setup-connector-fill 0.6s ease-out forwards;
+}
+
+[dir="rtl"] .setup-connector-run {
+  transform-origin: right;
+}

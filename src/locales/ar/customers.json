@@ -21,6 +21,22 @@
     "email": "البريد الإلكتروني",
     "status": "الحالة"
   },
+  "fields": {
+    "name": "اسم العميل",
+    "namePlaceholder": "شركة أو شخص",
+    "description": "الوصف",
+    "descriptionPlaceholder": "ملاحظات، شروط، شريحة…",
+    "openingBalance": "الرصيد الافتتاحي",
+    "phone": "رقم الهاتف",
+    "phonePlaceholder": "+92 300 1234567",
+    "status": "الحالة"
+  },
+  "images": {
+    "photo": "صورة العميل",
+    "upload": "رفع صورة العميل",
+    "change": "تغيير صورة العميل",
+    "remove": "إزالة صورة العميل"
+  },
   "actions": {
     "view": "عرض",
     "edit": "تعديل",
@@ -29,7 +45,9 @@
     "openMenu": "فتح القائمة",
     "deleteSelected": "حذف المحدد",
     "viewRecord": "عرض السجل",
-    "viewTimeline": "عرض الخط الزمني"
+    "viewTimeline": "عرض الخط الزمني",
+    "setActive": "تعيين كنشط",
+    "setInactive": "تعيين كغير نشط"
   },
   "record": "سجل العميل",
   "timeline": {
@@ -48,17 +66,33 @@
   "sheet": {
     "add": "إضافة عميل",
     "edit": "تعديل العميل",
-    "addDescription": "أدخل بيانات العميل والصورة. الحفظ للتجربة فقط.",
+    "addDescription": "أدخل بيانات العميل والصورة.",
+    "quickAddDescription": "أنشئ عميلاً وحدده في هذا النموذج.",
     "create": "إنشاء عميل",
     "save": "حفظ العميل"
   },
+  "viewSheet": {
+    "noPhoto": "لا توجد صورة للعميل",
+    "account": "الحساب",
+    "details": "التفاصيل",
+    "recent": "النشاط الأخير",
+    "viewAll": "عرض الكل",
+    "outstanding": "المستحق",
+    "credit": "دائن",
+    "settled": "مسدد",
+    "idLabel": "المعرّف {{id}}"
+  },
   "toasts": {
-    "removedNamed": "تم حذف {{name}} (تجريبي).",
-    "duplicatedNamed": "تم تكرار {{name}} (تجريبي).",
+    "removedNamed": "تم حذف {{name}}.",
+    "duplicatedNamed": "تم تكرار {{name}}.",
     "nameRequired": "اسم العميل مطلوب.",
-    "created": "تم إنشاء العميل (تجريبي).",
-    "saved": "تم حفظ العميل (تجريبي).",
-    "removedCount": "تم حذف {{count}} عميل (تجريبي)."
+    "created": "تم إنشاء العميل.",
+    "saved": "تم حفظ العميل.",
+    "saveFailed": "تعذر حفظ العميل.",
+    "removedCount": "تم حذف {{count}} عميل.",
+    "importPartial": "تم استيراد {{added}}، وتعذر استيراد {{failed}}.",
+    "setActiveCount": "تم تعيين {{count}} كنشط.",
+    "setInactiveCount": "تم تعيين {{count}} كغير نشط."
   },
   "entity": {
     "customer": "عميل"

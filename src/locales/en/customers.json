@@ -21,6 +21,22 @@
     "email": "Email",
     "status": "Status"
   },
+  "fields": {
+    "name": "Customer name",
+    "namePlaceholder": "Company or person",
+    "description": "Description",
+    "descriptionPlaceholder": "Notes, terms, segment…",
+    "openingBalance": "Opening balance",
+    "phone": "Phone number",
+    "phonePlaceholder": "+92 300 1234567",
+    "status": "Status"
+  },
+  "images": {
+    "photo": "Customer photo",
+    "upload": "Upload customer photo",
+    "change": "Change customer photo",
+    "remove": "Remove customer photo"
+  },
   "actions": {
     "view": "View",
     "edit": "Edit",
@@ -29,7 +45,9 @@
     "openMenu": "Open menu",
     "deleteSelected": "Delete selected",
     "viewRecord": "View record",
-    "viewTimeline": "View timeline"
+    "viewTimeline": "View timeline",
+    "setActive": "Set active",
+    "setInactive": "Set inactive"
   },
   "record": "Customer record",
   "timeline": {
@@ -48,17 +66,33 @@
   "sheet": {
     "add": "Add customer",
     "edit": "Edit customer",
-    "addDescription": "Fill in customer details and photo. Saving is demo only.",
+    "addDescription": "Fill in customer details and photo.",
+    "quickAddDescription": "Create a customer and select them on this form.",
     "create": "Create customer",
     "save": "Save customer"
   },
+  "viewSheet": {
+    "noPhoto": "No customer photo",
+    "account": "Account",
+    "details": "Details",
+    "recent": "Recent activity",
+    "viewAll": "View all",
+    "outstanding": "Outstanding",
+    "credit": "Credit",
+    "settled": "Settled",
+    "idLabel": "ID {{id}}"
+  },
   "toasts": {
-    "removedNamed": "Removed {{name}} (demo).",
-    "duplicatedNamed": "Duplicated {{name}} (demo).",
+    "removedNamed": "Removed {{name}}.",
+    "duplicatedNamed": "Duplicated {{name}}.",
     "nameRequired": "Customer name is required.",
-    "created": "Customer created (demo).",
-    "saved": "Customer saved (demo).",
-    "removedCount": "Removed {{count}} customer(s) (demo)."
+    "created": "Customer created.",
+    "saved": "Customer saved.",
+    "saveFailed": "Could not save customer.",
+    "removedCount": "Removed {{count}} customer(s).",
+    "importPartial": "{{added}} imported, {{failed}} could not be imported.",
+    "setActiveCount": "Set {{count}} to active.",
+    "setInactiveCount": "Set {{count}} to inactive."
   },
   "entity": {
     "customer": "customer"

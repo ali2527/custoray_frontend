@@ -16,6 +16,7 @@ export type AuthSession = {
   employeeId: number | null
   permissions: EmployeePermissions
   designation?: string
+  tenantId?: string
 }
 
 /** Full-access demo session when no one is signed in. */

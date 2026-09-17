@@ -1,10 +1,12 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import {
   IconAlertTriangleFilled,
   IconArchive,
+  IconBan,
+  IconCircleCheck,
   IconCircleCheckFilled,
   IconCircleXFilled,
   IconCopy,
@@ -19,7 +21,21 @@ import {
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "i18next"
-import { z } from "zod"
+
+import { confirmDeleteAction } from "@/lib/confirm-action"
+import {
+  EMPTY_PRODUCT,
+  MAX_PRODUCT_IMAGES,
+  countAcceptedImageFiles,
+  matchCatalogOption,
+  mapImportedProduct,
+  productFromSidebarForm,
+  productImageUploadValue,
+  productTabFilter,
+  productTabValues,
+  removeProductImageAt,
+  type ProductRow,
+} from "@/lib/inventory-product-rows"
 
 import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTable, type DataTableTab } from "@/components/data-table"
@@ -30,6 +46,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
@@ -53,140 +70,32 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { LookupFormSheet, type LookupType } from "@/components/inventory/lookup-form-sheet"
 import { ProductPriceTimeline } from "@/components/inventory/product-price-timeline"
+import { formatMoney } from "@/lib/customers"
+import { buildSampleCsv } from "@/lib/csv"
 import {
-  ensureInitialProductPriceHistories,
-  recordProductPriceChanges,
-} from "@/lib/product-price-history"
-import data from "../data.json"
+  DEFAULT_PRODUCT_SKU_SETTINGS,
+  PRODUCT_SKU_SETTINGS_EVENT,
+  loadProductSkuSettings,
+  productImportColumns,
+  productImportSampleRow,
+  type ProductSkuSettings,
+} from "@/lib/product-sku-settings"
+import { ApiClientError } from "@/lib/api/client"
+import { PageLoader } from "@/components/ui/page-loader"
+import { useInventoryProducts } from "@/hooks/use-inventory-products"
+import { useCatalogFieldSettings } from "@/hooks/use-catalog-field-settings"
+import { productCatalogImportSelect } from "@/lib/catalog-field-settings"
 
-const INVENTORY_PRODUCTS_STORAGE_KEY = "custoray-inventory-products-v1"
-
-const STOCK_LEVELS = ["In Stock", "Low Stock", "Out of Stock"] as const
+const ADD_NEW_BRAND_VALUE = "__add_new_brand__"
+const ADD_NEW_CATEGORY_VALUE = "__add_new_category__"
+const ADD_NEW_VARIANT_VALUE = "__add_new_variant__"
+const NONE_CATALOG_VALUE = "__none__"
 
 function stockLevelLabel(t: TFunction<"inventory">, level: string) {
   if (level === "In Stock") return t("stockLevel.inStock")
   if (level === "Low Stock") return t("stockLevel.lowStock")
   if (level === "Out of Stock") return t("stockLevel.outOfStock")
   return level
-}
-const PRODUCT_VARIANTS = ["Genuine", "1st Copy", "2nd Copy", "Others"] as const
-const ADD_NEW_BRAND_VALUE = "__add_new_brand__"
-const ADD_NEW_CATEGORY_VALUE = "__add_new_category__"
-const ADD_NEW_VARIANT_VALUE = "__add_new_variant__"
-
-const MIN_PRICE = 100
-const MAX_PRICE = 10000
-
-function clampPriceValue(value: number): number {
-  return Math.min(MAX_PRICE, Math.max(MIN_PRICE, value))
-}
-
-function normalizePriceValue(
-  value: string | number | null | undefined,
-  fallback: number = MIN_PRICE
-): string {
-  const parsed =
-    typeof value === "string" && value.trim() === "" ? Number.NaN : Number(value)
-  const finalValue = Number.isFinite(parsed) ? parsed : fallback
-  return clampPriceValue(finalValue).toFixed(2)
-}
-
-const productSchema = z.object({
-  srNo: z.number(),
-  sku: z.string(),
-  name: z.string(),
-  brand: z.string(),
-  category: z.string(),
-  variant: z.string(),
-  /** Shelf availability: In Stock / Low Stock / Out of Stock */
-  status: z.string(),
-  /** Listing: Active, or none (no status — e.g. inactive lifecycle rows) */
-  productStatus: z.enum(["active", "none"]).default("none"),
-  stock: z.number(),
-  orders: z.number(),
-  costPrice: z.string(),
-  salePrice: z.string(),
-  lifecycle: z.enum(["active", "inactive", "archived"]).default("active"),
-  /** Data URLs or remote URLs for gallery (demo) */
-  imageUrls: z.array(z.string()).default([]),
-})
-
-type ProductRow = z.infer<typeof productSchema>
-
-const productTabValues = ["all", "active", "archived"] as const
-
-function productTabFilter(row: ProductRow, tab: string) {
-  if (tab === "all") return true
-  if (tab === "archived") return row.lifecycle === "archived"
-  if (tab === "active") return row.lifecycle === "active"
-  return true
-}
-
-function mapImportedProduct(
-  row: Record<string, string>,
-  existing: ProductRow[]
-): ProductRow | null {
-  const maxSr = existing.reduce((m, x) => Math.max(m, x.srNo), 0)
-  const srNo = Number(row.srNo)
-  const finalSr = Number.isFinite(srNo) && srNo > 0 ? srNo : maxSr + 1
-  if (!(row.sku ?? "").trim() && !(row.name ?? "").trim()) return null
-  const lc = (row.lifecycle ?? "active").toLowerCase()
-  const lifecycle =
-    lc === "inactive" || lc === "archived" ? lc : "active"
-  const ps = (row.productStatus ?? "").toLowerCase()
-  const productStatus = ps === "active" ? "active" : "none"
-  let imageUrls: string[] = []
-  const rawImgs = row.imageUrls?.trim()
-  if (rawImgs) {
-    try {
-      const parsed = JSON.parse(rawImgs) as unknown
-      if (Array.isArray(parsed)) imageUrls = parsed.filter((x) => typeof x === "string")
-    } catch {
-      /* ignore */
-    }
-  }
-  const importedSalePrice =
-    row.salePrice ?? row["sale price"] ?? row["sale_price"] ?? row.price
-  const normalizedSalePrice = normalizePriceValue(importedSalePrice, MIN_PRICE)
-  const importedCostPrice =
-    row.costPrice ?? row.costprice ?? row["cost price"] ?? row["cost_price"]
-  const normalizedCostPrice = normalizePriceValue(
-    importedCostPrice,
-    Number(normalizedSalePrice) * 0.8
-  )
-  return {
-    srNo: finalSr,
-    sku: row.sku ?? "",
-    name: row.name ?? "",
-    brand: row.brand ?? "",
-    category: row.category ?? row.model ?? "",
-    variant: row.variant ?? row.varient ?? "Others",
-    status: row.status ?? "In Stock",
-    productStatus,
-    stock: Number(row.stock) || 0,
-    orders: Number(row.orders) || 0,
-    costPrice: normalizedCostPrice,
-    salePrice: normalizedSalePrice,
-    lifecycle,
-    imageUrls,
-  }
-}
-
-const EMPTY_PRODUCT: ProductRow = {
-  srNo: 0,
-  sku: "",
-  name: "",
-  brand: "",
-  category: "Electronics",
-  variant: "Others",
-  status: "In Stock",
-  productStatus: "none",
-  stock: 0,
-  orders: 0,
-  costPrice: "100.00",
-  salePrice: "100.00",
-  lifecycle: "active",
-  imageUrls: [],
 }
 
 function ProductViewDetail({
@@ -197,9 +106,11 @@ function ProductViewDetail({
   children: ReactNode
 }) {
   return (
-    <div className="grid grid-cols-[6.5rem_1fr] items-baseline gap-x-3 gap-y-1 text-sm">
-      <dt className="text-muted-foreground">{label}</dt>
-      <dd className="text-foreground min-w-0 font-medium">{children}</dd>
+    <div className="bg-muted/20 flex flex-col gap-1 rounded-lg border px-3 py-2.5">
+      <dt className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+        {label}
+      </dt>
+      <dd className="text-foreground min-w-0 text-sm font-medium">{children}</dd>
     </div>
   )
 }
@@ -213,14 +124,27 @@ function ProductImagesField({
 }) {
   const { t } = useTranslation("inventory")
   const [urls, setUrls] = useState<string[]>(initialUrls)
-  const maxImages = 8
+  const inputRef = useRef<HTMLInputElement>(null)
+  const pendingRef = useRef(new Set<string>())
+  const maxImages = MAX_PRODUCT_IMAGES
   const remainingSlots = Math.max(0, maxImages - urls.length)
   const atImageLimit = remainingSlots === 0
 
+  const resetFileInput = () => {
+    if (inputRef.current) inputRef.current.value = ""
+  }
+
+  const removeAt = (index: number) => {
+    setUrls((current) => removeProductImageAt(current, index))
+    resetFileInput()
+  }
+
   const addFiles = (files: FileList | null) => {
     if (!files?.length) return
-    if (atImageLimit) {
+    const accepted = countAcceptedImageFiles(Array.from(files), urls.length, maxImages)
+    if (accepted.accepted === 0 && urls.length >= maxImages) {
       toast.message(t("toasts.maxImages", { count: maxImages }))
+      resetFileInput()
       return
     }
 
@@ -228,15 +152,28 @@ function ProductImagesField({
     for (const file of Array.from(files)) {
       if (added >= remainingSlots) break
       if (!file.type.startsWith("image/")) continue
+      const id = `${file.name}-${file.size}-${file.lastModified}-${added}`
+      pendingRef.current.add(id)
       const reader = new FileReader()
-      reader.onload = () => setUrls((u) => [...u, String(reader.result)])
+      reader.onload = () => {
+        if (!pendingRef.current.has(id)) return
+        pendingRef.current.delete(id)
+        const dataUrl = String(reader.result)
+        setUrls((current) => {
+          if (current.includes(dataUrl) || current.length >= maxImages) {
+            return current
+          }
+          return [...current, dataUrl]
+        })
+      }
       reader.readAsDataURL(file)
       added += 1
     }
 
-    if (files.length > remainingSlots) {
+    if (accepted.skippedOverLimit > 0) {
       toast.message(t("toasts.onlyImagesAllowed", { count: maxImages }))
     }
+    resetFileInput()
   }
 
   return (
@@ -254,7 +191,7 @@ function ProductImagesField({
               <button
                 type="button"
                 className="bg-background/90 text-foreground hover:bg-destructive/10 hover:text-destructive absolute top-1 right-1 flex size-7 items-center justify-center rounded-md border shadow-sm transition-colors"
-                onClick={() => setUrls((u) => u.filter((_, j) => j !== i))}
+                onClick={() => removeAt(i)}
                 aria-label={t("images.remove")}
               >
                 <IconX className="size-4" />
@@ -290,6 +227,7 @@ function ProductImagesField({
         </label>
       )}
       <Input
+        ref={inputRef}
         id={id}
         type="file"
         accept="image/*"
@@ -298,9 +236,9 @@ function ProductImagesField({
         disabled={atImageLimit}
         onChange={(e) => {
           addFiles(e.target.files)
-          e.target.value = ""
         }}
       />
+      <input type="hidden" name="imageUrls" value={productImageUploadValue(urls)} />
       <p className="text-muted-foreground text-xs">
         {t("images.hint", { count: maxImages })}
       </p>
@@ -308,93 +246,146 @@ function ProductImagesField({
   )
 }
 
-function productFromSidebarForm(fd: FormData, previous: ProductRow): ProductRow {
-  const lifecycleRaw = String(fd.get("lifecycle") ?? previous.lifecycle)
-  const lifecycle =
-    lifecycleRaw === "inactive" || lifecycleRaw === "archived"
-      ? lifecycleRaw
-      : "active"
-  const productStatus =
-    String(fd.get("productStatus") ?? previous.productStatus) === "active"
-      ? "active"
-      : "none"
-  const salePrice = normalizePriceValue(
-    String(fd.get("salePrice") ?? previous.salePrice),
-    Number(previous.salePrice) || MIN_PRICE
-  )
-  return {
-    ...previous,
-    sku: String(fd.get("sku") ?? previous.sku).trim() || previous.sku,
-    name: String(fd.get("name") ?? previous.name).trim() || previous.name,
-    brand: String(fd.get("brand") ?? previous.brand).trim(),
-    category: String(fd.get("category") ?? previous.category).trim() || "Electronics",
-    variant: String(fd.get("variant") ?? previous.variant).trim() || "Others",
-    status: String(fd.get("status") ?? previous.status) || "In Stock",
-    productStatus,
-    stock: Number(fd.get("stock")) || 0,
-    orders: Number(fd.get("orders")) || 0,
-    costPrice: normalizePriceValue(
-      String(fd.get("costPrice") ?? previous.costPrice),
-      Number(salePrice) * 0.8
-    ),
-    salePrice,
-    lifecycle,
-  }
-}
-
-function loadInventoryProducts(): ProductRow[] | null {
-  if (typeof window === "undefined") return null
-  try {
-    const raw = window.localStorage.getItem(INVENTORY_PRODUCTS_STORAGE_KEY)
-    if (!raw) return null
-    const parsed = z.array(productSchema).safeParse(JSON.parse(raw))
-    return parsed.success ? parsed.data : null
-  } catch {
-    return null
-  }
+function apiErrorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiClientError) return error.message
+  if (error instanceof Error) return error.message
+  return fallback
 }
 
 function ProductViewSidebarBody({ item }: { item: ProductRow }) {
   const { t } = useTranslation("inventory")
+  const { settings: tables } = useCatalogFieldSettings()
   const imgs = item.imageUrls ?? []
+  const cost = Number(item.costPrice) || 0
+  const sale = Number(item.salePrice) || 0
+  const margin = sale - cost
+  const marginPct = sale > 0 ? (margin / sale) * 100 : 0
+  const archived = item.lifecycle === "archived"
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       {imgs.length > 0 ? (
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {imgs.map((url, i) => (
-            <div
-              key={i}
-              className="border-border bg-muted aspect-square overflow-hidden rounded-lg border"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={url} alt="" className="size-full object-cover" />
+        <div className="flex flex-col gap-2">
+          <div className="bg-muted aspect-[16/9] overflow-hidden rounded-xl border">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={imgs[0]} alt="" className="size-full object-cover" />
+          </div>
+          {imgs.length > 1 ? (
+            <div className="grid grid-cols-5 gap-2">
+              {imgs.slice(1).map((url, i) => (
+                <div
+                  key={`${i}-${url.slice(0, 24)}`}
+                  className="bg-muted aspect-square overflow-hidden rounded-lg border"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt="" className="size-full object-cover" />
+                </div>
+              ))}
             </div>
-          ))}
+          ) : null}
         </div>
-      ) : null}
-      <div className="flex flex-col gap-3">
-        <ProductViewDetail label={t("fields.sku")}>{item.sku}</ProductViewDetail>
-        <ProductViewDetail label={t("fields.brand")}>{item.brand || "—"}</ProductViewDetail>
-        <ProductViewDetail label={t("fields.category")}>{item.category || "—"}</ProductViewDetail>
-        <ProductViewDetail label={t("fields.variant")}>{item.variant || "—"}</ProductViewDetail>
-        <ProductViewDetail label={t("fields.stock")}>
+      ) : (
+        <div className="bg-muted/40 text-muted-foreground flex aspect-[16/9] flex-col items-center justify-center gap-2 rounded-xl border border-dashed">
+          <IconPhoto className="size-8 opacity-70" />
+          <span className="text-xs font-medium">{t("viewSheet.noImage")}</span>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-1.5">
+        <Badge variant="outline" className="font-mono text-xs">
+          {item.sku || "—"}
+        </Badge>
+        <Badge
+          variant="outline"
+          className={
+            archived
+              ? "border-border text-foreground/80"
+              : "border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+          }
+        >
+          {archived ? t("tabs.archived") : t("tabs.active")}
+        </Badge>
+        <Badge variant="outline" className="text-muted-foreground">
           {stockLevelLabel(t, item.status)}
-        </ProductViewDetail>
-        <ProductViewDetail label={t("fields.qty")}>{item.stock}</ProductViewDetail>
-        <ProductViewDetail label={t("fields.costPrice")}>{item.costPrice}</ProductViewDetail>
-        <ProductViewDetail label={t("fields.salePrice")}>{item.salePrice}</ProductViewDetail>
-        <ProductViewDetail label={t("fields.orders")}>{item.orders}</ProductViewDetail>
-        <ProductViewDetail label={t("fields.lifecycle")}>
-          {t(`tabs.${item.lifecycle}`)}
-        </ProductViewDetail>
-        <ProductViewDetail label={t("fields.status")}>
-          {item.lifecycle === "archived" ? t("tabs.archived") : t("tabs.active")}
-        </ProductViewDetail>
-        <ProductViewDetail label={t("fields.listing")}>
-          {item.productStatus === "active" ? t("listing.active") : t("listing.none")}
-        </ProductViewDetail>
+        </Badge>
       </div>
-      <ProductPriceTimeline sku={item.sku} />
+
+      <div>
+        <h3 className="mb-2 text-sm font-semibold tracking-tight">
+          {t("viewSheet.pricing")}
+        </h3>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="rounded-xl border px-3 py-3">
+            <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              {t("fields.costPrice")}
+            </p>
+            <p className="mt-1 text-sm font-semibold tabular-nums">
+              {formatMoney(item.costPrice)}
+            </p>
+          </div>
+          <div className="rounded-xl border px-3 py-3">
+            <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              {t("fields.salePrice")}
+            </p>
+            <p className="mt-1 text-sm font-semibold tabular-nums">
+              {formatMoney(item.salePrice)}
+            </p>
+          </div>
+          <div className="rounded-xl border px-3 py-3">
+            <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
+              {t("viewSheet.margin")}
+            </p>
+            <p
+              className={`mt-1 text-sm font-semibold tabular-nums ${
+                margin >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600"
+              }`}
+            >
+              {formatMoney(margin.toFixed(2))}
+              <span className="text-muted-foreground ms-1 text-[11px] font-medium">
+                {marginPct.toFixed(0)}%
+              </span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h3 className="mb-2 text-sm font-semibold tracking-tight">
+          {t("viewSheet.details")}
+        </h3>
+        <dl className="grid grid-cols-2 gap-2">
+          {tables.brand ? (
+            <ProductViewDetail label={t("fields.brand")}>
+              {item.brand || "—"}
+            </ProductViewDetail>
+          ) : null}
+          {tables.category ? (
+            <ProductViewDetail label={t("fields.category")}>
+              {item.category || "—"}
+            </ProductViewDetail>
+          ) : null}
+          {tables.variant ? (
+            <ProductViewDetail label={t("fields.variant")}>
+              {item.variant || "—"}
+            </ProductViewDetail>
+          ) : null}
+          <ProductViewDetail label={t("fields.qty")}>{item.stock}</ProductViewDetail>
+          <ProductViewDetail label={t("fields.orders")}>{item.orders}</ProductViewDetail>
+          <ProductViewDetail label={t("fields.sku")}>
+            <span className="font-mono">{item.sku || "—"}</span>
+          </ProductViewDetail>
+          <ProductViewDetail label={t("fields.status")}>
+            {t(`tabs.${item.lifecycle}`)}
+          </ProductViewDetail>
+        </dl>
+      </div>
+
+      <ProductPriceTimeline
+        productId={item.id}
+        sku={item.sku}
+        salePrice={item.salePrice}
+        costPrice={item.costPrice}
+      />
     </div>
   )
 }
@@ -410,6 +401,8 @@ function ProductFormSidebarForm({
   lookupDefaults,
   onRequestAddLookup,
   onSave,
+  skuSettings,
+  existingProducts,
 }: {
   item: ProductRow
   formId: string
@@ -420,17 +413,20 @@ function ProductFormSidebarForm({
   variantOptions: string[]
   lookupDefaults?: Partial<Record<LookupType, string>>
   onRequestAddLookup: (type: LookupType) => void
-  onSave: (product: ProductRow) => void
+  onSave: (product: ProductRow) => void | Promise<void>
+  skuSettings: ProductSkuSettings
+  existingProducts: ProductRow[]
 }) {
   const { t } = useTranslation("inventory")
+  const { settings: tables } = useCatalogFieldSettings()
   const [brandValue, setBrandValue] = useState(
-    item.brand || brandOptions[0] || ""
+    () => matchCatalogOption(item.brand, brandOptions).value
   )
   const [categoryValue, setCategoryValue] = useState(
-    item.category || categoryOptions[0] || ""
+    () => matchCatalogOption(item.category, categoryOptions).value
   )
   const [variantValue, setVariantValue] = useState(
-    item.variant || variantOptions[0] || ""
+    () => matchCatalogOption(item.variant, variantOptions).value
   )
 
   useEffect(() => {
@@ -449,16 +445,33 @@ function ProductFormSidebarForm({
     <form
       id={formId}
       className="flex flex-col gap-4 text-sm"
-      onSubmit={(e) => {
+      onSubmit={async (e) => {
         e.preventDefault()
-        const next = productFromSidebarForm(new FormData(e.currentTarget), item)
+        const next = productFromSidebarForm(
+          new FormData(e.currentTarget),
+          item,
+          { skuSettings, existing: existingProducts, isNew }
+        )
         if (!next.name.trim()) {
           toast.error(t("toasts.nameRequired"))
           return
         }
-        onSave(next)
-        toast.success(isNew ? t("toasts.created") : t("toasts.saved"))
-        onClose()
+        if (skuSettings.mode === "custom" && !next.sku.trim()) {
+          toast.error(t("toasts.skuRequired"))
+          return
+        }
+        if (!tables.brand) next.brand = item.brand
+        if (!tables.category) next.category = item.category
+        if (!tables.variant) next.variant = item.variant
+        try {
+          await onSave(next)
+          toast.success(isNew ? t("toasts.created") : t("toasts.saved"))
+          onClose()
+        } catch (error) {
+          toast.error(
+            error instanceof Error ? error.message : t("toasts.saveFailed")
+          )
+        }
       }}
     >
       <ProductImagesField
@@ -467,163 +480,148 @@ function ProductFormSidebarForm({
         initialUrls={item.imageUrls ?? []}
       />
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${formId}-sku`}>{t("fields.sku")}</Label>
-          <Input id={`${formId}-sku`} name="sku" defaultValue={item.sku} />
-        </div>
+        {skuSettings.mode === "custom" ? (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`${formId}-sku`}>{t("fields.sku")}</Label>
+            <Input id={`${formId}-sku`} name="sku" defaultValue={item.sku} />
+          </div>
+        ) : !isNew ? (
+          <div className="flex flex-col gap-2">
+            <Label>{t("fields.sku")}</Label>
+            <p className="text-muted-foreground bg-muted/50 rounded-md border px-3 py-2 font-mono text-sm">
+              {item.sku}
+            </p>
+          </div>
+        ) : null}
         <div className="flex flex-col gap-2">
           <Label htmlFor={`${formId}-name`}>{t("fields.name")}</Label>
           <Input id={`${formId}-name`} name="name" defaultValue={item.name} />
         </div>
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${formId}-brand`}>{t("fields.brand")}</Label>
-          <Select
-            name="brand-select"
-            value={brandValue}
-            onValueChange={(value) => {
-              if (value === ADD_NEW_BRAND_VALUE) {
-                onRequestAddLookup("brand")
-                return
-              }
-              setBrandValue(value)
-            }}
-          >
-            <SelectTrigger id={`${formId}-brand`} className="w-full">
-              <SelectValue placeholder={t("fields.brand")} />
-            </SelectTrigger>
-            <SelectContent>
-              {brandOptions.map((brand) => (
-                <SelectItem key={brand} value={brand}>
-                  {brand}
+        {tables.brand ? (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`${formId}-brand`}>
+              {t("fields.brand")}
+            </Label>
+            <Select
+              name="brand-select"
+              value={brandValue || NONE_CATALOG_VALUE}
+              onValueChange={(value) => {
+                if (value === ADD_NEW_BRAND_VALUE) {
+                  onRequestAddLookup("brand")
+                  return
+                }
+                setBrandValue(value === NONE_CATALOG_VALUE ? "" : value)
+              }}
+            >
+              <SelectTrigger id={`${formId}-brand`} className="w-full">
+                <SelectValue placeholder={t("form.selectBrand")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_CATALOG_VALUE}>
+                  {t("form.notSelected")}
                 </SelectItem>
-              ))}
-              <SelectItem value={ADD_NEW_BRAND_VALUE}>{t("form.addNewBrand")}</SelectItem>
-            </SelectContent>
-          </Select>
-          <input type="hidden" name="brand" value={brandValue} />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${formId}-category`}>{t("fields.category")}</Label>
-          <Select
-            name="category-select"
-            value={categoryValue}
-            onValueChange={(value) => {
-              if (value === ADD_NEW_CATEGORY_VALUE) {
-                onRequestAddLookup("category")
-                return
-              }
-              setCategoryValue(value)
-            }}
-          >
-            <SelectTrigger id={`${formId}-category`} className="w-full">
-              <SelectValue placeholder={t("fields.category")} />
-            </SelectTrigger>
-            <SelectContent>
-              {categoryOptions.map((category) => (
-                <SelectItem key={category} value={category}>
-                  {category}
+                {brandOptions.map((brand) => (
+                  <SelectItem key={brand} value={brand}>
+                    {brand}
+                  </SelectItem>
+                ))}
+                <SelectItem value={ADD_NEW_BRAND_VALUE}>{t("form.addNewBrand")}</SelectItem>
+              </SelectContent>
+            </Select>
+            <input type="hidden" name="brand" value={brandValue} />
+          </div>
+        ) : (
+          <input type="hidden" name="brand" value={item.brand} />
+        )}
+        {tables.category ? (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`${formId}-category`}>
+              {t("fields.category")}
+            </Label>
+            <Select
+              name="category-select"
+              value={categoryValue || NONE_CATALOG_VALUE}
+              onValueChange={(value) => {
+                if (value === ADD_NEW_CATEGORY_VALUE) {
+                  onRequestAddLookup("category")
+                  return
+                }
+                setCategoryValue(value === NONE_CATALOG_VALUE ? "" : value)
+              }}
+            >
+              <SelectTrigger id={`${formId}-category`} className="w-full">
+                <SelectValue placeholder={t("form.selectCategory")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_CATALOG_VALUE}>
+                  {t("form.notSelected")}
                 </SelectItem>
-              ))}
-              <SelectItem value={ADD_NEW_CATEGORY_VALUE}>
-                {t("form.addNewCategory")}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <input type="hidden" name="category" value={categoryValue} />
-        </div>
+                {categoryOptions.map((category) => (
+                  <SelectItem key={category} value={category}>
+                    {category}
+                  </SelectItem>
+                ))}
+                <SelectItem value={ADD_NEW_CATEGORY_VALUE}>
+                  {t("form.addNewCategory")}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+            <input type="hidden" name="category" value={categoryValue} />
+          </div>
+        ) : (
+          <input type="hidden" name="category" value={item.category} />
+        )}
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${formId}-variant`}>{t("fields.variant")}</Label>
-          <Select
-            name="variant-select"
-            value={variantValue}
-            onValueChange={(value) => {
-              if (value === ADD_NEW_VARIANT_VALUE) {
-                onRequestAddLookup("variant")
-                return
-              }
-              setVariantValue(value)
-            }}
-          >
-            <SelectTrigger id={`${formId}-variant`} className="w-full">
-              <SelectValue placeholder={t("fields.variant")} />
-            </SelectTrigger>
-            <SelectContent>
-              {variantOptions.map((variant) => (
-                <SelectItem key={variant} value={variant}>
-                  {variant}
+        {tables.variant ? (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`${formId}-variant`}>
+              {t("fields.variant")}
+            </Label>
+            <Select
+              name="variant-select"
+              value={variantValue || NONE_CATALOG_VALUE}
+              onValueChange={(value) => {
+                if (value === ADD_NEW_VARIANT_VALUE) {
+                  onRequestAddLookup("variant")
+                  return
+                }
+                setVariantValue(value === NONE_CATALOG_VALUE ? "" : value)
+              }}
+            >
+              <SelectTrigger id={`${formId}-variant`} className="w-full">
+                <SelectValue placeholder={t("form.selectVariant")} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NONE_CATALOG_VALUE}>
+                  {t("form.notSelected")}
                 </SelectItem>
-              ))}
-              <SelectItem value={ADD_NEW_VARIANT_VALUE}>
-                {t("form.addNewVariant")}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <input type="hidden" name="variant" value={variantValue} />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${formId}-lifecycle`}>{t("fields.lifecycle")}</Label>
-          <Select name="lifecycle" defaultValue={item.lifecycle}>
-            <SelectTrigger id={`${formId}-lifecycle`} className="w-full">
-              <SelectValue placeholder={t("fields.lifecycle")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">{t("tabs.active")}</SelectItem>
-              <SelectItem value="inactive">{t("tabs.inactive")}</SelectItem>
-              <SelectItem value="archived">{t("tabs.archived")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${formId}-stock-level`}>{t("fields.stock")}</Label>
-          <Select name="status" defaultValue={item.status}>
-            <SelectTrigger id={`${formId}-stock-level`} className="w-full">
-              <SelectValue placeholder={t("fields.stock")} />
-            </SelectTrigger>
-            <SelectContent>
-              {STOCK_LEVELS.map((v) => (
-                <SelectItem key={v} value={v}>
-                  {stockLevelLabel(t, v)}
+                {variantOptions.map((variant) => (
+                  <SelectItem key={variant} value={variant}>
+                    {variant}
+                  </SelectItem>
+                ))}
+                <SelectItem value={ADD_NEW_VARIANT_VALUE}>
+                  {t("form.addNewVariant")}
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${formId}-listing`}>{t("fields.listing")}</Label>
-          <Select name="productStatus" defaultValue={item.productStatus}>
-            <SelectTrigger id={`${formId}-listing`} className="w-full">
-              <SelectValue placeholder={t("fields.listing")} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="active">{t("listing.active")}</SelectItem>
-              <SelectItem value="none">{t("listing.none")}</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              </SelectContent>
+            </Select>
+            <input type="hidden" name="variant" value={variantValue} />
+          </div>
+        ) : (
+          <input type="hidden" name="variant" value={item.variant} />
+        )}
         <div className="flex flex-col gap-2">
           <Label htmlFor={`${formId}-qty`}>{t("fields.qty")}</Label>
           <Input
             id={`${formId}-qty`}
             name="stock"
             type="number"
+            min={0}
+            step={1}
             defaultValue={item.stock}
-          />
-        </div>
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${formId}-orders`}>{t("fields.ordersPeriod")}</Label>
-          <Input
-            id={`${formId}-orders`}
-            name="orders"
-            type="number"
-            defaultValue={item.orders}
           />
         </div>
       </div>
@@ -644,6 +642,19 @@ function ProductFormSidebarForm({
             defaultValue={item.salePrice}
           />
         </div>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor={`${formId}-lifecycle`}>{t("fields.status")}</Label>
+          <select
+            id={`${formId}-lifecycle`}
+            name="lifecycle"
+            defaultValue={item.lifecycle}
+            className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+          >
+            <option value="active">{t("tabs.active")}</option>
+            <option value="inactive">{t("tabs.inactive")}</option>
+            <option value="archived">{t("tabs.archived")}</option>
+          </select>
+        </div>
       </div>
     </form>
   )
@@ -651,7 +662,9 @@ function ProductFormSidebarForm({
 
 function getProductColumns(
   t: TFunction<"inventory">,
-  openProductSidebar: (row: ProductRow, mode: "view" | "edit") => void
+  openProductSidebar: (row: ProductRow, mode: "view" | "edit") => void,
+  onDuplicate: (row: ProductRow) => void,
+  onDelete: (row: ProductRow) => void
 ): ColumnDef<ProductRow>[] {
   return [
   {
@@ -694,7 +707,13 @@ function getProductColumns(
       <DataTableColumnHeader column={column} title={t("columns.productName")} />
     ),
     cell: ({ row }) => (
-      <span className="text-foreground font-medium">{row.original.name}</span>
+      <button
+        type="button"
+        className="text-foreground hover:text-foreground/80 font-medium text-start hover:underline"
+        onClick={() => openProductSidebar(row.original, "view")}
+      >
+        {row.original.name}
+      </button>
     ),
     enableHiding: false,
     meta: { dataTableFilter: false },
@@ -709,6 +728,7 @@ function getProductColumns(
         {row.original.brand || "—"}
       </span>
     ),
+    meta: { dataTableFilterVariant: "select" },
   },
   {
     accessorKey: "variant",
@@ -722,6 +742,7 @@ function getProductColumns(
         </Badge>
       </div>
     ),
+    meta: { dataTableFilterVariant: "select" },
   },
   {
     accessorKey: "category",
@@ -735,6 +756,7 @@ function getProductColumns(
         </Badge>
       </div>
     ),
+    meta: { dataTableFilterVariant: "select" },
   },
   {
     accessorKey: "status",
@@ -810,7 +832,7 @@ function getProductColumns(
     ),
   },
   {
-    accessorKey: "productStatus",
+    accessorKey: "lifecycle",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title={t("columns.status")} />
     ),
@@ -840,12 +862,18 @@ function getProductColumns(
   {
     id: "actions",
     enableSorting: false,
+    enableHiding: false,
+    meta: {
+      headerClassName: "sticky end-0 z-20 bg-muted w-12 min-w-12",
+      cellClassName:
+        "sticky end-0 z-10 w-12 min-w-12 bg-background transition-colors group-hover/row:bg-muted/50 group-data-[state=selected]/row:bg-muted",
+    },
     cell: ({ row }) => (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="data-[state=open]:bg-muted text-muted-foreground flex size-8"
+            className="text-muted-foreground hover:bg-muted hover:text-foreground data-[state=open]:bg-muted data-[state=open]:text-foreground flex size-8"
             size="icon"
           >
             <IconDotsVertical />
@@ -865,9 +893,19 @@ function getProductColumns(
             <IconPencil />
             {t("actions.edit")}
           </DropdownMenuItem>
-          <DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => onDuplicate(row.original)}
+          >
             <IconCopy />
             {t("actions.duplicate")}
+          </DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            variant="destructive"
+            onClick={() => onDelete(row.original)}
+          >
+            <IconTrash />
+            {t("actions.delete")}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -884,110 +922,240 @@ type ProductSidebarState =
 
 export default function ProductsPage() {
   const { t } = useTranslation("inventory")
-  const seedRows = useMemo(() => {
-    type RawProductRow = Omit<ProductRow, "costPrice" | "salePrice" | "category"> & {
-      costPrice?: string
-      salePrice?: string
-      price?: string
-      category?: string
-      model?: string
-      variant?: string
-      varient?: string
-    }
-    return (data as RawProductRow[]).map((row) => {
-      const normalizedSalePrice = normalizePriceValue(
-        row.salePrice ?? row.price,
-        MIN_PRICE
-      )
-      return {
-        ...row,
-        category: row.category ?? row.model ?? "Electronics",
-        variant: row.variant ?? row.varient ?? "Others",
-        costPrice: normalizePriceValue(
-          row.costPrice,
-          Number(normalizedSalePrice) * 0.8
-        ),
-        salePrice: normalizedSalePrice,
-      }
-    })
-  }, [])
-  const [products, setProducts] = useState<ProductRow[]>(seedRows)
-  const [hydrated, setHydrated] = useState(false)
+  const {
+    products,
+    brandOptions,
+    categoryOptions,
+    variantOptions,
+    isLoading,
+    isError,
+    error,
+    save,
+    removeMany,
+    setLifecycle,
+    duplicate,
+    importRows,
+    createLookup,
+  } = useInventoryProducts()
+  const { settings: catalogTables } = useCatalogFieldSettings()
+  const productImportSelect = productCatalogImportSelect(
+    {
+      brands: brandOptions,
+      categories: categoryOptions,
+      variants: variantOptions,
+    },
+    catalogTables
+  )
   const [sidebar, setSidebar] = useState<ProductSidebarState>(null)
   const [addFormKey, setAddFormKey] = useState(0)
+  const [skuSettings, setSkuSettings] = useState<ProductSkuSettings>(
+    DEFAULT_PRODUCT_SKU_SETTINGS
+  )
   const [lookupSheet, setLookupSheet] = useState<LookupType | null>(null)
   const [lookupDefaults, setLookupDefaults] = useState<
     Partial<Record<LookupType, string>>
   >({})
+  const catalogRef = useRef({
+    brands: brandOptions,
+    categories: categoryOptions,
+    variants: variantOptions,
+    tables: catalogTables,
+  })
+  catalogRef.current = {
+    brands: brandOptions,
+    categories: categoryOptions,
+    variants: variantOptions,
+    tables: catalogTables,
+  }
 
-  const [brandOptions, setBrandOptions] = useState(() =>
-    Array.from(
-      new Set(
-        seedRows
-          .map((row) => row.brand.trim())
-          .filter((brand): brand is string => brand.length > 0)
-      )
-    ).sort((a, b) => a.localeCompare(b))
-  )
-  const [categoryOptions, setCategoryOptions] = useState(() =>
-    Array.from(
-      new Set(
-        seedRows
-          .map((row) => row.category.trim())
-          .filter((category): category is string => category.length > 0)
-      )
-    ).sort((a, b) => a.localeCompare(b))
-  )
-  const [variantOptions, setVariantOptions] = useState(() =>
-    Array.from(
-      new Set([
-        ...PRODUCT_VARIANTS,
-        ...seedRows
-          .map((row) => row.variant.trim())
-          .filter((variant): variant is string => variant.length > 0),
-      ])
-    ).sort((a, b) => a.localeCompare(b))
-  )
+  function closeSidebarIfProductRemoved(srNos: Set<number>) {
+    setSidebar((current) => {
+      if (!current || current.mode === "add") return current
+      return srNos.has(current.product.srNo) ? null : current
+    })
+  }
 
-  const columns = useMemo(
-    () =>
-      getProductColumns(t, (p, mode) => setSidebar({ product: p, mode })),
-    [t]
-  )
+  const handleSaveProduct = async (next: ProductRow) => {
+    const isNew = sidebar?.mode === "add" || !next.id
+    if (!isNew && !next.id) {
+      throw new Error(t("toasts.saveFailed"))
+    }
+    try {
+      await save({ row: next, isNew })
+    } catch (error) {
+      throw new Error(apiErrorMessage(error, t("toasts.saveFailed")))
+    }
+  }
 
-  useEffect(() => {
-    const saved = loadInventoryProducts()
-    const next = saved ?? seedRows
-    setProducts(next)
-    ensureInitialProductPriceHistories(next)
-    setHydrated(true)
-  }, [seedRows])
-
-  useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return
-    window.localStorage.setItem(
-      INVENTORY_PRODUCTS_STORAGE_KEY,
-      JSON.stringify(products)
-    )
-    ensureInitialProductPriceHistories(products)
-  }, [hydrated, products])
-
-  const handleSaveProduct = (next: ProductRow) => {
-    if (sidebar?.mode === "add") {
-      const maxSr = products.reduce((max, row) => Math.max(max, row.srNo), 0)
-      const created = { ...next, srNo: maxSr + 1 }
-      recordProductPriceChanges(null, created)
-      setProducts((prev) => [...prev, created])
+  async function handleDeleteProduct(product: ProductRow) {
+    if (
+      !(await confirmDeleteAction({
+        itemName: product.name,
+        entityLabel: t("entity.product"),
+      }))
+    ) {
       return
     }
-    const previous = products.find((row) => row.srNo === next.srNo)
-    recordProductPriceChanges(previous ?? null, next)
-    setProducts((prev) =>
-      prev.map((row) =>
-        row.srNo === next.srNo ? { ...next, imageUrls: row.imageUrls } : row
-      )
-    )
+    if (!product.id) {
+      toast.error(t("toasts.saveFailed"))
+      return
+    }
+    try {
+      const result = await removeMany([product.id])
+      closeSidebarIfProductRemoved(new Set([product.srNo]))
+      if (result.failed > 0) {
+        toast.error(t("toasts.saveFailed"))
+        return
+      }
+      toast.success(t("toasts.deletedNamed", { name: product.name }))
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t("toasts.saveFailed")))
+    }
   }
+
+  async function handleDeleteProducts(selected: ProductRow[]) {
+    if (selected.length === 0) return
+    if (
+      !(await confirmDeleteAction({
+        count: selected.length,
+        entityLabel: t("entity.product"),
+      }))
+    ) {
+      return
+    }
+    const ids = selected.map((row) => row.id).filter((id): id is string => Boolean(id))
+    try {
+      const result = await removeMany(ids)
+      closeSidebarIfProductRemoved(new Set(selected.map((row) => row.srNo)))
+      if (result.failed > 0) {
+        toast.error(
+          t("toasts.importPartial", {
+            added: result.deletedIds.length,
+            failed: result.failed,
+          })
+        )
+        return
+      }
+      toast.success(t("toasts.deletedCount", { count: result.deletedIds.length }))
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t("toasts.saveFailed")))
+    }
+  }
+
+  async function handleSetLifecycle(
+    selected: ProductRow[],
+    lifecycle: ProductRow["lifecycle"],
+    successMessage: string
+  ) {
+    if (selected.length === 0) return
+    const ids = selected
+      .map((row) => row.id)
+      .filter((id): id is string => Boolean(id))
+    try {
+      const result = await setLifecycle({ ids, lifecycle })
+      if (result.failed > 0) {
+        toast.error(
+          t("toasts.importPartial", {
+            added: result.updatedIds.length,
+            failed: result.failed,
+          })
+        )
+        return
+      }
+      toast.success(successMessage)
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t("toasts.saveFailed")))
+    }
+  }
+
+  async function handleDuplicateProduct(row: ProductRow) {
+    try {
+      await duplicate({ source: row, skuSettings })
+      toast.success(t("toasts.created"))
+    } catch (error) {
+      toast.error(apiErrorMessage(error, t("toasts.saveFailed")))
+    }
+  }
+
+  async function handleImportRows(rows: Record<string, string>[]) {
+    const result = await importRows({
+      rows,
+      skuSettings,
+      tables: catalogTables,
+    })
+    if (result.failed > 0) {
+      toast.error(
+        t("toasts.importPartial", {
+          added: result.created.length,
+          failed: result.failed,
+        })
+      )
+    }
+    if (result.unmatched.size > 0) {
+      const names = [...result.unmatched]
+      const shown = names.slice(0, 6).join(", ")
+      toast.warning(
+        t("toasts.importUnmatchedCatalog", {
+          names: names.length > 6 ? `${shown}…` : shown,
+        })
+      )
+    }
+    return result.created.length
+  }
+
+  async function handleCreateLookup(
+    value: string,
+    meta?: { description?: string; status?: string }
+  ) {
+    const type = lookupSheet ?? "brand"
+    await createLookup({
+      type,
+      name: value,
+      description: meta?.description,
+      status: meta?.status,
+    })
+    setLookupDefaults((prev) => ({ ...prev, [type]: value }))
+  }
+
+  const columns = useMemo(() => {
+    const all = getProductColumns(
+      t,
+      (p, mode) => setSidebar({ product: p, mode }),
+      (row) => {
+        void handleDuplicateProduct(row)
+      },
+      (row) => {
+        void handleDeleteProduct(row)
+      }
+    )
+    return all.filter((col) => {
+      const key =
+        "accessorKey" in col && col.accessorKey != null
+          ? String(col.accessorKey)
+          : undefined
+      if (key === "brand") return catalogTables.brand
+      if (key === "category") return catalogTables.category
+      if (key === "variant") return catalogTables.variant
+      return true
+    })
+  }, [catalogTables, t])
+
+  useEffect(() => {
+    const syncSkuSettings = () => setSkuSettings(loadProductSkuSettings())
+    syncSkuSettings()
+    window.addEventListener(PRODUCT_SKU_SETTINGS_EVENT, syncSkuSettings)
+    window.addEventListener("storage", syncSkuSettings)
+    return () => {
+      window.removeEventListener(PRODUCT_SKU_SETTINGS_EVENT, syncSkuSettings)
+      window.removeEventListener("storage", syncSkuSettings)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (isError) {
+      toast.error(apiErrorMessage(error, t("toasts.loadFailed")))
+    }
+  }, [error, isError, t])
 
   const closeSidebar = () => setSidebar(null)
   const sheetMode = sidebar?.mode ?? "view"
@@ -1007,6 +1175,10 @@ export default function ProductsPage() {
     label: t(`tabs.${value}`),
   }))
 
+  if (isLoading) {
+    return <PageLoader message={t("actions.loading", { ns: "common" })} />
+  }
+
   return (
     <>
     <Sheet
@@ -1018,7 +1190,7 @@ export default function ProductsPage() {
       <SheetContent
         side="right"
         className={`flex w-full flex-col gap-0 overflow-hidden p-0 ${
-          sidebar?.mode === "view" ? "sm:max-w-lg" : "sm:max-w-md"
+          sidebar?.mode === "view" ? "sm:max-w-xl" : "sm:max-w-md"
         }`}
       >
         {sidebar ? (
@@ -1045,8 +1217,12 @@ export default function ProductsPage() {
                 ) : sheetProduct ? (
                   <>
                     {t("productSheet.skuLabel", { sku: sheetProduct.sku })}
-                    {sheetProduct.brand ? ` · ${sheetProduct.brand}` : ""}
-                    {sheetProduct.category ? ` · ${sheetProduct.category}` : ""}
+                    {catalogTables.brand && sheetProduct.brand
+                      ? ` · ${sheetProduct.brand}`
+                      : ""}
+                    {catalogTables.category && sheetProduct.category
+                      ? ` · ${sheetProduct.category}`
+                      : ""}
                   </>
                 ) : null}
               </SheetDescription>
@@ -1073,11 +1249,30 @@ export default function ProductsPage() {
                   lookupDefaults={lookupDefaults}
                   onRequestAddLookup={setLookupSheet}
                   onSave={handleSaveProduct}
+                  skuSettings={skuSettings}
+                  existingProducts={products}
                 />
               ) : null}
             </div>
             <SheetFooter className="border-border/60 gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end">
-              {sidebar.mode === "view" ? (
+              {sidebar.mode === "view" && sheetProduct ? (
+                <>
+                  <SheetClose asChild>
+                    <Button variant="outline" className="w-full sm:w-auto">
+                      {t("actions.close", { ns: "common" })}
+                    </Button>
+                  </SheetClose>
+                  <Button
+                    type="button"
+                    className="w-full sm:w-auto"
+                    onClick={() =>
+                      setSidebar({ mode: "edit", product: sheetProduct })
+                    }
+                  >
+                    {t("actions.edit")}
+                  </Button>
+                </>
+              ) : sidebar.mode === "view" ? (
                 <SheetClose asChild>
                   <Button variant="outline" className="w-full sm:w-auto">
                     {t("actions.close", { ns: "common" })}
@@ -1115,32 +1310,7 @@ export default function ProductsPage() {
             ? variantOptions
             : brandOptions
       }
-      onCreate={(value) => {
-        if (lookupSheet === "category") {
-          setCategoryOptions((prev) =>
-            Array.from(new Set([...prev, value])).sort((a, b) =>
-              a.localeCompare(b)
-            )
-          )
-          setLookupDefaults((prev) => ({ ...prev, category: value }))
-          return
-        }
-        if (lookupSheet === "variant") {
-          setVariantOptions((prev) =>
-            Array.from(new Set([...prev, value])).sort((a, b) =>
-              a.localeCompare(b)
-            )
-          )
-          setLookupDefaults((prev) => ({ ...prev, variant: value }))
-          return
-        }
-        setBrandOptions((prev) =>
-          Array.from(new Set([...prev, value])).sort((a, b) =>
-            a.localeCompare(b)
-          )
-        )
-        setLookupDefaults((prev) => ({ ...prev, brand: value }))
-      }}
+      onCreate={handleCreateLookup}
     />
     <DataTable
       data={products}
@@ -1150,19 +1320,55 @@ export default function ProductsPage() {
         setAddFormKey((k) => k + 1)
         setSidebar({ mode: "add" })
       }}
-      defaultColumnVisibility={{ actions: false }}
+      defaultColumnVisibility={{}}
+      settingsKey="inventory-products"
       searchPlaceholder={t("search")}
-      importRowMapper={mapImportedProduct}
+      importRowMapper={(row, existing) =>
+        mapImportedProduct(row, existing, skuSettings, catalogRef.current)
+      }
+      importSelectColumns={productImportSelect.selectColumns}
+      importRequiredSelectColumns={productImportSelect.requiredSelectColumns}
       importSampleFilename="products-sample.csv"
+      importSampleCsvContent={buildSampleCsv(
+        productImportColumns(skuSettings, catalogTables),
+        productImportSampleRow(skuSettings, catalogTables)
+      )}
+      importColumns={productImportColumns(skuSettings, catalogTables)}
       exportFilename="products-export.csv"
-      onDataChange={setProducts}
+      onImportRows={handleImportRows}
       bulkActions={[
+        {
+          id: "active",
+          label: t("actions.setActive"),
+          icon: <IconCircleCheck className="size-4" />,
+          onClick: (selected) => {
+            void handleSetLifecycle(
+              selected,
+              "active",
+              t("toasts.setActiveCount", { count: selected.length })
+            )
+          },
+        },
+        {
+          id: "inactive",
+          label: t("actions.setInactive"),
+          icon: <IconBan className="size-4" />,
+          onClick: (selected) => {
+            void handleSetLifecycle(
+              selected,
+              "inactive",
+              t("toasts.setInactiveCount", { count: selected.length })
+            )
+          },
+        },
         {
           id: "archive",
           label: t("actions.moveToArchive"),
           icon: <IconArchive className="size-4" />,
           onClick: (selected) => {
-            toast.message(
+            void handleSetLifecycle(
+              selected,
+              "archived",
               t("toasts.archivedCount", { count: selected.length })
             )
           },
@@ -1173,7 +1379,7 @@ export default function ProductsPage() {
           icon: <IconTrash className="size-4" />,
           variant: "destructive",
           onClick: (selected) => {
-            toast.message(t("toasts.wouldDeleteProducts", { count: selected.length }))
+            void handleDeleteProducts(selected)
           },
         },
       ]}

@@ -105,6 +105,7 @@ function sessionFromMe(me: SessionPayload): AuthSession {
     employeeId: null,
     permissions: me.permissions,
     designation: membership?.role?.trim() || (me.user.isOwner ? "Owner" : ""),
+    tenantId: me.tenant.id,
   }
 }
 

@@ -138,6 +138,19 @@
     "showBalanceHistory": "گاہک تاریخ میں گاہک کا بیلنس دکھائیں",
     "showBalanceHistoryDesc": "مکمل گاہک ریکارڈ میں ابتدائی اور اختتامی بیلنس شامل کریں۔"
   },
+  "products": {
+    "title": "پروڈکٹ SKU",
+    "description": "منتخب کریں کہ نئی مصنوعات کو خودکار SKU ملے یا آپ خود درج کریں۔",
+    "autoTitle": "خودکار SKU",
+    "autoDescription": "آپ کے پریفکس کے ساتھ اگلا SKU لگے گا۔ امپورٹ SKU کالم کو نظرانداز کرے گی۔",
+    "customTitle": "کسٹم SKU",
+    "customDescription": "مصنوعات شامل یا امپورٹ کرتے وقت SKU خود درج کریں۔",
+    "prefix": "SKU پریفکس",
+    "prefixPlaceholder": "SKU",
+    "prefixHint": "نئی مصنوعات {{first}} پھر {{second}} استعمال کریں گی۔",
+    "customHint": "اپنی SKU ویلیوز کے ساتھ مصنوعات شامل اور امپورٹ کریں۔ اپلوڈ پر SKU کالم درکار ہے۔",
+    "tableHint": "یہ اختیارات مصنوعات شامل یا امپورٹ کرتے وقت لاگو ہوتے ہیں۔"
+  },
   "preferences": {
     "title": "ایپ کی ترجیحات",
     "description": "ایپ بھر میں ڈیفالٹ نظارے اور رویہ۔",

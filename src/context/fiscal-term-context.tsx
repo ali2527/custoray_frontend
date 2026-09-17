@@ -21,6 +21,7 @@ type FiscalTermContextValue = {
   viewing: TermListEntry | undefined
   plannedEndIso: string
   updateActiveTenure: (months: number) => void
+  updateActiveStart: (isoDate: string) => void
   setViewingTermId: (id: string) => void
   closeActiveTerm: (snapshot?: InventoryCloseSnapshot, nextTenureMonths?: number) => void
 }
@@ -66,6 +67,15 @@ export function FiscalTermProvider({ children }: { children: React.ReactNode }) 
     }))
   }, [])
 
+  const updateActiveStart = React.useCallback((isoDate: string) => {
+    const next = new Date(`${isoDate}T00:00:00.000Z`)
+    if (Number.isNaN(next.getTime())) return
+    setState((s) => ({
+      ...s,
+      active: { ...s.active, startedAt: next.toISOString() },
+    }))
+  }, [])
+
   const setViewingTermId = React.useCallback((id: string) => {
     setState((s) => ({ ...s, viewingTermId: id }))
   }, [])
@@ -84,6 +94,7 @@ export function FiscalTermProvider({ children }: { children: React.ReactNode }) 
       viewing,
       plannedEndIso,
       updateActiveTenure,
+      updateActiveStart,
       setViewingTermId,
       closeActiveTerm: closeActiveTermFn,
     }),
@@ -93,6 +104,7 @@ export function FiscalTermProvider({ children }: { children: React.ReactNode }) 
       viewing,
       plannedEndIso,
       updateActiveTenure,
+      updateActiveStart,
       setViewingTermId,
       closeActiveTermFn,
     ]
