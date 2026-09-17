@@ -35,7 +35,7 @@ function OrderCard({ order, compact }: { order: OrderRow; compact?: boolean }) {
 
   return (
     <Card className="gap-0 py-0 shadow-none">
-      <CardContent className="space-y-3 p-4">
+      <CardContent className={compact ? "space-y-2 p-3" : "space-y-3 p-4"}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-foreground truncate text-sm font-semibold">
@@ -49,10 +49,12 @@ function OrderCard({ order, compact }: { order: OrderRow; compact?: boolean }) {
             {tc(`status.${order.status}`)}
           </Badge>
         </div>
-        <p className="text-muted-foreground line-clamp-2 text-xs">
-          {itemPreview}
-          {extraItems > 0 ? ` +${extraItems}` : ""}
-        </p>
+        {compact ? null : (
+          <p className="text-muted-foreground line-clamp-2 text-xs">
+            {itemPreview}
+            {extraItems > 0 ? ` +${extraItems}` : ""}
+          </p>
+        )}
         <div className="grid grid-cols-3 gap-2 text-xs">
           <div>
             <p className="text-muted-foreground">{t("timeline.total")}</p>
@@ -79,9 +81,11 @@ function OrderCard({ order, compact }: { order: OrderRow; compact?: boolean }) {
             </p>
           </div>
         </div>
-        <p className="text-muted-foreground text-xs">
-          {t("timeline.itemCount", { count: order.lines.length })}
-        </p>
+        {compact ? null : (
+          <p className="text-muted-foreground text-xs">
+            {t("timeline.itemCount", { count: order.lines.length })}
+          </p>
+        )}
       </CardContent>
     </Card>
   )
@@ -97,7 +101,7 @@ function ReturnCard({ doc, compact }: { doc: ReturnRow; compact?: boolean }) {
 
   return (
     <Card className="gap-0 py-0 shadow-none ring-1 ring-red-200/80 dark:ring-red-900/40">
-      <CardContent className="space-y-3 p-4">
+      <CardContent className={compact ? "space-y-2 p-3" : "space-y-3 p-4"}>
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-red-800 dark:text-red-300">
@@ -191,9 +195,9 @@ export function CustomerOrderCards({
     <div className="flex flex-col gap-2">
       {visible.map((item) =>}
         item.kind === "invoice" ? (
-          <OrderCard key={`invoice-${item.order.id}`} order={item.order} />
+          <OrderCard key={`invoice-${item.order.id}`} order={item.order} compact={compact} />
         ) : (
-          <ReturnCard key={`return-${item.doc.id}`} doc={item.doc} />
+          <ReturnCard key={`return-${item.doc.id}`} doc={item.doc} compact={compact} />
         )
       )}
     </div>
