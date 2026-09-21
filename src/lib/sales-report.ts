@@ -27,6 +27,23 @@ export const saleLineSchema = z.object({
 
 export type SaleLineRow = z.infer<typeof saleLineSchema>
 
+export function flattenSaleLineForExport(
+  line: SaleLineRow
+): Record<string, unknown> {
+  return {
+    invoiceNumber: line.invoiceNumber,
+    customerName: line.customerName,
+    orderDate: line.orderDate,
+    productName: line.productName,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    paidAmount: "",
+    paymentMethod: line.paymentMethod,
+    status: line.orderStatus,
+    description: "",
+  }
+}
+
 export function flattenOrdersToSaleLines(orders: OrderRow[]): SaleLineRow[] {
   const lines: SaleLineRow[] = []
 

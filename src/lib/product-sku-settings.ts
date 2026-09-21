@@ -100,6 +100,7 @@ export const PRODUCT_IMPORT_BASE_COLUMNS = [
   "variant",
   "costPrice",
   "salePrice",
+  "lifecycle",
 ] as const
 
 export function productImportColumns(
@@ -107,7 +108,7 @@ export function productImportColumns(
   tables: CatalogTablesSettings = DEFAULT_CATALOG_FIELD_SETTINGS
 ): string[] {
   const catalog = productImportCatalogColumns(tables)
-  const base = ["name", ...catalog, "costPrice", "salePrice"]
+  const base = ["name", ...catalog, "costPrice", "salePrice", "lifecycle"]
   if (settings.mode === "custom") {
     return ["sku", ...base]
   }
@@ -122,6 +123,7 @@ export function productImportSampleRow(
     name: "Demo product",
     costPrice: "120.00",
     salePrice: "150.00",
+    lifecycle: "active",
   }
   if (tables.brand) row.brand = "Acme"
   if (tables.category) row.category = "Electronics"

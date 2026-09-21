@@ -12,6 +12,7 @@ import { markSetupMilestone } from "@/lib/setup-progress"
 
 type OrdersContextValue = {
   orders: OrderRow[]
+  hydrated: boolean
   setOrders: React.Dispatch<React.SetStateAction<OrderRow[]>>
   getOrder: (id: number) => OrderRow | undefined
   addOrder: (order: Omit<OrderRow, "id">) => OrderRow
@@ -98,6 +99,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   const value = React.useMemo(
     () => ({
       orders,
+      hydrated,
       setOrders,
       getOrder,
       addOrder,
@@ -105,7 +107,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       removeOrder,
       duplicateOrder,
     }),
-    [orders, getOrder, addOrder, updateOrder, removeOrder, duplicateOrder]
+    [orders, hydrated, getOrder, addOrder, updateOrder, removeOrder, duplicateOrder]
   )
 
   return <OrdersContext.Provider value={value}>{children}</OrdersContext.Provider>

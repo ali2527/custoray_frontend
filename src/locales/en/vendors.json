@@ -21,28 +21,157 @@
     "email": "Email",
     "status": "Status"
   },
+  "fields": {
+    "name": "Vendor name",
+    "namePlaceholder": "Company or supplier",
+    "description": "Description",
+    "descriptionPlaceholder": "Notes, terms, category…",
+    "openingBalance": "Opening balance",
+    "phone": "Phone number",
+    "phonePlaceholder": "+92 300 1234567",
+    "status": "Status"
+  },
+  "images": {
+    "photo": "Vendor photo",
+    "upload": "Upload vendor photo",
+    "change": "Change vendor photo",
+    "remove": "Remove vendor photo"
+  },
   "actions": {
     "view": "View",
     "edit": "Edit",
     "duplicate": "Duplicate",
     "delete": "Delete",
     "openMenu": "Open menu",
-    "deleteSelected": "Delete selected"
+    "deleteSelected": "Delete selected",
+    "viewTimeline": "View timeline",
+    "setActive": "Set active",
+    "setInactive": "Set inactive"
+  },
+  "timeline": {
+    "title": "Timeline",
+    "back": "Back to vendors",
+    "notFound": "Vendor not found.",
+    "empty": "No purchases or returns yet.",
+    "createPurchase": "Create purchase",
+    "createInvoice": "Create purchase",
+    "total": "Total",
+    "paid": "Paid",
+    "balance": "Balance",
+    "return": "Return",
+    "returnAmount": "Return amount",
+    "itemCount": "{{count}} items",
+    "search": "Search purchases and returns…",
+    "emptyFiltered": "No records match these filters.",
+    "typeInvoice": "Purchase",
+    "typeReturn": "Return",
+    "filters": {
+      "allTypes": "All types",
+      "allStatuses": "All statuses",
+      "allMonths": "All months",
+      "status": "Status",
+      "month": "Month"
+    },
+    "summary": {
+      "total": "Total",
+      "credit": "Credit",
+      "remaining": "Remaining",
+      "balance": "Balance"
+    },
+    "tabs": {
+      "all": "All",
+      "invoices": "Purchases",
+      "returns": "Returns"
+    },
+    "columns": {
+      "date": "Date",
+      "type": "Type",
+      "document": "Document",
+      "details": "Details",
+      "number": "Number",
+      "reference": "Reference",
+      "description": "Description",
+      "amount": "Amount",
+      "paid": "Paid",
+      "balance": "Due",
+      "running": "Running",
+      "status": "Status",
+      "month": "Month",
+      "items": "Items"
+    },
+    "recordCount": "{{count}} records",
+    "exportRange": {
+      "label": "Export range",
+      "all": "All dates",
+      "months": "Months",
+      "dates": "Dates",
+      "fromMonth": "From month",
+      "toMonth": "To month",
+      "fromDate": "From date",
+      "toDate": "To date",
+      "hintAll": "Export every matching purchase and return.",
+      "hintMonths": "Export from the start of the first month through the end of the last month.",
+      "hintDates": "Export records on and between these dates.",
+      "preview": "{{count}} records · {{months}} months",
+      "previewEmpty": "No records in this range."
+    },
+    "export": {
+      "title": "Export statement",
+      "description": "Choose a date range, then download a PDF statement, Excel workbook, CSV, or JSON.",
+      "xlsx": "Excel",
+      "xlsxDesc": "Workbook with summary, ledger, and a sheet per month",
+      "csv": "CSV",
+      "csvDesc": "Spreadsheet rows with dates, amounts, and line items",
+      "json": "JSON",
+      "jsonDesc": "Structured records for other systems",
+      "ledger": "Ledger"
+    },
+    "report": {
+      "title": "Vendor statement",
+      "generated": "Generated",
+      "period": "Period",
+      "customer": "Vendor",
+      "phone": "Phone",
+      "item": "Item",
+      "qty": "Qty",
+      "rate": "Rate",
+      "lineAmount": "Amount",
+      "html": "PDF",
+      "htmlDesc": "Detailed PDF statement with items and monthly totals",
+      "pdf": "PDF",
+      "pdfDesc": "Detailed PDF statement with items and monthly totals"
+    }
   },
   "sheet": {
     "add": "Add vendor",
     "edit": "Edit vendor",
-    "addDescription": "Fill in vendor details and photo. Saving is demo only.",
+    "addDescription": "Fill in vendor details and photo.",
+    "quickAddDescription": "Create a vendor and select them on this form.",
     "create": "Create vendor",
     "save": "Save vendor"
   },
+  "viewSheet": {
+    "noPhoto": "No vendor photo",
+    "account": "Account",
+    "details": "Details",
+    "recent": "Recent activity",
+    "viewAll": "View all",
+    "outstanding": "Outstanding",
+    "credit": "Credit",
+    "settled": "Settled",
+    "idLabel": "ID {{id}}"
+  },
   "toasts": {
-    "removedNamed": "Removed {{name}} (demo).",
-    "duplicatedNamed": "Duplicated {{name}} (demo).",
+    "removedNamed": "Removed {{name}}.",
+    "duplicatedNamed": "Duplicated {{name}}.",
     "nameRequired": "Vendor name is required.",
-    "created": "Vendor created (demo).",
-    "saved": "Vendor saved (demo).",
-    "removedCount": "Removed {{count}} vendor(s) (demo)."
+    "created": "Vendor created.",
+    "saved": "Vendor saved.",
+    "saveFailed": "Could not save vendor.",
+    "removedCount": "Removed {{count}} vendor(s).",
+    "importPartial": "{{added}} imported, {{failed}} could not be imported.",
+    "setActiveCount": "Set {{count}} to active.",
+    "setInactiveCount": "Set {{count}} to inactive."
   },
   "entity": {
     "vendor": "vendor"

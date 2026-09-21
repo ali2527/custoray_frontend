@@ -49,20 +49,22 @@
   },
   "sheet": {
     "edit": "تعديل الدفعة",
-    "addCustomerDescription": "سجّل دفعة مستلمة من عميل. الحفظ للتجربة فقط.",
-    "addVendorDescription": "سجّل دفعة مدفوعة لمورّد. الحفظ للتجربة فقط.",
+    "addCustomerDescription": "سجّل دفعة مستلمة من عميل.",
+    "addVendorDescription": "سجّل دفعة مدفوعة لمورّد.",
     "save": "حفظ الدفعة"
   },
   "toasts": {
-    "removedNamed": "تم حذف {{name}} (تجريبي).",
-    "duplicatedNamed": "تم التكرار باسم {{name}} (تجريبي).",
+    "removedNamed": "تم حذف {{name}}.",
+    "duplicatedNamed": "تم التكرار باسم {{name}}.",
     "selectCustomer": "اختر عميلاً.",
     "selectVendor": "اختر مورّداً.",
     "invalidAmount": "أدخل مبلغ دفعة صالحاً.",
-    "received": "تم استلام الدفعة (تجريبي).",
-    "recorded": "تم تسجيل الدفعة (تجريبي).",
-    "saved": "تم حفظ الدفعة (تجريبي).",
-    "removedCount": "تم حذف {{count}} دفعة (تجريبي)."
+    "received": "تم استلام الدفعة.",
+    "recorded": "تم تسجيل الدفعة.",
+    "saved": "تم حفظ الدفعة.",
+    "removedCount": "تم حذف {{count}} دفعة.",
+    "saveFailed": "تعذّر حفظ الدفعة.",
+    "importPartial": "تم استيراد {{added}} وتعذّر استيراد {{failed}}."
   },
   "form": {
     "type": "نوع الدفعة",

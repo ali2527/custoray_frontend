@@ -28,6 +28,35 @@ export const purchaseSchema = z.object({
 
 export type PurchaseRow = z.infer<typeof purchaseSchema>
 
+export const PURCHASE_STATUSES = ["pending", "completed", "cancelled"] as const
+
+export const PURCHASE_IMPORT_COLUMNS = [
+  "purchaseNumber",
+  "vendorName",
+  "purchaseDate",
+  "productName",
+  "quantity",
+  "unitPrice",
+  "paidAmount",
+  "status",
+  "description",
+] as const
+
+export const PURCHASE_IMPORT_SAMPLE_ROW: Record<
+  (typeof PURCHASE_IMPORT_COLUMNS)[number],
+  string
+> = {
+  purchaseNumber: "PO-2101",
+  vendorName: "Karachi Steel Supplies",
+  purchaseDate: "2026-09-21",
+  productName: "Steel Rod 12mm (bundle)",
+  quantity: "10",
+  unitPrice: "1450.00",
+  paidAmount: "14500.00",
+  status: "completed",
+  description: "Imported purchase",
+}
+
 export const PURCHASES_STORAGE_KEY = "custoray-purchases-v1"
 
 export function computeLineTotal(quantity: number, unitPrice: string): string {
@@ -287,8 +316,7 @@ export function mapImportedPurchase(
   existing: PurchaseRow[]
 ): PurchaseRow | null {
   const maxId = existing.reduce((m, x) => Math.max(m, x.id), 0)
-  const id = Number(row.id)
-  const finalId = Number.isFinite(id) && id > 0 ? id : maxId + 1
+  const finalId = maxId + 1
   const vendorName = (
     row.vendorName ??
     row.vendor ??
@@ -303,25 +331,17 @@ export function mapImportedPurchase(
   ).trim()
   if (!vendorName && !purchaseNumber) return null
 
-  const productName = (row.productName ?? row.product ?? row.product_name ?? "").trim()
-  const quantity = Number(row.quantity ?? row.qty) || 1
-  const unitPrice = parseMoney(String(row.unitPrice ?? row.unit_price ?? row.rate ?? "0"))
-
-  const line: PurchaseLineRow = {
-    id: 1,
-    productName: productName || "Imported item",
-    quantity,
-    unitPrice,
-    lineTotal: computeLineTotal(quantity, unitPrice),
-  }
-
+  const line = importedPurchaseLine(row, 1)
   const totalAmount = parseMoney(
     String(row.totalAmount ?? row.total_amount ?? row.total ?? line.lineTotal)
   )
 
   return {
     id: finalId,
-    purchaseNumber: purchaseNumber || `PO-${finalId}`,
+    purchaseNumber: uniquePurchaseNumber(
+      purchaseNumber || `PO-${finalId}`,
+      existing
+    ),
     vendorName: vendorName || "—",
     description: (row.description ?? row.desc ?? "").trim() || "—",
     purchaseDate:
@@ -332,6 +352,100 @@ export function mapImportedPurchase(
     status: parseStatus(row.status ?? "pending"),
     lines: [line],
   }
+}
+
+function importedPurchaseLine(row: Record<string, string>, id: number): PurchaseLineRow {
+  const productName = (row.productName ?? row.product ?? row.product_name ?? "").trim()
+  const quantity = Number(row.quantity ?? row.qty) || 1
+  const unitPrice = parseMoney(
+    String(row.unitPrice ?? row.unit_price ?? row.rate ?? "0")
+  )
+  return {
+    id,
+    productName: productName || "Imported item",
+    quantity,
+    unitPrice,
+    lineTotal: computeLineTotal(quantity, unitPrice),
+  }
+}
+
+function uniquePurchaseNumber(desired: string, existing: PurchaseRow[]): string {
+  if (!desired) return nextPurchaseNumber(existing)
+  if (!existing.some((purchase) => purchase.purchaseNumber === desired)) return desired
+  return nextPurchaseNumber(existing)
+}
+
+export function flattenPurchaseForExport(
+  purchase: PurchaseRow
+): Record<string, unknown>[] {
+  const lines = purchase.lines?.length
+    ? purchase.lines
+    : [{ productName: "", quantity: 1, unitPrice: "0.00" }]
+  return lines.map((line) => ({
+    purchaseNumber: purchase.purchaseNumber,
+    vendorName: purchase.vendorName,
+    purchaseDate: purchase.purchaseDate,
+    productName: line.productName,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    paidAmount: purchase.paidAmount,
+    status: purchase.status,
+    description: purchase.description === "—" ? "" : purchase.description,
+  }))
+}
+
+export function importPurchasesFromRows(
+  rows: Record<string, string>[],
+  existing: PurchaseRow[]
+): PurchaseRow[] {
+  const groups = new Map<string, Record<string, string>[]>()
+  const orphans: Record<string, string>[] = []
+
+  for (const row of rows) {
+    const purchaseNumber = (
+      row.purchaseNumber ??
+      row.purchase_number ??
+      row.po ??
+      ""
+    ).trim()
+    if (!purchaseNumber) {
+      orphans.push(row)
+      continue
+    }
+    const list = groups.get(purchaseNumber) ?? []
+    list.push(row)
+    groups.set(purchaseNumber, list)
+  }
+
+  const created: PurchaseRow[] = []
+  let acc = [...existing]
+
+  const push = (mapped: PurchaseRow | null) => {
+    if (!mapped) return
+    acc = [...acc, mapped]
+    created.push(mapped)
+  }
+
+  for (const group of groups.values()) {
+    const header = mapImportedPurchase(group[0], acc)
+    if (!header) continue
+    header.lines = group.map((row, index) => importedPurchaseLine(row, index + 1))
+    header.totalAmount = computePurchaseTotal(header.lines)
+    const paidOverride = (
+      group[0].paidAmount ??
+      group[0].paid_amount ??
+      group[0].paid ??
+      ""
+    ).trim()
+    if (paidOverride) header.paidAmount = parseMoney(paidOverride)
+    push(header)
+  }
+
+  for (const row of orphans) {
+    push(mapImportedPurchase(row, acc))
+  }
+
+  return created
 }
 
 export function normalizePurchaseRow(raw: unknown): PurchaseRow | null {

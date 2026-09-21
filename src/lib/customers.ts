@@ -14,7 +14,7 @@ export const customerSchema = z.object({
   totalSales: z.string(),
   totalPayments: z.string(),
   phone: z.string(),
-  status: z.enum(["active", "inactive"]),
+  status: z.enum(CUSTOMER_STATUS_OPTIONS),
   imageUrl: z.string().default(""),
 })
 
@@ -31,6 +31,10 @@ export type CustomerWrite = {
 
 export const CUSTOMERS_STORAGE_KEY = "custoray-customers-v5"
 export const CUSTOMERS_CHANGED_EVENT = "custoray-customers-changed"
+
+export function customerTimelineHref(id: string | number) {
+  return `/customers/timeline?id=${encodeURIComponent(String(id))}`
+}
 
 export const CUSTOMER_IMPORT_COLUMNS = [
   "name",

@@ -409,13 +409,18 @@ export function getDefaultColumns(): ColumnDef<z.infer<typeof schema>>[] {
 
 const FILTER_ANY = "__data_table_any__"
 
+function toFilterNumber(raw: unknown): number {
+  if (typeof raw === "number") return raw
+  const n = Number(String(raw ?? "").replace(/,/g, "").trim())
+  return n
+}
+
 const rangeNumberFilter: FilterFn<unknown> = (row, columnId, filterValue) => {
   if (filterValue == null) return true
   const pair = filterValue as [string, string]
   if (!Array.isArray(pair)) return true
   const [minS, maxS] = pair
-  const raw = row.getValue(columnId)
-  const n = typeof raw === "number" ? raw : Number(raw)
+  const n = toFilterNumber(row.getValue(columnId))
   if (Number.isNaN(n)) return false
   if (minS !== "" && minS != null && n < Number(minS)) return false
   if (maxS !== "" && maxS != null && n > Number(maxS)) return false
@@ -439,21 +444,20 @@ function mergeColumnFilters<TData>(
 ): ColumnDef<TData>[] {
   return columns.map((col) => {
     const id = col.id
-    if (id === "select" || id === "actions") {
+    if (id === "select" || id === "actions" || id === "srNo") {
       return { ...col, enableColumnFilter: false }
     }
     const key =
       "accessorKey" in col && col.accessorKey != null
         ? String(col.accessorKey)
         : undefined
-    if (!key) return col
 
     const meta = col.meta as DataTableColumnMeta | undefined
     if (meta?.dataTableFilter === false) {
       return { ...col, enableColumnFilter: false }
     }
 
-    const sample = rows[0]?.[key]
+    const sample = key ? rows[0]?.[key] : undefined
     const metaVariant = meta?.dataTableFilterVariant
     const isNumber =
       metaVariant === "range" ||
@@ -468,9 +472,13 @@ function mergeColumnFilters<TData>(
       }
     }
 
-    const stringVals = rows
-      .map((r) => r[key])
-      .filter((v) => v != null && v !== "")
+    if (!key && metaVariant !== "select" && metaVariant !== "text") {
+      return col
+    }
+
+    const stringVals = key
+      ? rows.map((r) => r[key]).filter((v) => v != null && v !== "")
+      : []
     const unique = new Set(stringVals.map((v) => String(v)))
     const useSelect =
       metaVariant === "select" ||
@@ -497,8 +505,8 @@ function mergeColumnFilters<TData>(
 function filterableLeafColumns<TData>(table: TanStackTable<TData>) {
   return table.getAllLeafColumns().filter((c) => {
     const def = c.columnDef
-    if (def.id === "select" || def.id === "actions") return false
-    if (!("accessorKey" in def) || def.accessorKey == null) return false
+    const id = def.id ?? c.id
+    if (id === "select" || id === "actions" || id === "srNo") return false
     if ((def.meta as DataTableColumnMeta | undefined)?.dataTableFilter === false)
       return false
     return c.getCanFilter()
@@ -971,6 +979,7 @@ export function DataTable<TData>({
   importSelectColumns,
   importRequiredSelectColumns,
   importColumns,
+  exportRowTransform,
 }: {
   data: TData[]
   columns: ColumnDef<TData>[]
@@ -1018,6 +1027,10 @@ export function DataTable<TData>({
   importSampleCsvContent?: string
   /** Keep only these columns from uploaded CSVs (ignores extra fields). */
   importColumns?: string[]
+  /** Flatten or reshape filtered rows before CSV/XLS/JSON export. */
+  exportRowTransform?: (
+    row: TData
+  ) => Record<string, unknown> | Record<string, unknown>[]
 }) {
   const { t } = useTranslation()
   const resolvedAddLabel = addButtonLabel ?? t("table.add")
@@ -1412,12 +1425,21 @@ export function DataTable<TData>({
         onOpenChange={setExportOpen}
         rowCount={table.getFilteredRowModel().rows.length}
         filename={exportFilename}
-        getRows={() =>
-          table.getFilteredRowModel().rows.map((r) => {
-            const row = { ...(r.original as Record<string, unknown>) }
-            return importColumns?.length ? pickObjectKeys(row, importColumns) : row
+        getRows={() => {
+          const originals = table.getFilteredRowModel().rows.map((r) => r.original)
+          if (exportRowTransform) {
+            return originals.flatMap((row) => {
+              const mapped = exportRowTransform(row)
+              return Array.isArray(mapped) ? mapped : [mapped]
+            })
+          }
+          return originals.map((row) => {
+            const record = { ...(row as Record<string, unknown>) }
+            return importColumns?.length
+              ? pickObjectKeys(record, importColumns)
+              : record
           })
-        }
+        }}
       />
       {showToolbar ? (
       <div className="mb-3 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

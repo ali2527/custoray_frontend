@@ -50,7 +50,7 @@
     "addCustomer": "إضافة عميل",
     "editCustomer": "تعديل عميل",
     "customerDetails": "تفاصيل العميل",
-    "customerTimeline": "الخط الزمني للعميل",
+    "vendorTimeline": "الخط الزمني للمورّد",
     "vendors": "المورّدون",
     "salesInvoice": "فاتورة المبيعات",
     "purchaseInvoice": "فاتورة المشتريات",

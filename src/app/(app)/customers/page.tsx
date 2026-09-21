@@ -9,7 +9,6 @@ import {
   IconCopy,
   IconDotsVertical,
   IconEye,
-  IconFileText,
   IconHistory,
   IconPencil,
   IconTrash,
@@ -20,7 +19,6 @@ import type { TFunction } from "i18next"
 
 import { CustomerDetail } from "@/components/customers/customer-detail"
 import { CustomerForm } from "@/components/customers/customer-form"
-import { CustomerRecordDialog } from "@/components/customers/customer-record-dialog"
 import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTable, type DataTableTab } from "@/components/data-table"
 import { Button } from "@/components/ui/button"
@@ -57,6 +55,7 @@ import {
   CUSTOMER_IMPORT_SAMPLE_ROW,
   CUSTOMER_STATUS_OPTIONS,
   EMPTY_CUSTOMER,
+  customerTimelineHref,
   formatMoney,
   mapImportedCustomerWrite,
   type CustomerRow,
@@ -74,7 +73,6 @@ function getCustomerColumns(
   openCustomerSidebar: (row: CustomerRow, mode: "view" | "edit") => void,
   onDelete: (row: CustomerRow) => void,
   onDuplicate: (row: CustomerRow) => void,
-  onViewRecord: (row: CustomerRow) => void,
   onViewTimeline: (row: CustomerRow) => void
 ): ColumnDef<CustomerRow>[] {
   return [
@@ -252,10 +250,6 @@ function getCustomerColumns(
               <IconHistory />
               {t("actions.viewTimeline")}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onViewRecord(row.original)}>
-              <IconFileText />
-              {t("actions.viewRecord")}
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openCustomerSidebar(row.original, "edit")}>
               <IconPencil />
               {t("actions.edit")}
@@ -291,7 +285,6 @@ export default function CustomersPage() {
     bulkCreate,
   } = useCustomers()
   const [sidebar, setSidebar] = useState<CustomerSidebarState>(null)
-  const [recordCustomer, setRecordCustomer] = useState<CustomerRow | null>(null)
 
   const closeSidebar = () => setSidebar(null)
 
@@ -415,8 +408,7 @@ export default function CustomersPage() {
         (row, mode) => setSidebar({ customer: row, mode }),
         handleDelete,
         handleDuplicate,
-        (row) => setRecordCustomer(row),
-        (row) => router.push(`/customers/${row.id}/timeline`)
+        (row) => router.push(customerTimelineHref(row.id))
       ),
     [t, handleDelete, handleDuplicate, router]
   )
@@ -496,9 +488,8 @@ export default function CustomersPage() {
                   <CustomerDetail
                     customer={sheetCustomer}
                     onViewTimeline={() =>
-                      router.push(`/customers/${sheetCustomer.id}/timeline`)
+                      router.push(customerTimelineHref(sheetCustomer.id))
                     }
-                    onViewRecord={() => setRecordCustomer(sheetCustomer)}
                   />
                 ) : sidebar.mode === "edit" || sidebar.mode === "add" ? (
                   <CustomerForm
@@ -549,14 +540,6 @@ export default function CustomersPage() {
           ) : null}
         </SheetContent>
       </Sheet>
-
-      <CustomerRecordDialog
-        customer={recordCustomer}
-        open={recordCustomer !== null}
-        onOpenChange={(next) => {
-          if (!next) setRecordCustomer(null)
-        }}
-      />
 
       <DataTable
         data={customers}

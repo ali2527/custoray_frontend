@@ -486,12 +486,216 @@ export async function apiBulkCreateBuyers(items: ApiBuyerWrite[]) {
   })
 }
 
+export type ApiVendor = {
+  id: string
+  name: string
+  phone?: string
+  description?: string
+  status?: string
+  openingBalance?: string
+  imageUrl?: string
+  totalPurchases?: string
+  totalPayments?: string
+}
+
+export type ApiVendorWrite = {
+  name: string
+  phone?: string
+  description?: string
+  status?: "active" | "inactive"
+  openingBalance?: number
+  imageUrl?: string
+}
+
+export type ApiVendorBulkResult = {
+  items: ApiVendor[]
+  added: number
+  errors?: { name: string; message: string }[]
+}
+
+const VENDOR_LIST_LIMIT = 200
+const VENDOR_BULK_LIMIT = 100
+
+export async function apiListVendors(params?: {
+  page?: number
+  limit?: number
+  search?: string
+}) {
+  const q = new URLSearchParams()
+  const page = Math.max(1, Math.floor(params?.page ?? 1))
+  const limit = Math.min(VENDOR_LIST_LIMIT, Math.max(1, Math.floor(params?.limit ?? 50)))
+  q.set("page", String(page))
+  q.set("limit", String(limit))
+  const search = params?.search?.trim().replace(/[%_]/g, "").slice(0, 100)
+  if (search) q.set("search", search)
+  return apiFetch<{ items: ApiVendor[]; total: number }>(`/vendors?${q}`)
+}
+
+export async function apiListAllVendors() {
+  const pageSize = VENDOR_LIST_LIMIT
+  let page = 1
+  const items: ApiVendor[] = []
+  let total = 0
+  while (true) {
+    const res = await apiListVendors({ page, limit: pageSize })
+    total = res.total ?? 0
+    items.push(...(res.items ?? []))
+    if (items.length >= total || (res.items ?? []).length < pageSize) break
+    page += 1
+    if (page > 100) break
+  }
+  return items
+}
+
+export async function apiCreateVendor(data: ApiVendorWrite) {
+  return apiFetch<ApiVendor>("/vendors", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiUpdateVendor(id: string, data: Partial<ApiVendorWrite>) {
+  return apiFetch<ApiVendor>(`/vendors/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiDeleteVendor(id: string) {
+  return apiFetch<null>(`/vendors/${id}`, { method: "DELETE" })
+}
+
+export async function apiBulkCreateVendors(items: ApiVendorWrite[]) {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new ApiClientError(400, "VALIDATION_ERROR", "No vendors to import")
+  }
+  if (items.length > VENDOR_BULK_LIMIT) {
+    throw new ApiClientError(
+      400,
+      "VALIDATION_ERROR",
+      `You can import at most ${VENDOR_BULK_LIMIT} vendors at a time`
+    )
+  }
+  return apiFetch<ApiVendorBulkResult>("/vendors/bulk", {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  })
+}
+
 export async function apiListOrders(params?: { page?: number; limit?: number }) {
   const q = new URLSearchParams()
   if (params?.page) q.set("page", String(params.page))
   if (params?.limit) q.set("limit", String(params.limit))
   const suffix = q.toString() ? `?${q}` : ""
   return apiFetch<{ items: unknown[]; total: number }>(`/orders${suffix}`)
+}
+
+export type ApiPaymentType = "CUSTOMER" | "VENDOR"
+export type ApiPaymentStatus = "pending" | "completed" | "voided"
+
+export type ApiPayment = {
+  id: string
+  paymentNumber: string
+  type: ApiPaymentType
+  partyId: string
+  partyName: string
+  referenceNumber: string
+  paymentDate: string
+  amount: string
+  paymentMethod: string
+  status: ApiPaymentStatus
+  notes: string
+}
+
+export type ApiPaymentWrite = {
+  type: ApiPaymentType
+  partyId: string
+  partyName?: string
+  paymentNumber?: string
+  referenceNumber?: string
+  paymentDate: string
+  amount: number
+  paymentMethod?: string
+  notes?: string
+  status?: ApiPaymentStatus
+}
+
+export type ApiPaymentBulkResult = {
+  items: ApiPayment[]
+  added: number
+  errors?: { name: string; message: string }[]
+}
+
+const PAYMENT_LIST_LIMIT = 200
+const PAYMENT_BULK_LIMIT = 100
+
+export async function apiListPayments(params?: {
+  page?: number
+  limit?: number
+  type?: ApiPaymentType
+}) {
+  const q = new URLSearchParams()
+  const page = Math.max(1, Math.floor(params?.page ?? 1))
+  const limit = Math.min(PAYMENT_LIST_LIMIT, Math.max(1, Math.floor(params?.limit ?? 50)))
+  q.set("page", String(page))
+  q.set("limit", String(limit))
+  if (params?.type) q.set("type", params.type)
+  return apiFetch<{ items: ApiPayment[]; total: number }>(`/payments?${q}`)
+}
+
+export async function apiListAllPayments(type?: ApiPaymentType) {
+  const pageSize = PAYMENT_LIST_LIMIT
+  let page = 1
+  const items: ApiPayment[] = []
+  let total = 0
+  while (true) {
+    const res = await apiListPayments({ page, limit: pageSize, type })
+    total = res.total ?? 0
+    items.push(...(res.items ?? []))
+    if (items.length >= total || (res.items ?? []).length < pageSize) break
+    page += 1
+    if (page > 100) break
+  }
+  return items
+}
+
+export async function apiCreatePayment(data: ApiPaymentWrite) {
+  return apiFetch<ApiPayment>("/payments", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiUpdatePayment(id: string, data: Partial<ApiPaymentWrite>) {
+  return apiFetch<ApiPayment>(`/payments/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiDeletePayment(id: string) {
+  return apiFetch<null>(`/payments/${id}`, { method: "DELETE" })
+}
+
+export async function apiVoidPayment(id: string) {
+  return apiFetch<ApiPayment>(`/payments/${id}/void`, { method: "POST" })
+}
+
+export async function apiBulkCreatePayments(items: ApiPaymentWrite[]) {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new ApiClientError(400, "VALIDATION_ERROR", "No payments to import")
+  }
+  if (items.length > PAYMENT_BULK_LIMIT) {
+    throw new ApiClientError(
+      400,
+      "VALIDATION_ERROR",
+      `You can import at most ${PAYMENT_BULK_LIMIT} payments at a time`
+    )
+  }
+  return apiFetch<ApiPaymentBulkResult>("/payments/bulk", {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  })
 }
 
 export async function apiDashboardSummary() {

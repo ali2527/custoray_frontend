@@ -61,7 +61,87 @@
     "balance": "Balance",
     "return": "Return",
     "returnAmount": "Return amount",
-    "itemCount": "{{count}} items"
+    "itemCount": "{{count}} items",
+    "search": "Search invoices and returns…",
+    "emptyFiltered": "No records match these filters.",
+    "typeInvoice": "Invoice",
+    "typeReturn": "Return",
+    "filters": {
+      "allTypes": "All types",
+      "allStatuses": "All statuses",
+      "allMonths": "All months",
+      "status": "Status",
+      "month": "Month"
+    },
+    "summary": {
+      "total": "Total",
+      "credit": "Credit",
+      "remaining": "Remaining",
+      "balance": "Balance"
+    },
+    "tabs": {
+      "all": "All",
+      "invoices": "Invoices",
+      "returns": "Returns"
+    },
+    "columns": {
+      "date": "Date",
+      "type": "Type",
+      "document": "Document",
+      "details": "Details",
+      "number": "Number",
+      "reference": "Reference",
+      "description": "Description",
+      "amount": "Amount",
+      "paid": "Paid",
+      "balance": "Due",
+      "running": "Running",
+      "status": "Status",
+      "month": "Month",
+      "items": "Items"
+    },
+    "recordCount": "{{count}} records",
+    "exportRange": {
+      "label": "Export range",
+      "all": "All dates",
+      "months": "Months",
+      "dates": "Dates",
+      "fromMonth": "From month",
+      "toMonth": "To month",
+      "fromDate": "From date",
+      "toDate": "To date",
+      "hintAll": "Export every matching invoice and return.",
+      "hintMonths": "Export from the start of the first month through the end of the last month.",
+      "hintDates": "Export records on and between these dates.",
+      "preview": "{{count}} records · {{months}} months",
+      "previewEmpty": "No records in this range."
+    },
+    "export": {
+      "title": "Export statement",
+      "description": "Choose a date range, then download a PDF statement, Excel workbook, CSV, or JSON.",
+      "xlsx": "Excel",
+      "xlsxDesc": "Workbook with summary, ledger, and a sheet per month",
+      "csv": "CSV",
+      "csvDesc": "Spreadsheet rows with dates, amounts, and line items",
+      "json": "JSON",
+      "jsonDesc": "Structured records for other systems",
+      "ledger": "Ledger"
+    },
+    "report": {
+      "title": "Customer statement",
+      "generated": "Generated",
+      "period": "Period",
+      "customer": "Bill to",
+      "phone": "Phone",
+      "item": "Item",
+      "qty": "Qty",
+      "rate": "Rate",
+      "lineAmount": "Amount",
+      "html": "PDF",
+      "htmlDesc": "Detailed PDF statement with items and monthly totals",
+      "pdf": "PDF",
+      "pdfDesc": "Detailed PDF statement with items and monthly totals"
+    }
   },
   "sheet": {
     "add": "Add customer",

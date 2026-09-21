@@ -63,10 +63,15 @@ import {
   computeBalance,
   computeOrderTotal,
   EMPTY_ORDER,
+  flattenOrderForExport,
   formatDate,
   formatMoney,
-  mapImportedOrder,
+  importOrdersFromRows,
   nextInvoiceNumber,
+  ORDER_IMPORT_COLUMNS,
+  ORDER_IMPORT_SAMPLE_ROW,
+  ORDER_STATUSES,
+  PAYMENT_METHODS,
   orderFromFormData,
   statusBadgeClass,
   type OrderRow,
@@ -75,6 +80,7 @@ import { buildReturnFromOrder } from "@/lib/returns"
 import { canCancelDocument, canReturnDocument } from "@/lib/return-eligibility"
 import {
   flattenOrdersToSaleLines,
+  flattenSaleLineForExport,
   type SaleLineRow,
 } from "@/lib/sales-report"
 
@@ -86,6 +92,26 @@ function salesBillTabFilter(row: OrderRow, tab: string) {
 function salesLineTabFilter(row: SaleLineRow, tab: string) {
   if (tab === "all") return true
   return row.orderStatus === tab
+}
+
+function textFilterMeta(label: string) {
+  return { dataTableFilterVariant: "text" as const, dataTableFilterLabel: label }
+}
+
+function rangeFilterMeta(label: string) {
+  return { dataTableFilterVariant: "range" as const, dataTableFilterLabel: label }
+}
+
+function statusFilterMeta(t: TFunction<"sales">, label = t("columns.status")) {
+  return {
+    dataTableFilterVariant: "select" as const,
+    dataTableFilterLabel: label,
+    dataTableFilterSelectLabels: {
+      pending: t("status.pending"),
+      completed: t("status.completed"),
+      cancelled: t("status.cancelled"),
+    },
+  }
 }
 
 type SaleFormSidebarState =
@@ -187,7 +213,7 @@ function getSalesBillColumns(
         </button>
       ),
       enableHiding: false,
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.invoiceNumber")),
     },
     {
       accessorKey: "customerName",
@@ -199,7 +225,7 @@ function getSalesBillColumns(
           {row.original.customerName}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.customer")),
     },
     {
       id: "items",
@@ -214,7 +240,7 @@ function getSalesBillColumns(
           </span>
         </div>
       ),
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.items")),
     },
     {
       accessorKey: "orderDate",
@@ -226,7 +252,7 @@ function getSalesBillColumns(
           {formatDate(row.original.orderDate)}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.date")),
     },
     {
       accessorKey: "totalAmount",
@@ -240,7 +266,7 @@ function getSalesBillColumns(
           </span>
         </div>
       ),
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.totalAmount")),
     },
     {
       accessorKey: "paidAmount",
@@ -254,7 +280,7 @@ function getSalesBillColumns(
           </span>
         </div>
       ),
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.paidAmount")),
     },
     {
       id: "balance",
@@ -278,7 +304,7 @@ function getSalesBillColumns(
           </div>
         )
       },
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.balance")),
     },
     {
       accessorKey: "status",
@@ -290,7 +316,7 @@ function getSalesBillColumns(
           {t(`status.${row.original.status}`)}
         </Badge>
       ),
-      meta: { dataTableFilter: false },
+      meta: statusFilterMeta(t),
     },
     {
       id: "actions",
@@ -372,7 +398,7 @@ function getSalesLineColumns(
         </button>
       ),
       enableHiding: false,
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.invoiceNumber")),
     },
     {
       accessorKey: "customerName",
@@ -384,7 +410,7 @@ function getSalesLineColumns(
           {row.original.customerName}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.customer")),
     },
     {
       accessorKey: "orderDate",
@@ -396,7 +422,7 @@ function getSalesLineColumns(
           {formatDate(row.original.orderDate)}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.date")),
     },
     {
       accessorKey: "productName",
@@ -413,7 +439,7 @@ function getSalesLineColumns(
         </button>
       ),
       enableHiding: false,
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.item")),
     },
     {
       accessorKey: "quantity",
@@ -425,7 +451,7 @@ function getSalesLineColumns(
           <span className="text-foreground tabular-nums">{row.original.quantity}</span>
         </div>
       ),
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.qty")),
     },
     {
       accessorKey: "unitPrice",
@@ -439,7 +465,7 @@ function getSalesLineColumns(
           </span>
         </div>
       ),
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.unitPrice")),
     },
     {
       accessorKey: "lineTotal",
@@ -453,7 +479,7 @@ function getSalesLineColumns(
           </span>
         </div>
       ),
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.lineTotal")),
     },
     {
       accessorKey: "orderStatus",
@@ -465,7 +491,7 @@ function getSalesLineColumns(
           {t(`status.${row.original.orderStatus}`)}
         </Badge>
       ),
-      meta: { dataTableFilter: false },
+      meta: statusFilterMeta(t),
     },
     {
       id: "actions",
@@ -889,15 +915,9 @@ export default function SalesReportPage() {
     (rows: Record<string, string>[]) => {
       let added = 0
       setOrders((prev) => {
-        let acc = [...prev]
-        for (const row of rows) {
-          const mapped = mapImportedOrder(row, acc)
-          if (mapped) {
-            acc = [...acc, mapped]
-            added++
-          }
-        }
-        return acc
+        const created = importOrdersFromRows(rows, prev)
+        added = created.length
+        return added > 0 ? [...prev, ...created] : prev
       })
       if (added > 0) markSetupMilestone("invoice")
       return added
@@ -905,34 +925,10 @@ export default function SalesReportPage() {
     [setOrders]
   )
 
-  const salesImportSampleCsv = useMemo(() => {
-    const example = orders[0] as Record<string, unknown> | undefined
-    if (!example) return undefined
-    return buildSampleCsv(
-      [
-        "invoiceNumber",
-        "customerName",
-        "orderDate",
-        "productName",
-        "quantity",
-        "unitPrice",
-        "totalAmount",
-        "paidAmount",
-        "status",
-      ],
-      {
-        invoiceNumber: example.invoiceNumber ?? "INV-1006",
-        customerName: example.customerName ?? "Sample customer",
-        orderDate: example.orderDate ?? "2026-01-15",
-        productName: "Sample product",
-        quantity: "2",
-        unitPrice: "500.00",
-        totalAmount: example.totalAmount ?? "1000.00",
-        paidAmount: example.paidAmount ?? "0.00",
-        status: example.status ?? "pending",
-      }
-    )
-  }, [orders])
+  const salesImportSampleCsv = useMemo(
+    () => buildSampleCsv([...ORDER_IMPORT_COLUMNS], ORDER_IMPORT_SAMPLE_ROW),
+    []
+  )
 
   const handleSaleFormSubmit = useCallback(
     (e: FormEvent<HTMLFormElement>) => {
@@ -1234,13 +1230,21 @@ export default function SalesReportPage() {
         <DataTable
           data={orders}
           columns={billColumns}
+          settingsKey="sales-bills"
           searchPlaceholder={t("search.bills")}
           exportFilename="sales-bills-export.csv"
           addButtonLabel={t("addButton")}
           onAddClick={openAddSaleSidebar}
           importSampleFilename="sales-sample.csv"
           importSampleCsvContent={salesImportSampleCsv}
+          importColumns={[...ORDER_IMPORT_COLUMNS]}
+          importSelectColumns={{
+            status: [...ORDER_STATUSES],
+            paymentMethod: [...PAYMENT_METHODS],
+          }}
+          importRequiredSelectColumns={[]}
           onImportRows={handleImportSales}
+          exportRowTransform={flattenOrderForExport}
           tableOptionsExtra={salesTableOptions}
           bulkActions={[
             {
@@ -1259,13 +1263,21 @@ export default function SalesReportPage() {
         <DataTable
           data={saleLines}
           columns={lineColumns}
+          settingsKey="sales-items"
           searchPlaceholder={t("search.items")}
           exportFilename="sales-items-export.csv"
           addButtonLabel={t("addButton")}
           onAddClick={openAddSaleSidebar}
           importSampleFilename="sales-sample.csv"
           importSampleCsvContent={salesImportSampleCsv}
+          importColumns={[...ORDER_IMPORT_COLUMNS]}
+          importSelectColumns={{
+            status: [...ORDER_STATUSES],
+            paymentMethod: [...PAYMENT_METHODS],
+          }}
+          importRequiredSelectColumns={[]}
           onImportRows={handleImportSales}
+          exportRowTransform={flattenSaleLineForExport}
           tableOptionsExtra={salesTableOptions}
           bulkActions={[
             {

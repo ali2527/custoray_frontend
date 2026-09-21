@@ -13,6 +13,7 @@ import {
   mapImportedProduct,
   normalizePriceValue,
   nextProductSrNo,
+  parseImportedProductLifecycle,
   productFromSidebarForm,
   productImageUploadValue,
   productTabFilter,
@@ -312,9 +313,11 @@ test("auto import sample omits sku; custom sample includes it", () => {
     "variant",
     "costPrice",
     "salePrice",
+    "lifecycle",
   ])
   assert.equal(productImportColumns(CUSTOM)[0], "sku")
   assert.equal("sku" in productImportSampleRow(AUTO), false)
+  assert.equal(productImportSampleRow(AUTO).lifecycle, "active")
   assert.equal(productImportSampleRow(CUSTOM).sku, "SKU-001")
 })
 
@@ -411,12 +414,11 @@ test("auto import ignores the sku column and auto increments", () => {
   assert.equal(first?.sku, "SKU-002")
   assert.equal(second?.sku, "SKU-003")
 })
-test("auto import takes stock but ignores listing and order columns", () => {
+test("auto import takes stock but ignores stock status and order columns", () => {
   const row = mapImportedProduct(
     {
       name: "Plain",
       status: "Out of Stock",
-      lifecycle: "archived",
       productStatus: "active",
       stock: "40",
       orders: "9",
@@ -429,6 +431,32 @@ test("auto import takes stock but ignores listing and order columns", () => {
   assert.equal(row?.productStatus, "none")
   assert.equal(row?.stock, 40)
   assert.equal(row?.orders, 0)
+})
+test("import lifecycle matches edit form and ignores stock status column", () => {
+  const archived = mapImportedProduct(
+    {
+      name: "Archived lamp",
+      status: "Out of Stock",
+      lifecycle: "archived",
+      stock: "40",
+    },
+    [],
+    AUTO
+  )
+  assert.equal(archived?.status, "In Stock")
+  assert.equal(archived?.lifecycle, "archived")
+  const inactive = mapImportedProduct(
+    { name: "Paused", lifecycle: "inactive" },
+    [],
+    AUTO
+  )
+  assert.equal(inactive?.lifecycle, "inactive")
+  assert.equal(
+    mapImportedProduct({ name: "Bad", lifecycle: "paused" }, [], AUTO),
+    null
+  )
+  assert.equal(parseImportedProductLifecycle("in stock"), "")
+  assert.equal(parseImportedProductLifecycle("archived"), "archived")
 })
 test("maps sale price aliases and clamps", () => {
   const cheap = mapImportedProduct({ name: "Cheap", "sale price": "5" }, [], AUTO)

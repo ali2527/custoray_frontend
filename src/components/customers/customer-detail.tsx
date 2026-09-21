@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react"
 import Link from "next/link"
-import { IconFileText, IconHistory, IconPhone, IconUser } from "@tabler/icons-react"
+import { IconHistory, IconPhone, IconUser } from "@tabler/icons-react"
 import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { CustomerOrderCards } from "@/components/customers/customer-order-cards"
 import {
   computeBalance,
+  customerTimelineHref,
   formatMoney,
   statusBadgeClass,
   type CustomerRow,
@@ -47,13 +48,11 @@ function phoneHref(phone: string) {
 type CustomerDetailProps = {
   customer: CustomerRow
   onViewTimeline?: () => void
-  onViewRecord?: () => void
 }
 
 export function CustomerDetail({
   customer,
   onViewTimeline,
-  onViewRecord,
 }: CustomerDetailProps) {
   const { t } = useTranslation("customers")
   const photo = customer.imageUrl.trim()
@@ -188,7 +187,7 @@ export function CustomerDetail({
             </button>
           ) : (
             <Link
-              href={`/customers/${customer.id}/timeline`}
+              href={customerTimelineHref(customer.id)}
               className="text-muted-foreground hover:text-foreground text-xs font-medium underline-offset-4 hover:underline"
             >
               {t("viewSheet.viewAll")}
@@ -198,7 +197,7 @@ export function CustomerDetail({
         <CustomerOrderCards customer={customer} limit={3} compact />
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      {onViewTimeline ? (
         <Button
           type="button"
           variant="outline"
@@ -208,16 +207,7 @@ export function CustomerDetail({
           <IconHistory className="size-4" />
           {t("actions.viewTimeline")}
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full"
-          onClick={onViewRecord}
-        >
-          <IconFileText className="size-4" />
-          {t("actions.viewRecord")}
-        </Button>
-      </div>
+      ) : null}
     </div>
   )
 }

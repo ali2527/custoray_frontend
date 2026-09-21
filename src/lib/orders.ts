@@ -10,6 +10,32 @@ export const PAYMENT_METHODS = ["Cash", "Bank transfer", "Card", "Credit"] as co
 
 export const ORDER_STATUSES = ["pending", "completed", "cancelled"] as const
 
+export const ORDER_IMPORT_COLUMNS = [
+  "invoiceNumber",
+  "customerName",
+  "orderDate",
+  "productName",
+  "quantity",
+  "unitPrice",
+  "paidAmount",
+  "paymentMethod",
+  "status",
+  "description",
+] as const
+
+export const ORDER_IMPORT_SAMPLE_ROW: Record<(typeof ORDER_IMPORT_COLUMNS)[number], string> = {
+  invoiceNumber: "INV-2001",
+  customerName: "Acme Retail Co.",
+  orderDate: "2026-09-21",
+  productName: "Premium Basmati Rice 25kg",
+  quantity: "2",
+  unitPrice: "3200.00",
+  paidAmount: "6400.00",
+  paymentMethod: "Cash",
+  status: "completed",
+  description: "Imported sale",
+}
+
 export const orderLineSchema = z.object({
   id: z.number(),
   productName: z.string(),
@@ -635,8 +661,7 @@ export function mapImportedOrder(
   existing: OrderRow[]
 ): OrderRow | null {
   const maxId = existing.reduce((m, x) => Math.max(m, x.id), 0)
-  const id = Number(row.id)
-  const finalId = Number.isFinite(id) && id > 0 ? id : maxId + 1
+  const finalId = maxId + 1
   const customerName = (
     row.customerName ??
     row.customer ??
@@ -652,25 +677,14 @@ export function mapImportedOrder(
   ).trim()
   if (!customerName && !invoiceNumber) return null
 
-  const productName = (row.productName ?? row.product ?? row.product_name ?? "").trim()
-  const quantity = Number(row.quantity ?? row.qty) || 1
-  const unitPrice = parseMoney(String(row.unitPrice ?? row.unit_price ?? row.rate ?? "0"))
-
-  const line: OrderLineRow = {
-    id: 1,
-    productName: productName || "Imported item",
-    quantity,
-    unitPrice,
-    lineTotal: computeLineTotal(quantity, unitPrice),
-  }
-
+  const line = importedOrderLine(row, 1)
   const totalAmount = parseMoney(
     String(row.totalAmount ?? row.total_amount ?? row.total ?? line.lineTotal)
   )
 
   return {
     id: finalId,
-    invoiceNumber: invoiceNumber || `INV-${finalId}`,
+    invoiceNumber: uniqueInvoiceNumber(invoiceNumber || `INV-${finalId}`, existing),
     customerName: customerName || "—",
     description: (row.description ?? row.desc ?? "").trim() || "—",
     orderDate:
@@ -682,6 +696,100 @@ export function mapImportedOrder(
     status: parseStatus(row.status ?? "pending"),
     lines: [line],
   }
+}
+
+function importedOrderLine(row: Record<string, string>, id: number): OrderLineRow {
+  const productName = (row.productName ?? row.product ?? row.product_name ?? "").trim()
+  const quantity = Number(row.quantity ?? row.qty) || 1
+  const unitPrice = parseMoney(
+    String(row.unitPrice ?? row.unit_price ?? row.rate ?? "0")
+  )
+  return {
+    id,
+    productName: productName || "Imported item",
+    quantity,
+    unitPrice,
+    lineTotal: computeLineTotal(quantity, unitPrice),
+  }
+}
+
+function uniqueInvoiceNumber(desired: string, existing: OrderRow[]): string {
+  if (!desired) return nextInvoiceNumber(existing)
+  if (!existing.some((order) => order.invoiceNumber === desired)) return desired
+  return nextInvoiceNumber(existing)
+}
+
+export function flattenOrderForExport(order: OrderRow): Record<string, unknown>[] {
+  const lines = order.lines?.length
+    ? order.lines
+    : [{ productName: "", quantity: 1, unitPrice: "0.00" }]
+  return lines.map((line) => ({
+    invoiceNumber: order.invoiceNumber,
+    customerName: order.customerName,
+    orderDate: order.orderDate,
+    productName: line.productName,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    paidAmount: order.paidAmount,
+    paymentMethod: order.paymentMethod,
+    status: order.status,
+    description: order.description === "—" ? "" : order.description,
+  }))
+}
+
+export function importOrdersFromRows(
+  rows: Record<string, string>[],
+  existing: OrderRow[]
+): OrderRow[] {
+  const groups = new Map<string, Record<string, string>[]>()
+  const orphans: Record<string, string>[] = []
+
+  for (const row of rows) {
+    const invoiceNumber = (
+      row.invoiceNumber ??
+      row.invoice_number ??
+      row.invoice ??
+      row.saleNumber ??
+      ""
+    ).trim()
+    if (!invoiceNumber) {
+      orphans.push(row)
+      continue
+    }
+    const list = groups.get(invoiceNumber) ?? []
+    list.push(row)
+    groups.set(invoiceNumber, list)
+  }
+
+  const created: OrderRow[] = []
+  let acc = [...existing]
+
+  const push = (mapped: OrderRow | null) => {
+    if (!mapped) return
+    acc = [...acc, mapped]
+    created.push(mapped)
+  }
+
+  for (const group of groups.values()) {
+    const header = mapImportedOrder(group[0], acc)
+    if (!header) continue
+    header.lines = group.map((row, index) => importedOrderLine(row, index + 1))
+    header.totalAmount = computeOrderTotal(header.lines)
+    const paidOverride = (
+      group[0].paidAmount ??
+      group[0].paid_amount ??
+      group[0].paid ??
+      ""
+    ).trim()
+    if (paidOverride) header.paidAmount = parseMoney(paidOverride)
+    push(header)
+  }
+
+  for (const row of orphans) {
+    push(mapImportedOrder(row, acc))
+  }
+
+  return created
 }
 
 export function parsePersistedOrders(raw: string | null): OrderRow[] | null {

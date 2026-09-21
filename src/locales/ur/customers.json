@@ -61,7 +61,87 @@
     "balance": "بیلنس",
     "return": "واپسی",
     "returnAmount": "واپسی کی رقم",
-    "itemCount": "{{count}} آئٹمز"
+    "itemCount": "{{count}} آئٹمز",
+    "search": "بل اور واپسی تلاش کریں…",
+    "emptyFiltered": "ان فلٹرز سے کوئی ریکارڈ نہیں ملا۔",
+    "typeInvoice": "بل",
+    "typeReturn": "واپسی",
+    "filters": {
+      "allTypes": "تمام اقسام",
+      "allStatuses": "تمام حیثیتیں",
+      "allMonths": "تمام مہینے",
+      "status": "حیثیت",
+      "month": "مہینہ"
+    },
+    "summary": {
+      "total": "کل",
+      "credit": "کریڈٹ",
+      "remaining": "باقی",
+      "balance": "بیلنس"
+    },
+    "tabs": {
+      "all": "تمام",
+      "invoices": "بل",
+      "returns": "واپسیاں"
+    },
+    "columns": {
+      "date": "تاریخ",
+      "type": "قسم",
+      "document": "دستاویز",
+      "details": "تفصیلات",
+      "number": "نمبر",
+      "reference": "حوالہ",
+      "description": "تفصیل",
+      "amount": "رقم",
+      "paid": "ادا شدہ",
+      "balance": "واجب",
+      "running": "چلتا بیلنس",
+      "status": "حیثیت",
+      "month": "مہینہ",
+      "items": "آئٹمز"
+    },
+    "recordCount": "{{count}} ریکارڈز",
+    "exportRange": {
+      "label": "برآمد کی مدت",
+      "all": "تمام تاریخیں",
+      "months": "مہینے",
+      "dates": "تاریخیں",
+      "fromMonth": "مہینہ سے",
+      "toMonth": "مہینہ تک",
+      "fromDate": "تاریخ سے",
+      "toDate": "تاریخ تک",
+      "hintAll": "ہر مماثل بل اور واپسی برآمد کریں۔",
+      "hintMonths": "پہلے مہینے کی شروعات سے آخری مہینے کے آخر تک برآمد کریں۔",
+      "hintDates": "ان تاریخوں پر اور ان کے درمیان کے ریکارڈ برآمد کریں۔",
+      "preview": "{{count}} ریکارڈز · {{months}} مہینے",
+      "previewEmpty": "اس مدت میں کوئی ریکارڈ نہیں۔"
+    },
+    "export": {
+      "title": "گوشوارہ برآمد کریں",
+      "description": "مدت منتخب کریں، پھر PDF گوشوارہ، Excel ورک بک، CSV یا JSON ڈاؤن لوڈ کریں۔",
+      "xlsx": "Excel",
+      "xlsxDesc": "خلاصہ، لیجر، اور ہر مہینے کے لیے شیٹ والی ورک بک",
+      "csv": "CSV",
+      "csvDesc": "تاریخوں، رقوم اور آئٹمز کے ساتھ اسپریڈشیٹ قطاریں",
+      "json": "JSON",
+      "jsonDesc": "دیگر سسٹمز کے لیے منظم ریکارڈز",
+      "ledger": "لیجر"
+    },
+    "report": {
+      "title": "گاہک کا گوشوارہ",
+      "generated": "تیار کیا گیا",
+      "period": "مدت",
+      "customer": "بل برائے",
+      "phone": "فون",
+      "item": "آئٹم",
+      "qty": "تعداد",
+      "rate": "شرح",
+      "lineAmount": "رقم",
+      "html": "PDF",
+      "htmlDesc": "آئٹمز اور ماہانہ کل کے ساتھ تفصیلی PDF گوشوارہ",
+      "pdf": "PDF",
+      "pdfDesc": "آئٹمز اور ماہانہ کل کے ساتھ تفصیلی PDF گوشوارہ"
+    }
   },
   "sheet": {
     "add": "گاہک شامل کریں",

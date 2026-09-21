@@ -60,6 +60,38 @@ export const returnSchema = z.object({
 
 export type ReturnRow = z.infer<typeof returnSchema>
 
+export const RETURN_TYPES = ["sales", "purchase"] as const
+export const RETURN_STATUSES = ["pending", "completed", "cancelled"] as const
+
+export const RETURN_IMPORT_COLUMNS = [
+  "returnNumber",
+  "type",
+  "referenceNumber",
+  "partyName",
+  "returnDate",
+  "productName",
+  "quantity",
+  "unitPrice",
+  "status",
+  "description",
+] as const
+
+export const RETURN_IMPORT_SAMPLE_ROW: Record<
+  (typeof RETURN_IMPORT_COLUMNS)[number],
+  string
+> = {
+  returnNumber: "SR-3101",
+  type: "sales",
+  referenceNumber: "INV-1003",
+  partyName: "Contoso Foods",
+  returnDate: "2026-09-21",
+  productName: "Frozen Chicken 10kg",
+  quantity: "1",
+  unitPrice: "1240.00",
+  status: "pending",
+  description: "Imported return",
+}
+
 export const RETURNS_STORAGE_KEY = "custoray-returns-v2"
 
 export const initialReturns: ReturnRow[] = [
@@ -235,6 +267,169 @@ export function nextReturnNumber(
     })
   const next = (nums.length ? Math.max(...nums) : 3000) + 1
   return `${prefix}-${next}`
+}
+
+export function parseReturnType(raw: string): ReturnRow["type"] {
+  const value = raw.trim().toLowerCase()
+  if (value === "purchase" || value === "purchases" || value === "vendor") {
+    return "purchase"
+  }
+  return "sales"
+}
+
+export function parseReturnStatus(raw: string): ReturnRow["status"] {
+  const statusRaw = raw.toLowerCase().replace(/\s+/g, "_")
+  if (statusRaw === "completed") return "completed"
+  if (statusRaw === "cancelled" || statusRaw === "canceled") return "cancelled"
+  return "pending"
+}
+
+function importedReturnLine(row: Record<string, string>, id: number): ReturnLineRow {
+  const productName = (row.productName ?? row.product ?? row.product_name ?? "").trim()
+  const quantity = Number(row.quantity ?? row.qty) || 1
+  const unitPrice = parseMoney(
+    String(row.unitPrice ?? row.unit_price ?? row.rate ?? "0")
+  )
+  const lineTotal = computeLineTotal(quantity, unitPrice)
+  return {
+    id,
+    sourceLineId: Number(row.sourceLineId ?? row.source_line_id) || 0,
+    productName: productName || "Imported item",
+    quantity,
+    maxQuantity: quantity,
+    unitPrice,
+    lineTotal,
+  }
+}
+
+function uniqueReturnNumber(
+  desired: string,
+  type: ReturnRow["type"],
+  existing: ReturnRow[]
+): string {
+  if (!desired) return nextReturnNumber(existing, type)
+  if (!existing.some((row) => row.returnNumber === desired)) return desired
+  return nextReturnNumber(existing, type)
+}
+
+export function mapImportedReturn(
+  row: Record<string, string>,
+  existing: ReturnRow[]
+): ReturnRow | null {
+  const maxId = existing.reduce((m, x) => Math.max(m, x.id), 0)
+  const type = parseReturnType(row.type ?? row.returnType ?? "")
+  const partyName = (
+    row.partyName ??
+    row.party ??
+    row.customerName ??
+    row.vendorName ??
+    ""
+  ).trim()
+  const returnNumber = (row.returnNumber ?? row.return_number ?? "").trim()
+  const referenceNumber = (
+    row.referenceNumber ??
+    row.reference ??
+    row.invoiceNumber ??
+    row.purchaseNumber ??
+    ""
+  ).trim()
+  if (!partyName && !returnNumber && !referenceNumber) return null
+
+  const line = importedReturnLine(row, 1)
+  const totalAmount = parseMoney(
+    String(row.totalAmount ?? row.total_amount ?? row.total ?? line.lineTotal)
+  )
+  const status = parseReturnStatus(row.status ?? "pending")
+  const impact = computePaymentImpact("0", totalAmount, totalAmount)
+
+  return {
+    id: maxId + 1,
+    returnNumber: uniqueReturnNumber(
+      returnNumber || nextReturnNumber(existing, type),
+      type,
+      existing
+    ),
+    type,
+    sourceId: Number(row.sourceId ?? row.source_id) || 0,
+    referenceNumber: referenceNumber || "—",
+    partyName: partyName || "—",
+    returnDate:
+      (row.returnDate ?? row.return_date ?? row.date ?? "").trim() ||
+      new Date().toISOString().slice(0, 10),
+    description: (row.description ?? row.desc ?? row.notes ?? "").trim() || "—",
+    totalAmount,
+    refundedAmount: parseMoney(String(row.refundedAmount ?? row.refunded ?? "0")),
+    sourcePaidAmount: "0.00",
+    sourceTotalBefore: totalAmount,
+    sourceTotalAfter: impact.sourceTotalAfter,
+    refundDue: status === "completed" ? "0.00" : totalAmount,
+    balanceDue: impact.balanceDue,
+    status,
+    lines: [line],
+  }
+}
+
+export function flattenReturnForExport(
+  row: ReturnRow
+): Record<string, unknown>[] {
+  const lines = row.lines?.length
+    ? row.lines
+    : [{ productName: "", quantity: 1, unitPrice: "0.00" }]
+  return lines.map((line) => ({
+    returnNumber: row.returnNumber,
+    type: row.type,
+    referenceNumber: row.referenceNumber,
+    partyName: row.partyName,
+    returnDate: row.returnDate,
+    productName: line.productName,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    status: row.status,
+    description: row.description === "—" ? "" : row.description,
+  }))
+}
+
+export function importReturnsFromRows(
+  rows: Record<string, string>[],
+  existing: ReturnRow[]
+): ReturnRow[] {
+  const groups = new Map<string, Record<string, string>[]>()
+  const orphans: Record<string, string>[] = []
+
+  for (const row of rows) {
+    const returnNumber = (row.returnNumber ?? row.return_number ?? "").trim()
+    if (!returnNumber) {
+      orphans.push(row)
+      continue
+    }
+    const list = groups.get(returnNumber) ?? []
+    list.push(row)
+    groups.set(returnNumber, list)
+  }
+
+  const created: ReturnRow[] = []
+  let acc = [...existing]
+
+  const push = (mapped: ReturnRow | null) => {
+    if (!mapped) return
+    acc = [...acc, mapped]
+    created.push(mapped)
+  }
+
+  for (const group of groups.values()) {
+    const header = mapImportedReturn(group[0], acc)
+    if (!header) continue
+    header.lines = group.map((row, index) => importedReturnLine(row, index + 1))
+    header.totalAmount = computeReturnTotal(header.lines)
+    if (header.status !== "completed") header.refundDue = header.totalAmount
+    push(header)
+  }
+
+  for (const row of orphans) {
+    push(mapImportedReturn(row, acc))
+  }
+
+  return created
 }
 
 export function buildReturnFromOrder(
@@ -568,6 +763,23 @@ export function returnsForCustomer(
     .filter(
       (doc) =>
         doc.type === "sales" &&
+        doc.status !== "cancelled" &&
+        doc.partyName.trim().toLowerCase() === normalized
+    )
+    .sort((a, b) => b.returnDate.localeCompare(a.returnDate) || b.id - a.id)
+}
+
+export function returnsForVendor(
+  returns: ReturnRow[],
+  vendorName: string
+): ReturnRow[] {
+  const normalized = vendorName.trim().toLowerCase()
+  if (!normalized || normalized === "—") return []
+
+  return returns
+    .filter(
+      (doc) =>
+        doc.type === "purchase" &&
         doc.status !== "cancelled" &&
         doc.partyName.trim().toLowerCase() === normalized
     )

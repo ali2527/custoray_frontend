@@ -55,3 +55,20 @@ export function flattenReturnsToLines(returns: ReturnRow[]): ReturnLineReportRow
     return b.returnId - a.returnId
   })
 }
+
+export function flattenReturnLineForExport(
+  line: ReturnLineReportRow
+): Record<string, unknown> {
+  return {
+    returnNumber: line.returnNumber,
+    type: line.type,
+    referenceNumber: line.referenceNumber,
+    partyName: line.partyName,
+    returnDate: line.returnDate,
+    productName: line.productName,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    status: line.returnStatus,
+    description: "",
+  }
+}

@@ -16,6 +16,8 @@ export const MIN_PRICE = 100
 export const MAX_PRICE = 10000
 export const MAX_PRODUCT_IMAGES = 8
 export const PRODUCT_VARIANTS = ["Genuine", "1st Copy", "2nd Copy", "Others"] as const
+export const PRODUCT_LIFECYCLE_OPTIONS = ["active", "inactive", "archived"] as const
+export type ProductLifecycle = (typeof PRODUCT_LIFECYCLE_OPTIONS)[number]
 
 export function clampPriceValue(value: number): number {
   return Math.min(MAX_PRICE, Math.max(MIN_PRICE, value))
@@ -45,7 +47,7 @@ export const productSchema = z.object({
   orders: z.number(),
   costPrice: z.string(),
   salePrice: z.string(),
-  lifecycle: z.enum(["active", "inactive", "archived"]).default("active"),
+  lifecycle: z.enum(PRODUCT_LIFECYCLE_OPTIONS).default("active"),
   imageUrls: z.array(z.string()).default([]),
 })
 
@@ -76,11 +78,26 @@ export function parseProductLifecycle(
   raw: unknown,
   fallback: ProductRow["lifecycle"] = "active"
 ): ProductRow["lifecycle"] {
-  const value = String(raw ?? "").trim().toLowerCase()
-  if (value === "inactive" || value === "archived" || value === "active") {
+  const parsed = parseImportedProductLifecycle(String(raw ?? ""))
+  return parsed || fallback
+}
+
+export function parseImportedProductLifecycle(
+  raw: string | undefined
+): ProductLifecycle | "" {
+  const value = (raw ?? "").trim().toLowerCase().replace(/\s+/g, "_")
+  if (!value) return ""
+  if (value === "in_stock" || value === "low_stock" || value === "out_of_stock") {
+    return ""
+  }
+  if (
+    value === "active" ||
+    value === "inactive" ||
+    value === "archived"
+  ) {
     return value
   }
-  return fallback
+  return ""
 }
 
 export function parseImageUrls(
@@ -201,6 +218,9 @@ export function mapImportedProduct(
     tables.variant,
     onUnmatchedCatalog
   )
+  const lifecycleRaw = (row.lifecycle ?? "").trim()
+  const parsedLifecycle = parseImportedProductLifecycle(lifecycleRaw)
+  if (lifecycleRaw && !parsedLifecycle) return null
   return {
     srNo: finalSr,
     sku:
@@ -217,7 +237,7 @@ export function mapImportedProduct(
     orders: 0,
     costPrice: normalizedCostPrice,
     salePrice: normalizedSalePrice,
-    lifecycle: "active",
+    lifecycle: parsedLifecycle || "active",
     imageUrls: parseImageUrls(row.imageUrls, []),
   }
 }

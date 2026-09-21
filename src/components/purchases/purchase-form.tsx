@@ -21,6 +21,10 @@ import { Label } from "@/components/ui/label"
 import { useProducts } from "@/context/products-context"
 import { useVendors } from "@/context/vendors-context"
 import { formatMoney } from "@/lib/customers"
+import {
+  findVendorBySelectValue,
+  vendorSelectValue,
+} from "@/lib/vendors"
 import { EMPTY_PRODUCT, nextSku, productFromFormData } from "@/lib/products"
 import {
   computeLineTotal,
@@ -50,11 +54,14 @@ function emptyLine(id: number): PurchaseLineRow {
   }
 }
 
-function resolveVendorId(vendors: { id: number; name: string }[], name: string) {
+function resolveVendorId(
+  vendors: { id: number; apiId?: string; name: string }[],
+  name: string
+) {
   const normalized = name.trim()
   if (!normalized || normalized === "—") return ""
   const match = vendors.find((vendor) => vendor.name === normalized)
-  return match ? String(match.id) : ""
+  return match ? vendorSelectValue(match) : ""
 }
 
 function resolveProductId(products: { id: number; name: string }[], name: string) {
@@ -85,7 +92,7 @@ export function PurchaseForm({ formId, purchase, onSubmit }: PurchaseFormProps) 
 
   const vendorName = useMemo(() => {
     if (!vendorId) return ""
-    const vendor = vendors.find((item) => String(item.id) === vendorId)
+    const vendor = findVendorBySelectValue(vendors, vendorId)
     return vendor?.name ?? ""
   }, [vendorId, vendors])
 
@@ -94,7 +101,7 @@ export function PurchaseForm({ formId, purchase, onSubmit }: PurchaseFormProps) 
   const vendorOptions = useMemo(
     () =>
       vendors.map((vendor) => ({
-        value: String(vendor.id),
+        value: vendorSelectValue(vendor),
         label: vendor.name,
         description: vendor.phone !== "—" ? vendor.phone : vendor.description,
       })),
@@ -156,8 +163,8 @@ export function PurchaseForm({ formId, purchase, onSubmit }: PurchaseFormProps) 
     [products, updateLine]
   )
 
-  const handleVendorCreated = useCallback((created: { id: number }) => {
-    setVendorId(String(created.id))
+  const handleVendorCreated = useCallback((created: { id: number; apiId?: string }) => {
+    setVendorId(vendorSelectValue(created))
     setQuickAdd(null)
   }, [])
 

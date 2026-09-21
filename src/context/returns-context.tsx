@@ -15,6 +15,7 @@ import type { PurchaseRow } from "@/lib/purchases"
 
 type ReturnsContextValue = {
   returns: ReturnRow[]
+  hydrated: boolean
   setReturns: React.Dispatch<React.SetStateAction<ReturnRow[]>>
   getReturn: (id: number) => ReturnRow | undefined
   addReturn: (
@@ -112,12 +113,13 @@ export function ReturnsProvider({ children }: { children: React.ReactNode }) {
   const value = React.useMemo(
     () => ({
       returns,
+      hydrated,
       setReturns,
       getReturn,
       addReturn,
       removeReturn,
     }),
-    [returns, getReturn, addReturn, removeReturn]
+    [returns, hydrated, getReturn, addReturn, removeReturn]
   )
 
   return <ReturnsContext.Provider value={value}>{children}</ReturnsContext.Provider>

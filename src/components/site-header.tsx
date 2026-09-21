@@ -37,6 +37,10 @@ function titleKeyForPath(pathname: string | null): string {
     return "header.customerDetails"
   }
   if (path === "/vendors") return "header.vendors"
+  if (path.startsWith("/vendors/")) {
+    if (path.endsWith("/timeline")) return "header.vendorTimeline"
+    return "header.vendors"
+  }
   if (path === "/invoices") return "header.salesInvoice"
   if (path === "/documents/sales-invoice") return "header.salesInvoice"
   if (path === "/documents/purchase-invoice") return "header.purchaseInvoice"
