@@ -59,6 +59,7 @@
     "selectCustomer": "Select a customer.",
     "selectVendor": "Select a vendor.",
     "invalidAmount": "Enter a valid payment amount.",
+    "numberRequired": "Enter a payment number.",
     "received": "Payment received.",
     "recorded": "Payment recorded.",
     "saved": "Payment saved.",

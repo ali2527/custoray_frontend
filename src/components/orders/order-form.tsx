@@ -5,6 +5,7 @@ import { IconPlus, IconTrash } from "@tabler/icons-react"
 import { toast } from "sonner"
 
 import { CustomerQuickAddSheet } from "@/components/customers/customer-quick-add-sheet"
+import { DocumentNumberField } from "@/components/document-number-field"
 import { ProductQuickForm } from "@/components/inventory/product-quick-form"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,6 +21,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useCustomers } from "@/context/customers-context"
 import { useProducts } from "@/context/products-context"
+import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
 import { formatMoney } from "@/lib/customers"
 import {
   computeLineTotal,
@@ -32,6 +34,7 @@ import { EMPTY_PRODUCT, nextSku, productFromFormData } from "@/lib/products"
 type OrderFormProps = {
   formId: string
   order: OrderRow
+  isNew?: boolean
   onSubmit: (e: FormEvent<HTMLFormElement>) => void
 }
 
@@ -64,7 +67,8 @@ function resolveProductId(products: { id: number; name: string }[], name: string
   return match ? String(match.id) : ""
 }
 
-export function OrderForm({ formId, order, onSubmit }: OrderFormProps) {
+export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormProps) {
+  const { settings: numberSettings } = useDocumentNumberSettings()
   const { customers } = useCustomers()
   const { products, addProduct } = useProducts()
 

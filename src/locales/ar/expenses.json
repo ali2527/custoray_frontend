@@ -49,6 +49,7 @@
     "removedNamed": "تم حذف {{name}}.",
     "duplicatedNamed": "تم التكرار كـ {{name}}.",
     "selectType": "اختر نوع المصروف.",
+    "numberRequired": "أدخل رقم المصروف.",
     "invalidAmount": "أدخل مبلغاً صالحاً.",
     "created": "تم تسجيل المصروف.",
     "saved": "تم حفظ المصروف.",

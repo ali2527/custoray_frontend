@@ -49,6 +49,7 @@
     "removedNamed": "{{name}} حذف ہو گیا۔",
     "duplicatedNamed": "{{name}} کے طور پر نقل ہوا۔",
     "selectType": "اخراج کی قسم منتخب کریں۔",
+    "numberRequired": "اخراج نمبر درج کریں۔",
     "invalidAmount": "درست رقم درج کریں۔",
     "created": "اخراج درج ہو گیا۔",
     "saved": "اخراج محفوظ ہو گیا۔",

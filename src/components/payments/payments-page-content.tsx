@@ -43,11 +43,16 @@ import {
 import { useCustomers } from "@/context/customers-context"
 import { usePayments } from "@/context/payments-context"
 import { useVendors } from "@/context/vendors-context"
+import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
 import {
   confirmDeleteAction,
   confirmDuplicateAction,
 } from "@/lib/confirm-action"
 import { buildSampleCsv } from "@/lib/csv"
+import {
+  DEFAULT_DOCUMENT_NUMBER_SETTINGS,
+  resolveDocumentNumber,
+} from "@/lib/document-number-settings"
 import {
   CUSTOMER_PAYMENT_IMPORT_SAMPLE_ROW,
   EMPTY_PAYMENT,
@@ -293,7 +298,9 @@ function getPaymentColumns(
 
 export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
   const { t } = useTranslation("payments")
+  const { settings: numberSettings } = useDocumentNumberSettings()
   const isCustomer = paymentType === "customer"
+  const numberKey = isCustomer ? "customerPayments" : "vendorPayments"
   const partyLabel = isCustomer ? t("columns.customer") : t("columns.vendor")
   const addButtonLabel = isCustomer ? t("receive") : t("make")
   const searchPlaceholder = isCustomer
@@ -436,22 +443,36 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
       }
 
       fd.set("type", paymentType)
+      const isNew = sidebar?.mode === "add"
+      const base = isNew
+        ? { ...EMPTY_PAYMENT, type: paymentType }
+        : sidebar?.payment ?? { ...EMPTY_PAYMENT, type: paymentType }
+      const draft = paymentFromFormData(fd, base)
+      const paymentNumber = resolveDocumentNumber({
+        settings: numberSettings[numberKey],
+        fallbackPrefix: DEFAULT_DOCUMENT_NUMBER_SETTINGS[numberKey].prefix,
+        existing: typePayments.map((row) => row.paymentNumber),
+        value: draft.paymentNumber,
+        isNew: Boolean(isNew),
+      })
+      if (isNew && numberSettings[numberKey].mode === "custom" && !paymentNumber) {
+        toast.error(t("toasts.numberRequired"))
+        return
+      }
 
       try {
-        if (sidebar?.mode === "add") {
-          await addPayment(
-            paymentFromFormData(fd, { ...EMPTY_PAYMENT, type: paymentType })
-          )
+        if (isNew) {
+          await addPayment({ ...draft, paymentNumber })
           toast.success(isCustomer ? t("toasts.received") : t("toasts.recorded"))
           closeSidebar()
           return
         }
 
         if (sidebar?.mode === "edit" && sidebar.payment) {
-          await updatePayment(
-            sidebar.payment.id,
-            paymentFromFormData(fd, sidebar.payment)
-          )
+          await updatePayment(sidebar.payment.id, {
+            ...draft,
+            paymentNumber: paymentNumber || sidebar.payment.paymentNumber,
+          })
           toast.success(t("toasts.saved"))
           closeSidebar()
         }
@@ -459,7 +480,17 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
         toast.error(paymentErrorMessage(error, t("toasts.saveFailed")))
       }
     },
-    [sidebar, addPayment, updatePayment, isCustomer, paymentType, t]
+    [
+      sidebar,
+      addPayment,
+      updatePayment,
+      isCustomer,
+      paymentType,
+      numberKey,
+      numberSettings,
+      typePayments,
+      t,
+    ]
   )
 
   const columns = useMemo(
@@ -609,6 +640,7 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
                   <PaymentForm
                     formId={formId}
                     payment={formPayment}
+                    isNew={sidebar.mode === "add"}
                     onSubmit={handleSubmit}
                     lockType={paymentType}
                   />
