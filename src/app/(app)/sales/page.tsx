@@ -969,7 +969,7 @@ export default function SalesReportPage() {
         closeSaleFormSidebar()
       }
     },
-    [saleFormSidebar, addOrder, updateOrder, closeSaleFormSidebar]
+    [saleFormSidebar, addOrder, updateOrder, closeSaleFormSidebar, t]
   )
 
   const formOrder =
