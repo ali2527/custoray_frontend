@@ -953,6 +953,7 @@ export default function SalesReportPage() {
 
       if (saleFormSidebar?.step === "form" && saleFormSidebar.mode === "add") {
         addOrder(parsed)
+        markSetupMilestone("invoice")
         toast.success(t("toasts.saleOnNewInvoice"))
         closeSaleFormSidebar()
         return
@@ -963,6 +964,7 @@ export default function SalesReportPage() {
         saleFormSidebar.mode === "edit"
       ) {
         updateOrder(saleFormSidebar.order.id, parsed)
+        markSetupMilestone("invoice")
         toast.success(t("toasts.saleAdded"))
         closeSaleFormSidebar()
       }

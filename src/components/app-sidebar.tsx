@@ -58,6 +58,9 @@ type NavKey =
   | "sidebar.payments"
   | "sidebar.customerPayments"
   | "sidebar.vendorPayments"
+  | "sidebar.expenses"
+  | "sidebar.allExpenses"
+  | "sidebar.expenseTypes"
   | "sidebar.documents"
   | "sidebar.salesInvoice"
   | "sidebar.purchaseInvoice"
@@ -152,6 +155,16 @@ const navMain: NavDef[] = [
     items: [
       { titleKey: "sidebar.customerPayments", url: "/payments/customer", icon: CircleArrowUp },
       { titleKey: "sidebar.vendorPayments", url: "/payments/vendor", icon: CircleArrowDown },
+    ],
+  },
+  {
+    id: "expenses",
+    titleKey: "sidebar.expenses",
+    url: "/expenses",
+    icon: Wallet,
+    items: [
+      { titleKey: "sidebar.allExpenses", url: "/expenses", icon: Receipt },
+      { titleKey: "sidebar.expenseTypes", url: "/expenses/types", icon: Tag },
     ],
   },
   {

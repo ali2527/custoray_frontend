@@ -29,7 +29,7 @@ const STEP_HREFS: Record<SetupMilestoneId, string> = {
   settings: "/settings",
   product: "/inventory/products",
   customer: "/customers",
-  invoice: "/invoices",
+  invoice: "/sales",
 }
 
 const CONFETTI_COLORS = ["#92c720", "#b8e05c", "#6ea30f", "#f4d35e", "#ffffff"]

@@ -3,7 +3,7 @@
 import * as React from "react"
 import Link from "next/link"
 import { useTranslation } from "react-i18next"
-import { Bar, BarChart, CartesianGrid, XAxis, YAxis } from "recharts"
+import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 
 import { SectionCards, type DashboardStat } from "@/components/section-cards"
 import { Badge } from "@/components/ui/badge"
@@ -25,6 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useOrders } from "@/context/orders-context"
+import { useExpenses } from "@/context/expenses-context"
 import { usePurchases } from "@/context/purchases-context"
 import { useReturns } from "@/context/returns-context"
 import i18n from "@/i18n"
@@ -67,6 +68,7 @@ type InOutPoint = {
   label: string
   inn: number
   out: number
+  expense: number
 }
 
 function formatDashMoney(value: string | number): string {
@@ -107,9 +109,20 @@ function shortAxisLabel(iso: string, fallback: string): string {
   }).format(date)
 }
 
+function emptyInOutPoint(date: string, label?: string): InOutPoint {
+  return {
+    date,
+    label: label ?? shortAxisLabel(date, date),
+    inn: 0,
+    out: 0,
+    expense: 0,
+  }
+}
+
 function mergeInOut(
   purchases: PurchaseDailyTotalRow[],
   sales: SalesDailyTotalRow[],
+  expensesByDate: Map<string, number>,
   start: string,
   end: string
 ): InOutPoint[] {
@@ -117,23 +130,22 @@ function mergeInOut(
 
   for (const row of purchases) {
     map.set(row.date, {
-      date: row.date,
-      label: shortAxisLabel(row.date, row.label),
+      ...emptyInOutPoint(row.date, shortAxisLabel(row.date, row.label)),
       inn: Number(row.net) || 0,
-      out: 0,
     })
   }
 
   for (const row of sales) {
-    const current = map.get(row.date) ?? {
-      date: row.date,
-      label: shortAxisLabel(row.date, row.label),
-      inn: 0,
-      out: 0,
-    }
+    const current = map.get(row.date) ?? emptyInOutPoint(row.date, shortAxisLabel(row.date, row.label))
     current.out = Number(row.net) || 0
     if (!current.label) current.label = shortAxisLabel(row.date, row.label)
     map.set(row.date, current)
+  }
+
+  for (const [date, amount] of expensesByDate) {
+    const current = map.get(date) ?? emptyInOutPoint(date)
+    current.expense = amount
+    map.set(date, current)
   }
 
   const spanned = eachIsoDate(start, end)
@@ -141,17 +153,7 @@ function mergeInOut(
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date))
   }
 
-  return spanned.map((date) => {
-    const current = map.get(date)
-    return (
-      current ?? {
-        date,
-        label: shortAxisLabel(date, date),
-        inn: 0,
-        out: 0,
-      }
-    )
-  })
+  return spanned.map((date) => map.get(date) ?? emptyInOutPoint(date))
 }
 
 function orderIconTone(order: OrderRow): string {
@@ -172,6 +174,7 @@ function InOutChart({
   const chartConfig = {
     inn: { label: t("dashboard.chartPurchases"), color: "#2f9e9a" },
     out: { label: t("dashboard.chartSales"), color: "#92c720" },
+    expense: { label: t("dashboard.chartExpenses"), color: "#e07a3d" },
   } satisfies ChartConfig
 
   return (
@@ -189,14 +192,12 @@ function InOutChart({
       <div className="px-3 pb-5 pt-1 sm:px-5">
         <ChartContainer
           config={chartConfig}
-          className="!aspect-auto h-[280px] w-full min-h-[280px]"
+          className="!aspect-auto h-[320px] w-full min-h-[320px]"
         >
-          <BarChart
+          <LineChart
             accessibilityLayer
             data={data}
-            margin={{ top: 10, right: 8, left: 0, bottom: 0 }}
-            barCategoryGap={data.length > 12 ? "18%" : "22%"}
-            barGap={3}
+            margin={{ top: 10, right: 12, left: 0, bottom: 0 }}
           >
             <CartesianGrid
               vertical
@@ -226,23 +227,35 @@ function InOutChart({
               allowDataOverflow={false}
             />
             <ChartTooltip
-              cursor={{ fill: "var(--muted)", opacity: 0.22 }}
-              content={<ChartTooltipContent indicator="dot" />}
+              cursor={{ stroke: "var(--border)", strokeDasharray: "4 4" }}
+              content={<ChartTooltipContent indicator="line" />}
             />
             <ChartLegend content={<ChartLegendContent />} />
-            <Bar
+            <Line
+              type="monotone"
               dataKey="inn"
-              fill="var(--color-inn)"
-              radius={[4, 4, 0, 0]}
-              maxBarSize={28}
+              stroke="var(--color-inn)"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
             />
-            <Bar
+            <Line
+              type="monotone"
               dataKey="out"
-              fill="var(--color-out)"
-              radius={[4, 4, 0, 0]}
-              maxBarSize={28}
+              stroke="var(--color-out)"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
             />
-          </BarChart>
+            <Line
+              type="monotone"
+              dataKey="expense"
+              stroke="var(--color-expense)"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+            />
+          </LineChart>
         </ChartContainer>
       </div>
     </div>
@@ -445,6 +458,7 @@ export function HomeDashboard() {
   const { orders } = useOrders()
   const { purchases } = usePurchases()
   const { returns } = useReturns()
+  const { expenses } = useExpenses()
 
   const filter = React.useMemo(() => createDefaultSalesReportFilter(), [])
   const purchaseFilter = filter as PurchaseReportFilter
@@ -466,15 +480,42 @@ export function HomeDashboard() {
     () => computePurchaseTimeline(purchases, returns, purchaseFilter),
     [purchaseFilter, purchases, returns]
   )
+
+  const paidMonthExpenses = React.useMemo(
+    () =>
+      expenses.filter((row) => {
+        if (row.status !== "paid") return false
+        if (filter.start && row.expenseDate < filter.start) return false
+        if (filter.end && row.expenseDate > filter.end) return false
+        return true
+      }),
+    [expenses, filter.end, filter.start]
+  )
+
+  const expensesByDate = React.useMemo(() => {
+    const map = new Map<string, number>()
+    for (const row of paidMonthExpenses) {
+      map.set(row.expenseDate, (map.get(row.expenseDate) ?? 0) + (Number(row.amount) || 0))
+    }
+    return map
+  }, [paidMonthExpenses])
+
+  const expensesThisMonthTotal = React.useMemo(
+    () =>
+      paidMonthExpenses.reduce((sum, row) => sum + (Number(row.amount) || 0), 0),
+    [paidMonthExpenses]
+  )
+
   const inOutData = React.useMemo(
     () =>
       mergeInOut(
         purchaseTimeline,
         salesTimeline,
+        expensesByDate,
         filter.start,
         filter.end
       ),
-    [filter.end, filter.start, purchaseTimeline, salesTimeline]
+    [expensesByDate, filter.end, filter.start, purchaseTimeline, salesTimeline]
   )
   const recentOrders = React.useMemo(
     () => getRecentSalesOrders(orders, filter, 8),
@@ -487,7 +528,7 @@ export function HomeDashboard() {
 
   const cameIn = Number(purchaseSummary.netPurchases) || 0
   const wentOut = Number(salesSummary.netSales) || 0
-  const net = wentOut - cameIn
+  const net = wentOut - cameIn - expensesThisMonthTotal
 
   const stats: DashboardStat[] = [
     {
@@ -511,24 +552,22 @@ export function HomeDashboard() {
       }),
     },
     {
+      key: "expenses",
+      label: t("dashboard.expensesThisMonth"),
+      value: formatDashMoney(expensesThisMonthTotal),
+      footerTitle: t("dashboard.expensesThisMonthTitle"),
+      footerHint: t("dashboard.expensesThisMonthHint", {
+        count: paidMonthExpenses.length,
+        amount: formatDashMoney(expensesThisMonthTotal),
+      }),
+    },
+    {
       key: "net",
       label: t("dashboard.netPosition"),
       value: formatDashMoney(net),
       footerTitle:
         net >= 0 ? t("dashboard.netPositive") : t("dashboard.netNegative"),
       footerHint: t("dashboard.netHint"),
-    },
-    {
-      key: "orders",
-      label: t("dashboard.activity"),
-      value: String(
-        salesSummary.saleCount + purchaseSummary.purchaseCount
-      ),
-      footerTitle: t("dashboard.activityTitle"),
-      footerHint: t("dashboard.activityHint", {
-        sales: salesSummary.saleCount,
-        purchases: purchaseSummary.purchaseCount,
-      }),
     },
   ]
 

@@ -698,12 +698,202 @@ export async function apiBulkCreatePayments(items: ApiPaymentWrite[]) {
   })
 }
 
+export type ApiExpenseType = {
+  id: string
+  name: string
+  description: string
+  status: "active" | "inactive"
+  expensesCount?: number
+}
+
+export type ApiExpenseTypeWrite = {
+  name: string
+  description?: string
+  status?: "active" | "inactive"
+}
+
+export type ApiExpenseTypeBulkResult = {
+  items: ApiExpenseType[]
+  added: number
+  errors?: { name: string; message: string }[]
+}
+
+export type ApiExpenseStatus = "pending" | "paid" | "voided"
+
+export type ApiExpense = {
+  id: string
+  expenseNumber: string
+  typeId: string
+  typeName: string
+  payeeName: string
+  expenseDate: string
+  amount: string
+  paymentMethod: string
+  status: ApiExpenseStatus
+  notes: string
+}
+
+export type ApiExpenseWrite = {
+  typeId: string
+  typeName?: string
+  expenseNumber?: string
+  payeeName?: string
+  expenseDate: string
+  amount: number
+  paymentMethod?: string
+  notes?: string
+  status?: ApiExpenseStatus
+}
+
+export type ApiExpenseBulkResult = {
+  items: ApiExpense[]
+  added: number
+  errors?: { name: string; message: string }[]
+}
+
+const EXPENSE_LIST_LIMIT = 200
+const EXPENSE_BULK_LIMIT = 100
+
+export async function apiListExpenseTypes(params?: { page?: number; limit?: number }) {
+  const q = new URLSearchParams()
+  const page = Math.max(1, Math.floor(params?.page ?? 1))
+  const limit = Math.min(EXPENSE_LIST_LIMIT, Math.max(1, Math.floor(params?.limit ?? 50)))
+  q.set("page", String(page))
+  q.set("limit", String(limit))
+  return apiFetch<{ items: ApiExpenseType[]; total: number }>(`/expense-types?${q}`)
+}
+
+export async function apiListAllExpenseTypes() {
+  const pageSize = EXPENSE_LIST_LIMIT
+  let page = 1
+  const items: ApiExpenseType[] = []
+  let total = 0
+  while (true) {
+    const res = await apiListExpenseTypes({ page, limit: pageSize })
+    total = res.total ?? 0
+    items.push(...(res.items ?? []))
+    if (items.length >= total || (res.items ?? []).length < pageSize) break
+    page += 1
+    if (page > 100) break
+  }
+  return items
+}
+
+export async function apiCreateExpenseType(data: ApiExpenseTypeWrite) {
+  return apiFetch<ApiExpenseType>("/expense-types", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiUpdateExpenseType(id: string, data: Partial<ApiExpenseTypeWrite>) {
+  return apiFetch<ApiExpenseType>(`/expense-types/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiDeleteExpenseType(id: string) {
+  return apiFetch<null>(`/expense-types/${id}`, { method: "DELETE" })
+}
+
+export async function apiBulkCreateExpenseTypes(items: ApiExpenseTypeWrite[]) {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new ApiClientError(400, "VALIDATION_ERROR", "No expense types to import")
+  }
+  if (items.length > EXPENSE_BULK_LIMIT) {
+    throw new ApiClientError(
+      400,
+      "VALIDATION_ERROR",
+      `You can import at most ${EXPENSE_BULK_LIMIT} expense types at a time`
+    )
+  }
+  return apiFetch<ApiExpenseTypeBulkResult>("/expense-types/bulk", {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  })
+}
+
+export async function apiListExpenses(params?: {
+  page?: number
+  limit?: number
+  typeId?: string
+  status?: ApiExpenseStatus
+}) {
+  const q = new URLSearchParams()
+  const page = Math.max(1, Math.floor(params?.page ?? 1))
+  const limit = Math.min(EXPENSE_LIST_LIMIT, Math.max(1, Math.floor(params?.limit ?? 50)))
+  q.set("page", String(page))
+  q.set("limit", String(limit))
+  if (params?.typeId) q.set("typeId", params.typeId)
+  if (params?.status) q.set("status", params.status)
+  return apiFetch<{ items: ApiExpense[]; total: number }>(`/expenses?${q}`)
+}
+
+export async function apiListAllExpenses(typeId?: string) {
+  const pageSize = EXPENSE_LIST_LIMIT
+  let page = 1
+  const items: ApiExpense[] = []
+  let total = 0
+  while (true) {
+    const res = await apiListExpenses({ page, limit: pageSize, typeId })
+    total = res.total ?? 0
+    items.push(...(res.items ?? []))
+    if (items.length >= total || (res.items ?? []).length < pageSize) break
+    page += 1
+    if (page > 100) break
+  }
+  return items
+}
+
+export async function apiCreateExpense(data: ApiExpenseWrite) {
+  return apiFetch<ApiExpense>("/expenses", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiUpdateExpense(id: string, data: Partial<ApiExpenseWrite>) {
+  return apiFetch<ApiExpense>(`/expenses/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiDeleteExpense(id: string) {
+  return apiFetch<null>(`/expenses/${id}`, { method: "DELETE" })
+}
+
+export async function apiBulkCreateExpenses(items: ApiExpenseWrite[]) {
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new ApiClientError(400, "VALIDATION_ERROR", "No expenses to import")
+  }
+  if (items.length > EXPENSE_BULK_LIMIT) {
+    throw new ApiClientError(
+      400,
+      "VALIDATION_ERROR",
+      `You can import at most ${EXPENSE_BULK_LIMIT} expenses at a time`
+    )
+  }
+  return apiFetch<ApiExpenseBulkResult>("/expenses/bulk", {
+    method: "POST",
+    body: JSON.stringify({ items }),
+  })
+}
+
 export async function apiDashboardSummary() {
   return apiFetch<{
-    revenue: number
-    ordersCount: number
-    productsCount: number
-    buyersCount: number
-    lowStockCount: number
+    salesThisMonth?: { total: number; count: number }
+    purchasesThisMonth?: { total: number; count: number }
+    expensesThisMonth?: { total: number; count: number }
+    inventory?: { productCount: number; totalUnits: number; lowStockCount: number }
+    buyers?: number
+    vendors?: number
+    pendingOrders?: number
+    revenue?: number
+    ordersCount?: number
+    productsCount?: number
+    buyersCount?: number
+    lowStockCount?: number
   }>("/dashboard/summary")
 }

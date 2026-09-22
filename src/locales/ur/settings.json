@@ -138,6 +138,27 @@
     "showBalanceHistory": "گاہک تاریخ میں گاہک کا بیلنس دکھائیں",
     "showBalanceHistoryDesc": "مکمل گاہک ریکارڈ میں ابتدائی اور اختتامی بیلنس شامل کریں۔"
   },
+  "numbering": {
+    "title": "دستاویز نمبر",
+    "description": "پریفکس کے ساتھ خودکار آئی ڈی، یا خود درج کریں — پروڈکٹ SKU جیسا طریقہ۔",
+    "entryHint": "اس قسم کے ریکارڈ شامل یا امپورٹ کرتے وقت لاگو ہوتا ہے۔",
+    "autoTitle": "خودکار آئی ڈی",
+    "autoDescription": "آپ کے پریفکس کے ساتھ اگلا نمبر لگے گا۔",
+    "customTitle": "کسٹم آئی ڈی",
+    "customDescription": "ریکارڈ بناتے وقت نمبر خود درج کریں۔",
+    "prefix": "پریفکس",
+    "prefixHint": "نئے ریکارڈ {{first}} پھر {{second}} استعمال کریں گے۔",
+    "customHint": "ریکارڈ بناتے وقت نمبر کا خانہ ضروری ہے۔",
+    "keys": {
+      "sales": "سیلز انوائسز",
+      "purchases": "پرچیز آرڈرز",
+      "salesReturns": "سیلز ریٹرنز",
+      "purchaseReturns": "پرچیز ریٹرنز",
+      "customerPayments": "گاہک کی ادائیگیاں",
+      "vendorPayments": "وینڈر کی ادائیگیاں",
+      "expenses": "اخراجات"
+    }
+  },
   "products": {
     "title": "پروڈکٹ SKU",
     "description": "منتخب کریں کہ نئی مصنوعات کو خودکار SKU ملے یا آپ خود درج کریں۔",

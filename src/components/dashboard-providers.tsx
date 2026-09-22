@@ -11,6 +11,8 @@ import { PayrollProvider } from "@/context/employee-payroll-context"
 import { EmployeesProvider } from "@/context/employees-context"
 import { FiscalTermProvider } from "@/context/fiscal-term-context"
 import { OrdersProvider } from "@/context/orders-context"
+import { ExpenseTypesProvider } from "@/context/expense-types-context"
+import { ExpensesProvider } from "@/context/expenses-context"
 import { PaymentsProvider } from "@/context/payments-context"
 import { PosSettingsProvider } from "@/context/pos-settings-context"
 import { ProductsProvider } from "@/context/products-context"
@@ -37,9 +39,13 @@ export function DashboardProviders({ children }: { children: React.ReactNode }) 
                             <CustomerTimelineSeeder />
                             <VendorTimelineSeeder />
                             <PaymentsProvider>
-                              <ProductsProvider>
-                                <ZakatProvider>{children}</ZakatProvider>
-                              </ProductsProvider>
+                              <ExpenseTypesProvider>
+                                <ExpensesProvider>
+                                  <ProductsProvider>
+                                    <ZakatProvider>{children}</ZakatProvider>
+                                  </ProductsProvider>
+                                </ExpensesProvider>
+                              </ExpenseTypesProvider>
                             </PaymentsProvider>
                           </ReturnsProvider>
                         </PurchasesProvider>

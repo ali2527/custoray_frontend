@@ -44,6 +44,7 @@ const MODULE_LABELS: Record<string, string> = {
   purchases: "Purchases",
   returns: "Returns",
   payments: "Payments",
+  expenses: "Expenses",
   documents: "Documents & invoices",
   pos: "Point of sale",
   qr_storefront: "QR storefront",
@@ -56,18 +57,17 @@ const MODULE_LABELS: Record<string, string> = {
 
 export const PLAN_INCLUDES: Record<string, string[]> = {
   starter: [
+    "All modules (temporary)",
     "Dashboard",
-    "Inventory & products",
-    "Customers",
-    "Vendors",
-    "Sales",
-    "Company settings",
+    "Inventory, sales, purchases, payments, expenses",
+    "POS, documents, employees, analytics, tax, zakat",
   ],
   business: [
     "Everything in Starter",
     "Purchases",
     "Returns",
     "Payments",
+    "Expenses",
     "Documents & invoices",
     "Point of sale",
     "QR storefront",

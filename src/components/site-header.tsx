@@ -57,6 +57,8 @@ function titleKeyForPath(pathname: string | null): string {
   if (path === "/payments") return "header.payments"
   if (path === "/payments/customer") return "header.customerPayments"
   if (path === "/payments/vendor") return "header.vendorPayments"
+  if (path === "/expenses") return "header.expenses"
+  if (path === "/expenses/types") return "header.expenseTypes"
   if (path === "/pos") return "header.posRegister"
   if (path === "/pos/new-sale") return "header.posRegister"
   if (path === "/pos/sales") return "header.salesHistory"

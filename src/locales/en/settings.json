@@ -138,6 +138,27 @@
     "showBalanceHistory": "Show customer balance in customer history",
     "showBalanceHistoryDesc": "Include opening and closing balances in the full customer record."
   },
+  "numbering": {
+    "title": "Document numbers",
+    "description": "Choose automatic IDs with a prefix, or enter numbers yourself — same pattern as product SKUs.",
+    "entryHint": "Applies when you add or import records of this type.",
+    "autoTitle": "Auto ID",
+    "autoDescription": "Assign the next number with your prefix.",
+    "customTitle": "Custom ID",
+    "customDescription": "Enter the number yourself when creating a record.",
+    "prefix": "Prefix",
+    "prefixHint": "New records will use {{first}}, then {{second}}, and so on.",
+    "customHint": "The number field is required when creating records.",
+    "keys": {
+      "sales": "Sales invoices",
+      "purchases": "Purchase orders",
+      "salesReturns": "Sales returns",
+      "purchaseReturns": "Purchase returns",
+      "customerPayments": "Customer payments",
+      "vendorPayments": "Vendor payments",
+      "expenses": "Expenses"
+    }
+  },
   "products": {
     "title": "Product SKUs",
     "description": "Choose whether new products get an automatic SKU or you enter one yourself.",
