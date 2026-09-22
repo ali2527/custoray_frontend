@@ -647,7 +647,7 @@ export default function SalesReportPage() {
       }
       toast.message(t("toasts.removedNamed", { name: order.invoiceNumber }))
     },
-    [removeOrder, saleFormSidebar, viewOrder]
+    [removeOrder, saleFormSidebar, viewOrder, t]
   )
 
   const handleDuplicateBill = useCallback(
@@ -663,7 +663,7 @@ export default function SalesReportPage() {
       const copy = duplicateOrder(order.id)
       if (copy) toast.success(t("toasts.duplicatedNamed", { name: order.invoiceNumber }))
     },
-    [duplicateOrder]
+    [duplicateOrder, t]
   )
 
   const handleDeleteSaleLines = useCallback(
@@ -701,7 +701,7 @@ export default function SalesReportPage() {
 
       toast.message(t("toasts.removedLines", { count: selected.length }))
     },
-    [setOrders, viewSaleLine]
+    [setOrders, viewSaleLine, t]
   )
 
   const handleDeleteSaleLine = useCallback(
@@ -743,7 +743,7 @@ export default function SalesReportPage() {
         setViewOrder(getOrder(order.id) ?? null)
       }
     },
-    [addReturn, applyCompletedReturnEffects, getOrder, updateOrder, viewOrder]
+    [addReturn, applyCompletedReturnEffects, getOrder, updateOrder, viewOrder, t]
   )
 
   const handleReturnLine = useCallback(
@@ -763,7 +763,7 @@ export default function SalesReportPage() {
         setViewSaleLine(null)
       }
     },
-    [getOrder, returnInvoiceLine, viewSaleLine]
+    [getOrder, returnInvoiceLine, viewSaleLine, t]
   )
 
   const handleCancelBill = useCallback(
@@ -781,7 +781,7 @@ export default function SalesReportPage() {
       if (viewOrder?.id === order.id) setViewOrder(null)
       toast.success(t("toasts.cancelled", { name: order.invoiceNumber }))
     },
-    [updateOrder, viewOrder]
+    [updateOrder, viewOrder, t]
   )
 
   const handleCancelLine = useCallback(
@@ -803,7 +803,7 @@ export default function SalesReportPage() {
       if (viewSaleLine?.orderId === order.id) setViewSaleLine(null)
       toast.success(t("toasts.cancelled", { name: order.invoiceNumber }))
     },
-    [getOrder, updateOrder, viewSaleLine]
+    [getOrder, updateOrder, viewSaleLine, t]
   )
 
   const resolveOrderForLine = useCallback(
@@ -826,7 +826,7 @@ export default function SalesReportPage() {
       if (viewOrder && ids.has(viewOrder.id)) setViewOrder(null)
       toast.message(t("toasts.removedSales", { count: selected.length }))
     },
-    [setOrders, viewOrder]
+    [setOrders, viewOrder, t]
   )
 
   const billColumns = useMemo(
@@ -904,7 +904,7 @@ export default function SalesReportPage() {
       return
     }
     setSaleFormSidebar({ step: "form", mode: "edit", order: orderWithNewLine(order) })
-  }, [getOrder, selectedOrderId])
+  }, [getOrder, selectedOrderId, t])
 
   const closeSaleFormSidebar = useCallback(() => {
     setSaleFormSidebar(null)

@@ -629,7 +629,7 @@ export default function PurchasesPage() {
       }
       toast.message(t("toasts.removedNamed", { name: purchase.purchaseNumber }))
     },
-    [removePurchase, sidebar]
+    [removePurchase, sidebar, t]
   )
 
   const handleDuplicate = useCallback(
@@ -645,7 +645,7 @@ export default function PurchasesPage() {
       const copy = duplicatePurchase(purchase.id)
       if (copy) toast.success(t("toasts.duplicatedNamed", { name: purchase.purchaseNumber }))
     },
-    [duplicatePurchase]
+    [duplicatePurchase, t]
   )
 
   const handleDeleteLines = useCallback(
@@ -683,7 +683,7 @@ export default function PurchasesPage() {
 
       toast.message(t("toasts.removedLines", { count: selected.length }))
     },
-    [setPurchases, viewLine]
+    [setPurchases, viewLine, t]
   )
 
   const handleDeleteLine = useCallback(
@@ -699,7 +699,7 @@ export default function PurchasesPage() {
       return
     }
     setReturnDraft(buildReturnFromPurchase(purchase))
-  }, [])
+  }, [t])
 
   const openReturnFromLine = useCallback(
     (line: PurchaseLineReportRow) => {
@@ -714,7 +714,7 @@ export default function PurchasesPage() {
       }
       setReturnDraft(buildReturnFromPurchase(purchase, { lineIds: [line.lineId] }))
     },
-    [getPurchase]
+    [getPurchase, t]
   )
 
   const handleCancelBill = useCallback(
@@ -734,7 +734,7 @@ export default function PurchasesPage() {
       }
       toast.success(t("toasts.cancelled", { name: purchase.purchaseNumber }))
     },
-    [sidebar, updatePurchase, closeSidebar]
+    [sidebar, updatePurchase, closeSidebar, t]
   )
 
   const handleCancelLine = useCallback(
@@ -756,7 +756,7 @@ export default function PurchasesPage() {
       if (viewLine?.purchaseId === purchase.id) setViewLine(null)
       toast.success(t("toasts.cancelled", { name: purchase.purchaseNumber }))
     },
-    [getPurchase, updatePurchase, viewLine]
+    [getPurchase, updatePurchase, viewLine, t]
   )
 
   const resolvePurchaseForLine = useCallback(

@@ -286,7 +286,7 @@ export function PosTerminal() {
       }
       setSelectedProductId(product.id)
     },
-    [isSale, settings.allowOverselling]
+    [isSale, settings.allowOverselling, t]
   )
 
   const setLineQuantity = React.useCallback(
@@ -309,7 +309,7 @@ export function PosTerminal() {
           .filter((line): line is PosCartLine => line !== null)
       )
     },
-    [isSale, settings.allowOverselling]
+    [isSale, settings.allowOverselling, t]
   )
 
   const setLineFinalPrice = React.useCallback(

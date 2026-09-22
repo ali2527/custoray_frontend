@@ -41,7 +41,7 @@ export type VendorWrite = {
 export const VENDORS_STORAGE_KEY = "custoray-vendors-v2"
 export const VENDORS_CHANGED_EVENT = "custoray-vendors-changed"
 
-export function vendorSelectValue(vendor: Pick<VendorRow, "id" | "apiId">) {
+export function vendorSelectValue(vendor: { id: number; apiId?: string }) {
   return vendor.apiId || String(vendor.id)
 }
 

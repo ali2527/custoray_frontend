@@ -297,7 +297,7 @@ export function EmployeePayrollPanel() {
     (id: number) =>
       employees.find((employee) => employee.id === id)?.name ??
       t("payrollPage.employeeFallback", { id }),
-    [employees]
+    [employees, t]
   )
 
   const handleDelete = useCallback(
