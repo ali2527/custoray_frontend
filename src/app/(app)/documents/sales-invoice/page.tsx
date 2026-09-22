@@ -286,7 +286,7 @@ export default function SalesInvoicePage() {
       }
       toast.message(t("toasts.removedNamed", { name: order.invoiceNumber }))
     },
-    [removeOrder, sidebar]
+    [removeOrder, sidebar, t]
   )
 
   const handleDuplicate = useCallback(
@@ -302,7 +302,7 @@ export default function SalesInvoicePage() {
       const copy = duplicateOrder(order.id)
       if (copy) toast.success(t("toasts.duplicatedNamed", { name: order.invoiceNumber }))
     },
-    [duplicateOrder]
+    [duplicateOrder, t]
   )
 
   const handleSubmit = useCallback(
@@ -337,7 +337,7 @@ export default function SalesInvoicePage() {
         closeSidebar()
       }
     },
-    [sidebar, addOrder, updateOrder]
+    [sidebar, addOrder, updateOrder, t]
   )
 
   const columns = useMemo(

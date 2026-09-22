@@ -94,7 +94,6 @@ test("api expense maps type and money fields", () => {
       typeId: "type_1",
       typeName: "Office supplies",
       payeeName: "",
-      referenceNumber: "REC-1001",
       expenseDate: "2026-09-21T00:00:00.000Z",
       amount: "2500.5",
       paymentMethod: "Card",
@@ -131,7 +130,6 @@ test("import resolves type by name to typeId", () => {
       amount: "2500",
       paymentMethod: "Cash",
       status: "paid",
-      referenceNumber: "REC-1001",
       notes: "Imported expense",
     },
     types

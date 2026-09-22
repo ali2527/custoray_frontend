@@ -806,7 +806,7 @@ export default function PurchasesPage() {
         closeSidebar()
       }
     },
-    [sidebar, addPurchase, updatePurchase]
+    [sidebar, addPurchase, updatePurchase, t]
   )
 
   const billColumns = useMemo(
