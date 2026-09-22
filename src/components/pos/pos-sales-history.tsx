@@ -37,7 +37,13 @@ import {
 import { useOrders } from "@/context/orders-context"
 import { useProducts } from "@/context/products-context"
 import { useReturns } from "@/context/returns-context"
+import { usePosSettings } from "@/context/pos-settings-context"
 import { confirmReturnAction } from "@/lib/confirm-action"
+import { apiPosReturn } from "@/lib/api/business"
+import { ApiClientError } from "@/lib/api/client"
+import { mapApiReturnToRow, resolveDefaultStoreId } from "@/lib/pos-api"
+import { emitProductsChanged } from "@/lib/inventory-product-rows"
+import { isDiscountLine, isAdditionLine } from "@/lib/pos"
 import { formatMoney } from "@/lib/customers"
 import { downloadRowsAsXls } from "@/lib/excel-export"
 import { buildReturnFromOrder } from "@/lib/returns"
@@ -435,8 +441,9 @@ function SalesHistoryTable({
 export function PosSalesHistory() {
   const { t } = useTranslation("pos")
   const { orders, getOrder, updateOrder } = useOrders()
-  const { products, updateProduct } = useProducts()
+  const { refreshProducts } = useProducts()
   const { addReturn } = useReturns()
+  const { storeId: settingsStoreId } = usePosSettings()
 
   const [search, setSearch] = React.useState("")
   const [statusFilter, setStatusFilter] = React.useState<StatusFilter>("all")
@@ -492,36 +499,14 @@ export function PosSalesHistory() {
     }
   }, [posOrders])
 
-  const restoreStockForReturn = React.useCallback(
-    (order: OrderRow, lineIds?: number[]) => {
-      const lineFilter = lineIds?.length
-        ? (line: OrderRow["lines"][number]) => lineIds.includes(line.id)
-        : () => true
-
-      const qtyByProductId = new Map<number, number>()
-      for (const line of order.lines.filter(lineFilter)) {
-        const product = products.find((item) => item.name === line.productName)
-        if (product) {
-          qtyByProductId.set(
-            product.id,
-            (qtyByProductId.get(product.id) ?? 0) + line.quantity
-          )
-        }
-      }
-
-      for (const [productId, quantity] of qtyByProductId) {
-        const product = products.find((item) => item.id === productId)
-        if (product) {
-          updateProduct(productId, { stock: product.stock + quantity })
-        }
-      }
-    },
-    [products, updateProduct]
-  )
-
   const handleReturnOrder = React.useCallback(
     async (order: OrderRow) => {
       if (!canReturnDocument(order)) {
+        toast.error(t("salesHistory.cannotReturn"))
+        return
+      }
+
+      if (!order.apiId) {
         toast.error(t("salesHistory.cannotReturn"))
         return
       }
@@ -541,18 +526,72 @@ export function PosSalesHistory() {
 
       setReturningId(order.id)
       try {
-        const created = addReturn({ ...draft, status: "completed" }, {
-          getOrder,
-          onApplySales: updateOrder,
+        const storeId = settingsStoreId || (await resolveDefaultStoreId())
+        const lines = order.lines
+          .filter(
+            (line) =>
+              !isDiscountLine(line) &&
+              !isAdditionLine(line) &&
+              Number(line.unitPrice) >= 0 &&
+              line.quantity > 0
+          )
+          .map((line) => ({
+            productId: line.productApiId || null,
+            productName: line.productName,
+            quantity: line.quantity,
+            unitPrice: Math.max(0, Number(line.unitPrice) || 0),
+          }))
+
+        if (lines.length === 0) {
+          toast.error(t("salesHistory.cannotReturn"))
+          return
+        }
+
+        const apiReturn = await apiPosReturn({
+          storeId,
+          sourceOrderId: order.apiId,
+          partyName: order.customerName,
+          referenceNumber: order.invoiceNumber,
+          description: `POS return from ${order.invoiceNumber}`,
+          status: "completed",
+          restock: true,
+          lines,
         })
 
-        restoreStockForReturn(order)
+        const created = addReturn(
+          {
+            ...mapApiReturnToRow(apiReturn, { sourceNumericId: order.id }),
+            status: "completed",
+          },
+          {
+            getOrder,
+            onApplySales: updateOrder,
+          }
+        )
+
+        void refreshProducts({ silent: true })
+        emitProductsChanged()
         toast.success(t("salesHistory.returnRecorded", { returnNumber: created.returnNumber }))
+      } catch (error) {
+        const message =
+          error instanceof ApiClientError
+            ? error.message
+            : error instanceof Error
+              ? error.message
+              : "Return failed"
+        toast.error(message)
       } finally {
         setReturningId(null)
       }
     },
-    [addReturn, getOrder, restoreStockForReturn, updateOrder]
+    [
+      addReturn,
+      getOrder,
+      refreshProducts,
+      settingsStoreId,
+      t,
+      updateOrder,
+    ]
   )
 
   const handleExport = () => {

@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { IconCamera, IconUser, IconX } from "@tabler/icons-react"
+import { useTranslation } from "react-i18next"
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,26 +15,43 @@ type CustomerImageFieldProps = {
 }
 
 export function CustomerImageField({ id, name, initialUrl = "" }: CustomerImageFieldProps) {
+  const { t } = useTranslation("customers")
   const [imageUrl, setImageUrl] = useState(initialUrl.trim())
+  const inputRef = useRef<HTMLInputElement>(null)
+  const loadGen = useRef(0)
   const hasImage = Boolean(imageUrl)
+
+  const resetFileInput = () => {
+    if (inputRef.current) inputRef.current.value = ""
+  }
 
   const addFile = (file: File | undefined) => {
     if (!file?.type.startsWith("image/")) return
+    const gen = ++loadGen.current
     const reader = new FileReader()
-    reader.onload = () => setImageUrl(String(reader.result))
+    reader.onload = () => {
+      if (gen !== loadGen.current) return
+      setImageUrl(String(reader.result))
+    }
     reader.readAsDataURL(file)
+  }
+
+  const removeImage = () => {
+    loadGen.current += 1
+    setImageUrl("")
+    resetFileInput()
   }
 
   return (
     <div className="flex flex-col items-center gap-2">
       <Label htmlFor={id} className="sr-only">
-        Customer photo
+        {t("images.photo")}
       </Label>
       <div className="relative">
         <label
           htmlFor={id}
           className="group relative block size-24 cursor-pointer"
-          aria-label={hasImage ? "Change customer photo" : "Upload customer photo"}
+          aria-label={hasImage ? t("images.change") : t("images.upload")}
         >
           <span
             className={cn(
@@ -45,7 +63,7 @@ export function CustomerImageField({ id, name, initialUrl = "" }: CustomerImageF
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={imageUrl}
-                alt={name || "Customer"}
+                alt={name || t("entity.customer")}
                 className="size-full object-cover"
               />
             ) : (
@@ -62,14 +80,15 @@ export function CustomerImageField({ id, name, initialUrl = "" }: CustomerImageF
           <button
             type="button"
             className="bg-background text-muted-foreground hover:bg-destructive/10 hover:text-destructive absolute -top-0.5 -right-0.5 flex size-7 items-center justify-center rounded-full border shadow-sm transition-colors"
-            aria-label="Remove customer photo"
-            onClick={() => setImageUrl("")}
+            aria-label={t("images.remove")}
+            onClick={removeImage}
           >
             <IconX className="size-3.5" />
           </button>
         ) : null}
       </div>
       <Input
+        ref={inputRef}
         id={id}
         type="file"
         accept="image/*"

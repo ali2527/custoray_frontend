@@ -3,8 +3,10 @@
 import { useCallback, useMemo, useState, type FormEvent } from "react"
 import { useTranslation } from "react-i18next"
 
+import { DocumentNumberField } from "@/components/document-number-field"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
 import {
   computePaymentImpact,
   computeReturnTotal,
@@ -16,11 +18,18 @@ import {
 type ReturnFormProps = {
   formId: string
   returnDoc: ReturnRow
+  isNew?: boolean
   onSubmit: (e: FormEvent<HTMLFormElement>) => void
 }
 
-export function ReturnForm({ formId, returnDoc, onSubmit }: ReturnFormProps) {
+export function ReturnForm({
+  formId,
+  returnDoc,
+  isNew = false,
+  onSubmit,
+}: ReturnFormProps) {
   const { t } = useTranslation("returns")
+  const { settings: numberSettings } = useDocumentNumberSettings()
   const [lines, setLines] = useState<ReturnLineRow[]>(
     returnDoc.lines.length > 0 ? returnDoc.lines : []
   )
@@ -51,6 +60,8 @@ export function ReturnForm({ formId, returnDoc, onSubmit }: ReturnFormProps) {
   const typeLabel = returnDoc.type === "sales" ? t("form.sale") : t("form.purchase")
   const partyLabel =
     returnDoc.type === "sales" ? t("detail.customer") : t("detail.vendor")
+  const numberKey =
+    returnDoc.type === "sales" ? "salesReturns" : "purchaseReturns"
 
   return (
     <form id={formId} className="flex flex-col gap-4 text-sm" onSubmit={onSubmit}>
@@ -74,15 +85,16 @@ export function ReturnForm({ formId, returnDoc, onSubmit }: ReturnFormProps) {
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${formId}-returnNumber`}>{t("form.returnNumber")}</Label>
-          <Input
-            id={`${formId}-returnNumber`}
-            name="returnNumber"
-            defaultValue={returnDoc.returnNumber}
-            placeholder={returnDoc.type === "sales" ? "SR-3001" : "PR-3001"}
-          />
-        </div>
+        <DocumentNumberField
+          id={`${formId}-returnNumber`}
+          name="returnNumber"
+          label={t("form.returnNumber")}
+          value={returnDoc.returnNumber}
+          settings={numberSettings[numberKey]}
+          isNew={isNew}
+          placeholder={returnDoc.type === "sales" ? "SR-3001" : "PR-3001"}
+          autoHint="Auto-generated"
+        />
         <div className="flex flex-col gap-2">
           <Label htmlFor={`${formId}-returnDate`}>{t("form.returnDate")}</Label>
           <Input

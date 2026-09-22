@@ -415,6 +415,7 @@ export default function PurchaseInvoicePage() {
                   <PurchaseForm
                     formId={formId}
                     purchase={formPurchase}
+                    isNew={sidebar.mode === "add"}
                     onSubmit={handleSubmit}
                   />
                 ) : null}

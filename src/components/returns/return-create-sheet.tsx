@@ -99,6 +99,7 @@ export function ReturnCreateSheet({
               <ReturnForm
                 formId={formId}
                 returnDoc={{ ...draft, id: 0 }}
+                isNew
                 onSubmit={handleSubmit}
               />
             </div>

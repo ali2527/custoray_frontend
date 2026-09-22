@@ -49,20 +49,23 @@
   },
   "sheet": {
     "edit": "Edit payment",
-    "addCustomerDescription": "Record a payment received from a customer. Saving is demo only.",
-    "addVendorDescription": "Record a payment made to a vendor. Saving is demo only.",
+    "addCustomerDescription": "Record a payment received from a customer.",
+    "addVendorDescription": "Record a payment made to a vendor.",
     "save": "Save payment"
   },
   "toasts": {
-    "removedNamed": "Removed {{name}} (demo).",
-    "duplicatedNamed": "Duplicated as {{name}} (demo).",
+    "removedNamed": "Removed {{name}}.",
+    "duplicatedNamed": "Duplicated as {{name}}.",
     "selectCustomer": "Select a customer.",
     "selectVendor": "Select a vendor.",
     "invalidAmount": "Enter a valid payment amount.",
-    "received": "Payment received (demo).",
-    "recorded": "Payment recorded (demo).",
-    "saved": "Payment saved (demo).",
-    "removedCount": "Removed {{count}} payment(s) (demo)."
+    "numberRequired": "Enter a payment number.",
+    "received": "Payment received.",
+    "recorded": "Payment recorded.",
+    "saved": "Payment saved.",
+    "removedCount": "Removed {{count}} payment(s).",
+    "saveFailed": "Could not save payment.",
+    "importPartial": "{{added}} imported, {{failed}} could not be imported."
   },
   "form": {
     "type": "Payment type",

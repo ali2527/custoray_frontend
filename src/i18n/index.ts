@@ -19,6 +19,7 @@ import enPurchases from "@/locales/en/purchases.json"
 import enCustomers from "@/locales/en/customers.json"
 import enVendors from "@/locales/en/vendors.json"
 import enPayments from "@/locales/en/payments.json"
+import enExpenses from "@/locales/en/expenses.json"
 import enDocuments from "@/locales/en/documents.json"
 import enPos from "@/locales/en/pos.json"
 import enEmployees from "@/locales/en/employees.json"
@@ -39,6 +40,7 @@ import arPurchases from "@/locales/ar/purchases.json"
 import arCustomers from "@/locales/ar/customers.json"
 import arVendors from "@/locales/ar/vendors.json"
 import arPayments from "@/locales/ar/payments.json"
+import arExpenses from "@/locales/ar/expenses.json"
 import arDocuments from "@/locales/ar/documents.json"
 import arPos from "@/locales/ar/pos.json"
 import arEmployees from "@/locales/ar/employees.json"
@@ -59,6 +61,7 @@ import urPurchases from "@/locales/ur/purchases.json"
 import urCustomers from "@/locales/ur/customers.json"
 import urVendors from "@/locales/ur/vendors.json"
 import urPayments from "@/locales/ur/payments.json"
+import urExpenses from "@/locales/ur/expenses.json"
 import urDocuments from "@/locales/ur/documents.json"
 import urPos from "@/locales/ur/pos.json"
 import urEmployees from "@/locales/ur/employees.json"
@@ -81,6 +84,7 @@ const resources = {
     customers: enCustomers,
     vendors: enVendors,
     payments: enPayments,
+    expenses: enExpenses,
     documents: enDocuments,
     pos: enPos,
     employees: enEmployees,
@@ -102,6 +106,7 @@ const resources = {
     customers: arCustomers,
     vendors: arVendors,
     payments: arPayments,
+    expenses: arExpenses,
     documents: arDocuments,
     pos: arPos,
     employees: arEmployees,
@@ -123,6 +128,7 @@ const resources = {
     customers: urCustomers,
     vendors: urVendors,
     payments: urPayments,
+    expenses: urExpenses,
     documents: urDocuments,
     pos: urPos,
     employees: urEmployees,
@@ -141,6 +147,14 @@ function getInitialLanguage() {
   return isAppLanguage(language) ? language : DEFAULT_LANGUAGE
 }
 
+function applyResourceBundles() {
+  for (const [lng, namespaces] of Object.entries(resources)) {
+    for (const [ns, bundle] of Object.entries(namespaces)) {
+      i18n.addResourceBundle(lng, ns, bundle, true, true)
+    }
+  }
+}
+
 if (!i18n.isInitialized) {
   void i18n.init({
     resources,
@@ -151,8 +165,10 @@ if (!i18n.isInitialized) {
     interpolation: { escapeValue: false },
     returnNull: false,
     initImmediate: false,
-    react: { useSuspense: false, bindI18n: "languageChanged loaded" },
+    react: { useSuspense: false, bindI18n: "languageChanged loaded added" },
   } as InitOptions)
+} else {
+  applyResourceBundles()
 }
 
 export default i18n

@@ -21,28 +21,157 @@
     "email": "البريد الإلكتروني",
     "status": "الحالة"
   },
+  "fields": {
+    "name": "اسم المورّد",
+    "namePlaceholder": "شركة أو مورّد",
+    "description": "الوصف",
+    "descriptionPlaceholder": "ملاحظات، شروط، فئة…",
+    "openingBalance": "الرصيد الافتتاحي",
+    "phone": "رقم الهاتف",
+    "phonePlaceholder": "+92 300 1234567",
+    "status": "الحالة"
+  },
+  "images": {
+    "photo": "صورة المورّد",
+    "upload": "رفع صورة المورّد",
+    "change": "تغيير صورة المورّد",
+    "remove": "إزالة صورة المورّد"
+  },
   "actions": {
     "view": "عرض",
     "edit": "تعديل",
     "duplicate": "تكرار",
     "delete": "حذف",
     "openMenu": "فتح القائمة",
-    "deleteSelected": "حذف المحدد"
+    "deleteSelected": "حذف المحدد",
+    "viewTimeline": "عرض الخط الزمني",
+    "setActive": "تعيين كنشط",
+    "setInactive": "تعيين كغير نشط"
+  },
+  "timeline": {
+    "title": "الخط الزمني",
+    "back": "العودة إلى المورّدين",
+    "notFound": "المورّد غير موجود.",
+    "empty": "لا مشتريات أو مرتجعات بعد.",
+    "createPurchase": "إنشاء مشترى",
+    "createInvoice": "إنشاء مشترى",
+    "total": "الإجمالي",
+    "paid": "المدفوع",
+    "balance": "الرصيد",
+    "return": "مرتجع",
+    "returnAmount": "مبلغ المرتجع",
+    "itemCount": "{{count}} أصناف",
+    "search": "البحث في المشتريات والمرتجعات…",
+    "emptyFiltered": "لا توجد سجلات مطابقة لهذه عوامل التصفية.",
+    "typeInvoice": "مشترى",
+    "typeReturn": "مرتجع",
+    "filters": {
+      "allTypes": "كل الأنواع",
+      "allStatuses": "كل الحالات",
+      "allMonths": "كل الأشهر",
+      "status": "الحالة",
+      "month": "الشهر"
+    },
+    "summary": {
+      "total": "الإجمالي",
+      "credit": "الدائن",
+      "remaining": "المتبقي",
+      "balance": "الرصيد"
+    },
+    "tabs": {
+      "all": "الكل",
+      "invoices": "المشتريات",
+      "returns": "المرتجعات"
+    },
+    "columns": {
+      "date": "التاريخ",
+      "type": "النوع",
+      "document": "المستند",
+      "details": "التفاصيل",
+      "number": "الرقم",
+      "reference": "المرجع",
+      "description": "الوصف",
+      "amount": "المبلغ",
+      "paid": "المدفوع",
+      "balance": "المستحق",
+      "running": "الرصيد",
+      "status": "الحالة",
+      "month": "الشهر",
+      "items": "الأصناف"
+    },
+    "recordCount": "{{count}} سجلات",
+    "exportRange": {
+      "label": "نطاق التصدير",
+      "all": "كل التواريخ",
+      "months": "الأشهر",
+      "dates": "التواريخ",
+      "fromMonth": "من شهر",
+      "toMonth": "إلى شهر",
+      "fromDate": "من تاريخ",
+      "toDate": "إلى تاريخ",
+      "hintAll": "تصدير كل المشتريات والمرتجعات المطابقة.",
+      "hintMonths": "التصدير من بداية الشهر الأول حتى نهاية الشهر الأخير.",
+      "hintDates": "تصدير السجلات في هذه التواريخ وبينهما.",
+      "preview": "{{count}} سجل · {{months}} أشهر",
+      "previewEmpty": "لا توجد سجلات في هذا النطاق."
+    },
+    "export": {
+      "title": "تصدير الكشف",
+      "description": "اختر نطاقًا زمنيًا ثم نزّل كشف PDF أو مصنف Excel أو CSV أو JSON.",
+      "xlsx": "Excel",
+      "xlsxDesc": "مصنف يتضمن الملخص والدفتر وورقة لكل شهر",
+      "csv": "CSV",
+      "csvDesc": "صفوف جدول بالتواريخ والمبالغ والأصناف",
+      "json": "JSON",
+      "jsonDesc": "سجلات منظَّمة للأنظمة الأخرى",
+      "ledger": "دفتر الحساب"
+    },
+    "report": {
+      "title": "كشف حساب المورّد",
+      "generated": "تاريخ الإنشاء",
+      "period": "الفترة",
+      "customer": "المورّد",
+      "phone": "الهاتف",
+      "item": "الصنف",
+      "qty": "الكمية",
+      "rate": "السعر",
+      "lineAmount": "المبلغ",
+      "html": "PDF",
+      "htmlDesc": "كشف PDF تفصيلي بالأصناف وإجماليات الأشهر",
+      "pdf": "PDF",
+      "pdfDesc": "كشف PDF تفصيلي بالأصناف وإجماليات الأشهر"
+    }
   },
   "sheet": {
     "add": "إضافة مورّد",
     "edit": "تعديل المورّد",
-    "addDescription": "أدخل بيانات المورّد والصورة. الحفظ للتجربة فقط.",
+    "addDescription": "أدخل بيانات المورّد والصورة.",
+    "quickAddDescription": "أنشئ مورّدًا وحدده في هذا النموذج.",
     "create": "إنشاء مورّد",
     "save": "حفظ المورّد"
   },
+  "viewSheet": {
+    "noPhoto": "لا صورة للمورّد",
+    "account": "الحساب",
+    "details": "التفاصيل",
+    "recent": "النشاط الأخير",
+    "viewAll": "عرض الكل",
+    "outstanding": "مستحق",
+    "credit": "دائن",
+    "settled": "مسوّى",
+    "idLabel": "المعرّف {{id}}"
+  },
   "toasts": {
-    "removedNamed": "تم حذف {{name}} (تجريبي).",
-    "duplicatedNamed": "تم تكرار {{name}} (تجريبي).",
+    "removedNamed": "تم حذف {{name}}.",
+    "duplicatedNamed": "تم تكرار {{name}}.",
     "nameRequired": "اسم المورّد مطلوب.",
-    "created": "تم إنشاء المورّد (تجريبي).",
-    "saved": "تم حفظ المورّد (تجريبي).",
-    "removedCount": "تم حذف {{count}} مورّد (تجريبي)."
+    "created": "تم إنشاء المورّد.",
+    "saved": "تم حفظ المورّد.",
+    "saveFailed": "تعذّر حفظ المورّد.",
+    "removedCount": "تم حذف {{count}} مورّد.",
+    "importPartial": "تم استيراد {{added}} وتعذّر استيراد {{failed}}.",
+    "setActiveCount": "تم تعيين {{count}} كنشط.",
+    "setInactiveCount": "تم تعيين {{count}} كغير نشط."
   },
   "entity": {
     "vendor": "مورّد"

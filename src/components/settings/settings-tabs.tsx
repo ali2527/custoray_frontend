@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils"
 const TABS = [
   { href: "/settings", labelKey: "settingsNav.company" as const },
   { href: "/settings/documents", labelKey: "settingsNav.documents" as const },
+  { href: "/settings/products", labelKey: "settingsNav.products" as const },
   { href: "/settings/account", labelKey: "settingsNav.account" as const },
   { href: "/settings/team", labelKey: "settingsNav.team" as const },
   { href: "/settings/appearance", labelKey: "settingsNav.appearance" as const },

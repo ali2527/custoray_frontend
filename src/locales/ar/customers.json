@@ -21,6 +21,22 @@
     "email": "البريد الإلكتروني",
     "status": "الحالة"
   },
+  "fields": {
+    "name": "اسم العميل",
+    "namePlaceholder": "شركة أو شخص",
+    "description": "الوصف",
+    "descriptionPlaceholder": "ملاحظات، شروط، شريحة…",
+    "openingBalance": "الرصيد الافتتاحي",
+    "phone": "رقم الهاتف",
+    "phonePlaceholder": "+92 300 1234567",
+    "status": "الحالة"
+  },
+  "images": {
+    "photo": "صورة العميل",
+    "upload": "رفع صورة العميل",
+    "change": "تغيير صورة العميل",
+    "remove": "إزالة صورة العميل"
+  },
   "actions": {
     "view": "عرض",
     "edit": "تعديل",
@@ -29,7 +45,9 @@
     "openMenu": "فتح القائمة",
     "deleteSelected": "حذف المحدد",
     "viewRecord": "عرض السجل",
-    "viewTimeline": "عرض الخط الزمني"
+    "viewTimeline": "عرض الخط الزمني",
+    "setActive": "تعيين كنشط",
+    "setInactive": "تعيين كغير نشط"
   },
   "record": "سجل العميل",
   "timeline": {
@@ -43,22 +61,118 @@
     "balance": "الرصيد",
     "return": "مرتجع",
     "returnAmount": "مبلغ المرتجع",
-    "itemCount": "{{count}} أصناف"
+    "itemCount": "{{count}} أصناف",
+    "search": "البحث في الفواتير والمرتجعات…",
+    "emptyFiltered": "لا توجد سجلات تطابق هذه عوامل التصفية.",
+    "typeInvoice": "فاتورة",
+    "typeReturn": "مرتجع",
+    "filters": {
+      "allTypes": "كل الأنواع",
+      "allStatuses": "كل الحالات",
+      "allMonths": "كل الأشهر",
+      "status": "الحالة",
+      "month": "الشهر"
+    },
+    "summary": {
+      "total": "الإجمالي",
+      "credit": "الدائن",
+      "remaining": "المتبقي",
+      "balance": "الرصيد"
+    },
+    "tabs": {
+      "all": "الكل",
+      "invoices": "الفواتير",
+      "returns": "المرتجعات"
+    },
+    "columns": {
+      "date": "التاريخ",
+      "type": "النوع",
+      "document": "المستند",
+      "details": "التفاصيل",
+      "number": "الرقم",
+      "reference": "المرجع",
+      "description": "الوصف",
+      "amount": "المبلغ",
+      "paid": "المدفوع",
+      "balance": "المستحق",
+      "running": "الرصيد",
+      "status": "الحالة",
+      "month": "الشهر",
+      "items": "الأصناف"
+    },
+    "recordCount": "{{count}} سجلات",
+    "exportRange": {
+      "label": "نطاق التصدير",
+      "all": "كل التواريخ",
+      "months": "الأشهر",
+      "dates": "التواريخ",
+      "fromMonth": "من شهر",
+      "toMonth": "إلى شهر",
+      "fromDate": "من تاريخ",
+      "toDate": "إلى تاريخ",
+      "hintAll": "تصدير كل الفواتير والمرتجعات المطابقة.",
+      "hintMonths": "التصدير من بداية الشهر الأول حتى نهاية الشهر الأخير.",
+      "hintDates": "تصدير السجلات في هذه التواريخ وبينهما.",
+      "preview": "{{count}} سجل · {{months}} أشهر",
+      "previewEmpty": "لا توجد سجلات في هذا النطاق."
+    },
+    "export": {
+      "title": "تصدير الكشف",
+      "description": "اختر نطاقًا زمنيًا ثم نزّل كشف PDF أو مصنف Excel أو CSV أو JSON.",
+      "xlsx": "Excel",
+      "xlsxDesc": "مصنف يتضمن الملخص والدفتر وورقة لكل شهر",
+      "csv": "CSV",
+      "csvDesc": "صفوف جدول بالتواريخ والمبالغ والأصناف",
+      "json": "JSON",
+      "jsonDesc": "سجلات منظَّمة للأنظمة الأخرى",
+      "ledger": "دفتر الحساب"
+    },
+    "report": {
+      "title": "كشف حساب العميل",
+      "generated": "تاريخ الإنشاء",
+      "period": "الفترة",
+      "customer": "الفاتورة إلى",
+      "phone": "الهاتف",
+      "item": "الصنف",
+      "qty": "الكمية",
+      "rate": "السعر",
+      "lineAmount": "المبلغ",
+      "html": "PDF",
+      "htmlDesc": "كشف PDF تفصيلي بالأصناف وإجماليات الأشهر",
+      "pdf": "PDF",
+      "pdfDesc": "كشف PDF تفصيلي بالأصناف وإجماليات الأشهر"
+    }
   },
   "sheet": {
     "add": "إضافة عميل",
     "edit": "تعديل العميل",
-    "addDescription": "أدخل بيانات العميل والصورة. الحفظ للتجربة فقط.",
+    "addDescription": "أدخل بيانات العميل والصورة.",
+    "quickAddDescription": "أنشئ عميلاً وحدده في هذا النموذج.",
     "create": "إنشاء عميل",
     "save": "حفظ العميل"
   },
+  "viewSheet": {
+    "noPhoto": "لا توجد صورة للعميل",
+    "account": "الحساب",
+    "details": "التفاصيل",
+    "recent": "النشاط الأخير",
+    "viewAll": "عرض الكل",
+    "outstanding": "المستحق",
+    "credit": "دائن",
+    "settled": "مسدد",
+    "idLabel": "المعرّف {{id}}"
+  },
   "toasts": {
-    "removedNamed": "تم حذف {{name}} (تجريبي).",
-    "duplicatedNamed": "تم تكرار {{name}} (تجريبي).",
+    "removedNamed": "تم حذف {{name}}.",
+    "duplicatedNamed": "تم تكرار {{name}}.",
     "nameRequired": "اسم العميل مطلوب.",
-    "created": "تم إنشاء العميل (تجريبي).",
-    "saved": "تم حفظ العميل (تجريبي).",
-    "removedCount": "تم حذف {{count}} عميل (تجريبي)."
+    "created": "تم إنشاء العميل.",
+    "saved": "تم حفظ العميل.",
+    "saveFailed": "تعذر حفظ العميل.",
+    "removedCount": "تم حذف {{count}} عميل.",
+    "importPartial": "تم استيراد {{added}}، وتعذر استيراد {{failed}}.",
+    "setActiveCount": "تم تعيين {{count}} كنشط.",
+    "setInactiveCount": "تم تعيين {{count}} كغير نشط."
   },
   "entity": {
     "customer": "عميل"

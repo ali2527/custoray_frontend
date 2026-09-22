@@ -37,6 +37,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { useOrders } from "@/context/orders-context"
+import { markSetupMilestone } from "@/lib/setup-progress"
 import { useInvoiceLineReturn } from "@/hooks/use-invoice-line-return"
 import {
   confirmDeleteAction,
@@ -430,14 +431,29 @@ export default function SalesInvoicePage() {
                         <p className="text-muted-foreground mb-4 text-xs font-medium uppercase tracking-wide">
                           {t("sheet.invoiceDetails")}
                         </p>
-                        <OrderForm formId={formId} order={formOrder} onSubmit={handleSubmit} />
+                        <OrderForm
+                          formId={formId}
+                          order={formOrder}
+                          isNew={false}
+                          onSubmit={handleSubmit}
+                        />
                       </div>
                     </div>
                   ) : (
-                    <OrderForm formId={formId} order={formOrder} onSubmit={handleSubmit} />
+                    <OrderForm
+                      formId={formId}
+                      order={formOrder}
+                      isNew={false}
+                      onSubmit={handleSubmit}
+                    />
                   )
                 ) : sidebar.mode === "add" ? (
-                  <OrderForm formId={formId} order={formOrder} onSubmit={handleSubmit} />
+                  <OrderForm
+                    formId={formId}
+                    order={formOrder}
+                    isNew
+                    onSubmit={handleSubmit}
+                  />
                 ) : null}
               </div>
               <SheetFooter className="border-border/60 gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end">
@@ -483,6 +499,7 @@ export default function SalesInvoicePage() {
         importSampleFilename="sales-invoices-sample.csv"
         exportFilename="sales-invoices-export.csv"
         onDataChange={setOrders}
+        onRowsImported={() => markSetupMilestone("invoice")}
         onAddClick={() => setSidebar({ mode: "add" })}
         bulkActions={[
           {

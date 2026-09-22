@@ -1,11 +1,15 @@
 "use client"
 
 import { useCallback, useMemo, useState, type FormEvent } from "react"
+import { useRouter } from "next/navigation"
 import { ColumnDef } from "@tanstack/react-table"
 import {
+  IconBan,
+  IconCircleCheck,
   IconCopy,
   IconDotsVertical,
   IconEye,
+  IconHistory,
   IconPencil,
   IconTrash,
 } from "@tabler/icons-react"
@@ -17,7 +21,6 @@ import { VendorDetail } from "@/components/vendors/vendor-detail"
 import { VendorForm } from "@/components/vendors/vendor-form"
 import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTable, type DataTableTab } from "@/components/data-table"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -27,6 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { PageLoader } from "@/components/ui/page-loader"
 import {
   Sheet,
   SheetClose,
@@ -41,14 +45,21 @@ import {
   confirmDeleteAction,
   confirmDuplicateAction,
 } from "@/lib/confirm-action"
+import { buildSampleCsv } from "@/lib/csv"
 import {
   computeBalance,
   EMPTY_VENDOR,
   formatMoney,
-  mapImportedVendor,
-  statusBadgeClass,
+  mapImportedVendorWrite,
+  vendorErrorMessage,
   vendorFromFormData,
+  vendorTabFilter,
+  vendorTimelineHref,
+  VENDOR_IMPORT_COLUMNS,
+  VENDOR_IMPORT_SAMPLE_ROW,
+  VENDOR_STATUS_OPTIONS,
   type VendorRow,
+  type VendorStatus,
 } from "@/lib/vendors"
 
 type VendorSidebarState =
@@ -57,16 +68,12 @@ type VendorSidebarState =
   | { mode: "add" }
   | null
 
-function vendorTabFilter(row: VendorRow, tab: string) {
-  if (tab === "all") return true
-  return row.status === tab
-}
-
 function getVendorColumns(
   t: TFunction<"vendors">,
   openVendorSidebar: (row: VendorRow, mode: "view" | "edit") => void,
   onDelete: (row: VendorRow) => void,
-  onDuplicate: (row: VendorRow) => void
+  onDuplicate: (row: VendorRow) => void,
+  onViewTimeline: (row: VendorRow) => void
 ): ColumnDef<VendorRow>[] {
   return [
     {
@@ -130,51 +137,45 @@ function getVendorColumns(
         <DataTableColumnHeader column={column} title={t("columns.description")} />
       ),
       cell: ({ row }) => (
-        <span className="text-muted-foreground max-w-[12rem] truncate">
-          {row.original.description}
+        <span className="text-muted-foreground text-sm leading-snug whitespace-normal">
+          {row.original.description || "—"}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: { dataTableFilter: false, cellClassName: "whitespace-normal max-w-xs" },
     },
     {
       accessorKey: "openingBalance",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("columns.openingBalance")} align="center" />
+        <DataTableColumnHeader column={column} title={t("columns.openingBalance")} />
       ),
       cell: ({ row }) => (
-        <div className="flex justify-center">
-          <span className="text-foreground tabular-nums">
-            {formatMoney(row.original.openingBalance)}
-          </span>
-        </div>
+        <span className="text-foreground tabular-nums">
+          {formatMoney(row.original.openingBalance)}
+        </span>
       ),
       meta: { dataTableFilter: false },
     },
     {
       accessorKey: "totalPurchases",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("columns.totalPurchases")} align="center" />
+        <DataTableColumnHeader column={column} title={t("columns.totalPurchases")} />
       ),
       cell: ({ row }) => (
-        <div className="flex justify-center">
-          <span className="text-foreground tabular-nums">
-            {formatMoney(row.original.totalPurchases)}
-          </span>
-        </div>
+        <span className="text-foreground tabular-nums">
+          {formatMoney(row.original.totalPurchases)}
+        </span>
       ),
       meta: { dataTableFilter: false },
     },
     {
       accessorKey: "totalPayments",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("columns.totalPayments")} align="center" />
+        <DataTableColumnHeader column={column} title={t("columns.totalPayments")} />
       ),
       cell: ({ row }) => (
-        <div className="flex justify-center">
-          <span className="text-foreground tabular-nums">
-            {formatMoney(row.original.totalPayments)}
-          </span>
-        </div>
+        <span className="text-foreground tabular-nums">
+          {formatMoney(row.original.totalPayments)}
+        </span>
       ),
       meta: { dataTableFilter: false },
     },
@@ -182,22 +183,20 @@ function getVendorColumns(
       id: "balance",
       accessorFn: (row) => Number(computeBalance(row)),
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("columns.balance")} align="center" />
+        <DataTableColumnHeader column={column} title={t("columns.balance")} />
       ),
       cell: ({ row }) => {
         const balance = computeBalance(row.original)
         return (
-          <div className="flex justify-center">
-            <span
-              className={
-                Number(balance) > 0
-                  ? "text-amber-700 tabular-nums dark:text-amber-400"
-                  : "text-muted-foreground tabular-nums"
-              }
-            >
-              {formatMoney(balance)}
-            </span>
-          </div>
+          <span
+            className={
+              Number(balance) > 0
+                ? "text-orange-600 tabular-nums dark:text-orange-400"
+                : "text-muted-foreground tabular-nums"
+            }
+          >
+            {formatMoney(balance)}
+          </span>
         )
       },
       meta: { dataTableFilter: false },
@@ -208,7 +207,9 @@ function getVendorColumns(
         <DataTableColumnHeader column={column} title={t("columns.phone")} />
       ),
       cell: ({ row }) => (
-        <span className="text-muted-foreground tabular-nums text-xs">{row.original.phone}</span>
+        <span className="text-muted-foreground tabular-nums text-xs">
+          {row.original.phone || "—"}
+        </span>
       ),
       meta: { dataTableFilter: false },
     },
@@ -218,15 +219,16 @@ function getVendorColumns(
         <DataTableColumnHeader column={column} title={t("columns.status")} />
       ),
       cell: ({ row }) => (
-        <Badge variant="outline" className={statusBadgeClass(row.original.status)}>
+        <span className="text-muted-foreground text-sm">
           {t(`status.${row.original.status}`, { ns: "common" })}
-        </Badge>
+        </span>
       ),
       meta: { dataTableFilter: false },
     },
     {
       id: "actions",
       enableSorting: false,
+      enableHiding: false,
       cell: ({ row }) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -239,10 +241,14 @@ function getVendorColumns(
               <span className="sr-only">{t("actions.openMenu")}</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-40">
+          <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem onClick={() => openVendorSidebar(row.original, "view")}>
               <IconEye />
               {t("actions.view")}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => onViewTimeline(row.original)}>
+              <IconHistory />
+              {t("actions.viewTimeline")}
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => openVendorSidebar(row.original, "edit")}>
               <IconPencil />
@@ -266,13 +272,17 @@ function getVendorColumns(
 
 export default function VendorsPage() {
   const { t } = useTranslation("vendors")
+  const router = useRouter()
   const {
     vendors,
-    setVendors,
+    loading,
     addVendor,
     updateVendor,
     removeVendor,
     duplicateVendor,
+    removeMany,
+    setStatus,
+    bulkCreate,
   } = useVendors()
   const [sidebar, setSidebar] = useState<VendorSidebarState>(null)
 
@@ -288,13 +298,17 @@ export default function VendorsPage() {
       ) {
         return
       }
-      removeVendor(vendor.id)
-      if (sidebar?.mode !== "add" && sidebar?.vendor.id === vendor.id) {
-        closeSidebar()
+      try {
+        await removeVendor(vendor.id)
+        if (sidebar?.mode !== "add" && sidebar?.vendor.id === vendor.id) {
+          closeSidebar()
+        }
+        toast.success(t("toasts.removedNamed", { name: vendor.name }))
+      } catch (error) {
+        toast.error(vendorErrorMessage(error, t("toasts.saveFailed")))
       }
-      toast.message(t("toasts.removedNamed", { name: vendor.name }))
     },
-    [removeVendor, sidebar]
+    [removeVendor, sidebar, t]
   )
 
   const handleDuplicate = useCallback(
@@ -307,14 +321,18 @@ export default function VendorsPage() {
       ) {
         return
       }
-      const copy = duplicateVendor(vendor.id)
-      if (copy) toast.success(t("toasts.duplicatedNamed", { name: vendor.name }))
+      try {
+        const copy = await duplicateVendor(vendor.id)
+        if (copy) toast.success(t("toasts.duplicatedNamed", { name: vendor.name }))
+      } catch (error) {
+        toast.error(vendorErrorMessage(error, t("toasts.saveFailed")))
+      }
     },
-    [duplicateVendor]
+    [duplicateVendor, t]
   )
 
   const handleSubmit = useCallback(
-    (e: FormEvent<HTMLFormElement>) => {
+    async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault()
       const fd = new FormData(e.currentTarget)
       const name = String(fd.get("name") ?? "").trim()
@@ -323,20 +341,64 @@ export default function VendorsPage() {
         return
       }
 
-      if (sidebar?.mode === "add") {
-        addVendor(vendorFromFormData(fd, 0))
-        toast.success(t("toasts.created"))
-        closeSidebar()
-        return
-      }
+      try {
+        if (sidebar?.mode === "add") {
+          await addVendor(vendorFromFormData(fd, EMPTY_VENDOR))
+          toast.success(t("toasts.created"))
+          closeSidebar()
+          return
+        }
 
-      if (sidebar?.mode === "edit" && sidebar.vendor) {
-        updateVendor(sidebar.vendor.id, vendorFromFormData(fd, sidebar.vendor.id))
-        toast.success(t("toasts.saved"))
-        closeSidebar()
+        if (sidebar?.mode === "edit" && sidebar.vendor) {
+          await updateVendor(
+            sidebar.vendor.id,
+            vendorFromFormData(fd, sidebar.vendor)
+          )
+          toast.success(t("toasts.saved"))
+          closeSidebar()
+        }
+      } catch (error) {
+        toast.error(vendorErrorMessage(error, t("toasts.saveFailed")))
       }
     },
-    [sidebar, addVendor, updateVendor]
+    [sidebar, addVendor, updateVendor, t]
+  )
+
+  const handleImportRows = useCallback(
+    async (imported: Record<string, string>[]) => {
+      const payload = imported
+        .map((row) => mapImportedVendorWrite(row))
+        .filter((row): row is NonNullable<typeof row> => row != null)
+        .slice(0, 100)
+      if (payload.length === 0) return 0
+      const res = await bulkCreate(payload)
+      const added = res.added ?? res.items?.length ?? 0
+      const failed = imported.length - payload.length + (res.errors?.length ?? 0)
+      if (failed > 0) {
+        toast.error(t("toasts.importPartial", { added, failed }))
+      }
+      return added
+    },
+    [bulkCreate, t]
+  )
+
+  const handleBulkStatus = useCallback(
+    async (selected: VendorRow[], status: VendorStatus, successMessage: string) => {
+      const ids = selected.map((row) => row.apiId).filter(Boolean)
+      if (ids.length === 0) return
+      const result = await setStatus(ids, status)
+      if (result.failed > 0) {
+        toast.error(
+          t("toasts.importPartial", {
+            added: result.updated,
+            failed: result.failed,
+          })
+        )
+        return
+      }
+      toast.success(successMessage)
+    },
+    [setStatus, t]
   )
 
   const columns = useMemo(
@@ -345,9 +407,10 @@ export default function VendorsPage() {
         t,
         (row, mode) => setSidebar({ vendor: row, mode }),
         handleDelete,
-        handleDuplicate
+        handleDuplicate,
+        (row) => router.push(vendorTimelineHref(row.apiId || row.id))
       ),
-    [t, handleDelete, handleDuplicate]
+    [t, handleDelete, handleDuplicate, router]
   )
 
   const vendorTabs: DataTableTab[] = [
@@ -356,7 +419,10 @@ export default function VendorsPage() {
     { value: "inactive", label: t("tabs.inactive") },
   ]
 
-  const sheetVendor = sidebar && sidebar.mode !== "add" ? sidebar.vendor : null
+  const sheetVendor =
+    sidebar && sidebar.mode !== "add"
+      ? (vendors.find((row) => row.id === sidebar.vendor.id) ?? sidebar.vendor)
+      : null
   const formVendor =
     sidebar?.mode === "add" ? EMPTY_VENDOR : sheetVendor ?? EMPTY_VENDOR
   const formId =
@@ -365,6 +431,8 @@ export default function VendorsPage() {
       : sheetVendor
         ? `vendor-edit-${sheetVendor.id}`
         : "vendor-edit"
+
+  if (loading) return <PageLoader />
 
   return (
     <>
@@ -376,7 +444,9 @@ export default function VendorsPage() {
       >
         <SheetContent
           side="right"
-          className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
+          className={`flex w-full flex-col gap-0 overflow-hidden p-0 ${
+            sidebar?.mode === "view" ? "sm:max-w-xl" : "sm:max-w-md"
+          }`}
         >
           {sidebar ? (
             <>
@@ -398,8 +468,10 @@ export default function VendorsPage() {
                     </>
                   ) : sheetVendor ? (
                     <>
-                      ID {sheetVendor.id}
-                      {sheetVendor.phone ? ` · ${sheetVendor.phone}` : ""}
+                      {t(`status.${sheetVendor.status}`, { ns: "common" })}
+                      {sheetVendor.phone && sheetVendor.phone !== "—"
+                        ? ` · ${sheetVendor.phone}`
+                        : ""}
                     </>
                   ) : null}
                 </SheetDescription>
@@ -413,28 +485,44 @@ export default function VendorsPage() {
                 className="min-h-0 flex-1 overflow-y-auto px-6 py-5"
               >
                 {sidebar.mode === "view" && sheetVendor ? (
-                  <VendorDetail vendor={sheetVendor} />
+                  <VendorDetail
+                    vendor={sheetVendor}
+                    onViewTimeline={() =>
+                      router.push(vendorTimelineHref(sheetVendor.apiId || sheetVendor.id))
+                    }
+                  />
                 ) : sidebar.mode === "edit" || sidebar.mode === "add" ? (
-                  <VendorForm formId={formId} vendor={formVendor} onSubmit={handleSubmit} />
+                  <VendorForm
+                    formId={formId}
+                    vendor={formVendor}
+                    onSubmit={handleSubmit}
+                  />
                 ) : null}
               </div>
               <SheetFooter className="border-border/60 gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end">
-                {sidebar.mode === "view" ? (
+                {sidebar.mode === "view" && sheetVendor ? (
                   <>
+                    <SheetClose asChild>
+                      <Button variant="outline" className="w-full sm:w-auto">
+                        {t("actions.close", { ns: "common" })}
+                      </Button>
+                    </SheetClose>
                     <Button
-                      variant="outline"
+                      type="button"
                       className="w-full sm:w-auto"
                       onClick={() =>
-                        sheetVendor &&
                         setSidebar({ mode: "edit", vendor: sheetVendor })
                       }
                     >
                       {t("actions.edit")}
                     </Button>
-                    <SheetClose asChild>
-                      <Button className="w-full sm:w-auto">{t("actions.close", { ns: "common" })}</Button>
-                    </SheetClose>
                   </>
+                ) : sidebar.mode === "view" ? (
+                  <SheetClose asChild>
+                    <Button variant="outline" className="w-full sm:w-auto">
+                      {t("actions.close", { ns: "common" })}
+                    </Button>
+                  </SheetClose>
                 ) : (
                   <>
                     <SheetClose asChild>
@@ -456,15 +544,49 @@ export default function VendorsPage() {
       <DataTable
         data={vendors}
         columns={columns}
+        settingsKey="vendors"
+        showColumnFilters={false}
         addButtonLabel={t("addButton")}
         searchPlaceholder={t("search")}
-        importRowMapper={mapImportedVendor}
         importSampleFilename="vendors-sample.csv"
+        importSampleCsvContent={buildSampleCsv(
+          [...VENDOR_IMPORT_COLUMNS],
+          VENDOR_IMPORT_SAMPLE_ROW
+        )}
+        importColumns={[...VENDOR_IMPORT_COLUMNS]}
+        importSelectColumns={{
+          status: [...VENDOR_STATUS_OPTIONS],
+        }}
+        importRequiredSelectColumns={[]}
         exportFilename="vendors-export.csv"
-        onDataChange={setVendors}
+        onImportRows={handleImportRows}
         onAddClick={() => setSidebar({ mode: "add" })}
-        defaultColumnVisibility={{ status: false, actions: false }}
+        defaultColumnVisibility={{ status: false }}
         bulkActions={[
+          {
+            id: "active",
+            label: t("actions.setActive"),
+            icon: <IconCircleCheck className="size-4" />,
+            onClick: (selected) => {
+              void handleBulkStatus(
+                selected,
+                "active",
+                t("toasts.setActiveCount", { count: selected.length })
+              )
+            },
+          },
+          {
+            id: "inactive",
+            label: t("actions.setInactive"),
+            icon: <IconBan className="size-4" />,
+            onClick: (selected) => {
+              void handleBulkStatus(
+                selected,
+                "inactive",
+                t("toasts.setInactiveCount", { count: selected.length })
+              )
+            },
+          },
           {
             id: "delete",
             label: t("actions.deleteSelected"),
@@ -479,9 +601,18 @@ export default function VendorsPage() {
               ) {
                 return
               }
-              const ids = new Set(selected.map((v) => v.id))
-              setVendors((prev) => prev.filter((r) => !ids.has(r.id)))
-              toast.message(t("toasts.removedCount", { count: selected.length }))
+              const ids = selected.map((row) => row.apiId).filter(Boolean)
+              const result = await removeMany(ids)
+              if (result.failed > 0) {
+                toast.error(
+                  t("toasts.importPartial", {
+                    added: result.deleted,
+                    failed: result.failed,
+                  })
+                )
+                return
+              }
+              toast.success(t("toasts.removedCount", { count: selected.length }))
             },
           },
         ]}

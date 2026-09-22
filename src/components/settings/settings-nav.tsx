@@ -20,6 +20,7 @@ import { cn } from "@/lib/utils"
 const GENERAL_HREFS = [
   "/settings",
   "/settings/documents",
+  "/settings/products",
   "/settings/appearance",
   "/settings/language",
 ]
@@ -27,6 +28,7 @@ const GENERAL_HREFS = [
 const GENERAL_ITEMS = [
   { href: "/settings", labelKey: "settingsNav.company" as const },
   { href: "/settings/documents", labelKey: "settingsNav.documents" as const },
+  { href: "/settings/products", labelKey: "settingsNav.products" as const },
   { href: "/settings/appearance", labelKey: "settingsNav.appearance" as const },
   { href: "/settings/language", labelKey: "settingsNav.languageRegion" as const },
 ]

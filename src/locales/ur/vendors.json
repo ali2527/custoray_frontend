@@ -21,28 +21,157 @@
     "email": "ای میل",
     "status": "حیثیت"
   },
+  "fields": {
+    "name": "سپلائر کا نام",
+    "namePlaceholder": "کمپنی یا سپلائر",
+    "description": "تفصیل",
+    "descriptionPlaceholder": "نوٹس، شرائط، زمرہ…",
+    "openingBalance": "ابتدائی بیلنس",
+    "phone": "فون نمبر",
+    "phonePlaceholder": "+92 300 1234567",
+    "status": "حیثیت"
+  },
+  "images": {
+    "photo": "سپلائر کی تصویر",
+    "upload": "سپلائر کی تصویر اپ لوڈ کریں",
+    "change": "سپلائر کی تصویر تبدیل کریں",
+    "remove": "سپلائر کی تصویر ہٹائیں"
+  },
   "actions": {
     "view": "دیکھیں",
     "edit": "ترمیم",
     "duplicate": "نقل بنائیں",
     "delete": "حذف کریں",
     "openMenu": "مینو کھولیں",
-    "deleteSelected": "منتخب حذف کریں"
+    "deleteSelected": "منتخب حذف کریں",
+    "viewTimeline": "ٹائم لائن دیکھیں",
+    "setActive": "فعال کریں",
+    "setInactive": "غیر فعال کریں"
+  },
+  "timeline": {
+    "title": "ٹائم لائن",
+    "back": "سپلائرز پر واپس",
+    "notFound": "سپلائر نہیں ملا۔",
+    "empty": "ابھی کوئی خریداری یا واپسی نہیں۔",
+    "createPurchase": "خریداری بنائیں",
+    "createInvoice": "خریداری بنائیں",
+    "total": "کل",
+    "paid": "ادا شدہ",
+    "balance": "بیلنس",
+    "return": "واپسی",
+    "returnAmount": "واپسی کی رقم",
+    "itemCount": "{{count}} آئٹمز",
+    "search": "خریداریاں اور واپسیاں تلاش کریں…",
+    "emptyFiltered": "ان فلٹرز سے کوئی ریکارڈ نہیں ملتا۔",
+    "typeInvoice": "خریداری",
+    "typeReturn": "واپسی",
+    "filters": {
+      "allTypes": "تمام اقسام",
+      "allStatuses": "تمام حیثیتیں",
+      "allMonths": "تمام مہینے",
+      "status": "حیثیت",
+      "month": "مہینہ"
+    },
+    "summary": {
+      "total": "کل",
+      "credit": "کریڈٹ",
+      "remaining": "باقی",
+      "balance": "بیلنس"
+    },
+    "tabs": {
+      "all": "تمام",
+      "invoices": "خریداریاں",
+      "returns": "واپسیاں"
+    },
+    "columns": {
+      "date": "تاریخ",
+      "type": "قسم",
+      "document": "دستاویز",
+      "details": "تفصیلات",
+      "number": "نمبر",
+      "reference": "حوالہ",
+      "description": "تفصیل",
+      "amount": "رقم",
+      "paid": "ادا شدہ",
+      "balance": "واجب",
+      "running": "چلتا بیلنس",
+      "status": "حیثیت",
+      "month": "مہینہ",
+      "items": "آئٹمز"
+    },
+    "recordCount": "{{count}} ریکارڈز",
+    "exportRange": {
+      "label": "برآمد کی مدت",
+      "all": "تمام تاریخیں",
+      "months": "مہینے",
+      "dates": "تاریخیں",
+      "fromMonth": "مہینہ سے",
+      "toMonth": "مہینہ تک",
+      "fromDate": "تاریخ سے",
+      "toDate": "تاریخ تک",
+      "hintAll": "ہر مماثل خریداری اور واپسی برآمد کریں۔",
+      "hintMonths": "پہلے مہینے کی شروعات سے آخری مہینے کے آخر تک برآمد کریں۔",
+      "hintDates": "ان تاریخوں پر اور ان کے درمیان کے ریکارڈ برآمد کریں۔",
+      "preview": "{{count}} ریکارڈز · {{months}} مہینے",
+      "previewEmpty": "اس مدت میں کوئی ریکارڈ نہیں۔"
+    },
+    "export": {
+      "title": "گوشوارہ برآمد کریں",
+      "description": "مدت منتخب کریں، پھر PDF گوشوارہ، Excel ورک بک، CSV یا JSON ڈاؤن لوڈ کریں۔",
+      "xlsx": "Excel",
+      "xlsxDesc": "خلاصہ، لیجر، اور ہر مہینے کے لیے شیٹ والی ورک بک",
+      "csv": "CSV",
+      "csvDesc": "تاریخوں، رقوم اور آئٹمز کے ساتھ اسپریڈشیٹ قطاریں",
+      "json": "JSON",
+      "jsonDesc": "دیگر سسٹمز کے لیے منظم ریکارڈز",
+      "ledger": "لیجر"
+    },
+    "report": {
+      "title": "سپلائر کا گوشوارہ",
+      "generated": "تیار کیا گیا",
+      "period": "مدت",
+      "customer": "سپلائر",
+      "phone": "فون",
+      "item": "آئٹم",
+      "qty": "تعداد",
+      "rate": "شرح",
+      "lineAmount": "رقم",
+      "html": "PDF",
+      "htmlDesc": "آئٹمز اور ماہانہ کل کے ساتھ تفصیلی PDF گوشوارہ",
+      "pdf": "PDF",
+      "pdfDesc": "آئٹمز اور ماہانہ کل کے ساتھ تفصیلی PDF گوشوارہ"
+    }
   },
   "sheet": {
     "add": "سپلائر شامل کریں",
     "edit": "سپلائر میں ترمیم",
-    "addDescription": "سپلائر کی تفصیلات اور تصویر درج کریں۔ محفوظ کرنا صرف ڈیمو ہے۔",
+    "addDescription": "سپلائر کی تفصیلات اور تصویر درج کریں۔",
+    "quickAddDescription": "سپلائر بنائیں اور اسے اس فارم پر منتخب کریں۔",
     "create": "سپلائر بنائیں",
     "save": "سپلائر محفوظ کریں"
   },
+  "viewSheet": {
+    "noPhoto": "سپلائر کی تصویر نہیں",
+    "account": "اکاؤنٹ",
+    "details": "تفصیلات",
+    "recent": "حالیہ سرگرمی",
+    "viewAll": "سب دیکھیں",
+    "outstanding": "واجب الادا",
+    "credit": "کریڈٹ",
+    "settled": "تصفیہ شدہ",
+    "idLabel": "آئی ڈی {{id}}"
+  },
   "toasts": {
-    "removedNamed": "{{name}} ہٹا دیا گیا (ڈیمو)۔",
-    "duplicatedNamed": "{{name}} کی نقل بن گئی (ڈیمو)۔",
+    "removedNamed": "{{name}} ہٹا دیا گیا۔",
+    "duplicatedNamed": "{{name}} کی نقل بن گئی۔",
     "nameRequired": "سپلائر کا نام درکار ہے۔",
-    "created": "سپلائر بن گیا (ڈیمو)۔",
-    "saved": "سپلائر محفوظ ہو گیا (ڈیمو)۔",
-    "removedCount": "{{count}} سپلائر ہٹا دیے گئے (ڈیمو)۔"
+    "created": "سپلائر بن گیا۔",
+    "saved": "سپلائر محفوظ ہو گیا۔",
+    "saveFailed": "سپلائر محفوظ نہیں ہو سکا۔",
+    "removedCount": "{{count}} سپلائر ہٹا دیے گئے۔",
+    "importPartial": "{{added}} درآمد ہوئے، {{failed}} درآمد نہیں ہو سکے۔",
+    "setActiveCount": "{{count}} کو فعال کر دیا گیا۔",
+    "setInactiveCount": "{{count}} کو غیر فعال کر دیا گیا۔"
   },
   "entity": {
     "vendor": "سپلائر"

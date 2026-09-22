@@ -77,7 +77,11 @@
   "form": {
     "addNewBrand": "+ نیا برانڈ شامل کریں",
     "addNewCategory": "+ نئی کیٹگری شامل کریں",
-    "addNewVariant": "+ نئی قسم شامل کریں"
+    "addNewVariant": "+ نئی قسم شامل کریں",
+    "notSelected": "منتخب نہیں",
+    "selectBrand": "برانڈ منتخب کریں",
+    "selectCategory": "کیٹگری منتخب کریں",
+    "selectVariant": "ویریئنٹ منتخب کریں"
   },
   "productSheet": {
     "add": "مصنوعات شامل کریں",
@@ -87,9 +91,17 @@
     "create": "مصنوعات بنائیں",
     "save": "مصنوعات محفوظ کریں"
   },
+  "viewSheet": {
+    "details": "تفصیلات",
+    "pricing": "قیمتیں",
+    "margin": "مارجن",
+    "noImage": "مصنوعات کی تصویر نہیں"
+  },
   "brandPage": {
     "addButton": "نیا برانڈ",
-    "search": "برانڈز تلاش کریں…"
+    "search": "برانڈز تلاش کریں…",
+    "edit": "برانڈ میں ترمیم",
+    "save": "برانڈ محفوظ کریں"
   },
   "categoryPage": {
     "addButton": "نئی کیٹگری",
@@ -115,23 +127,43 @@
   },
   "toasts": {
     "nameRequired": "مصنوعات کا نام درکار ہے۔",
+    "skuRequired": "کسٹم SKU استعمال کرتے وقت SKU درکار ہے۔",
     "categoryNameRequired": "نام درکار ہے۔",
     "created": "مصنوعات بن گئی۔",
     "saved": "مصنوعات محفوظ ہو گئیں۔",
-    "categoryCreated": "کیٹگری بن گئی (ڈیمو)۔",
-    "categorySaved": "کیٹگری محفوظ ہو گئی (ڈیمو)۔",
-    "variantSaved": "{{name}} محفوظ ہو گئی (ڈیمو)۔",
-    "deletedNamed": "{{name}} حذف ہو گئی (ڈیمو)۔",
-    "duplicatedNamed": "{{name}} کی نقل بن گئی (ڈیمو)۔",
-    "archivedCount": "{{count}} مصنوعات آرکائیو میں منتقل ہو گئیں (ڈیمو)۔",
-    "wouldDeleteProducts": "{{count}} مصنوعات حذف ہو جائیں گی۔",
-    "archivedBrands": "{{count}} برانڈ(ز) آرکائیو میں منتقل ہو گئے (ڈیمو)۔",
+    "saveFailed": "مصنوعات محفوظ نہیں ہو سکیں۔",
+    "loadFailed": "مصنوعات لوڈ نہیں ہو سکیں۔",
+    "importPartial": "{{added}} درآمد ہو گئیں، {{failed}} درآمد نہیں ہو سکیں۔",
+    "importUnmatchedCatalog": "برانڈ، کیٹگری یا ویریئنٹ کے وہ نام جو آپ کی فہرست میں نہیں تھے خالی چھوڑ دیے گئے: {{names}}",
+    "categoryCreated": "کیٹگری بن گئی۔",
+    "categorySaved": "کیٹگری محفوظ ہو گئی۔",
+    "brandSaved": "برانڈ محفوظ ہو گیا۔",
+    "variantSaved": "{{name}} محفوظ ہو گئی۔",
+    "deletedNamed": "{{name}} حذف ہو گئی۔",
+    "deletedCount": "{{count}} مصنوعات حذف ہو گئیں۔",
+    "archivedCount": "{{count}} مصنوعات آرکائیو میں منتقل ہو گئیں۔",
+    "duplicatedNamed": "{{name}} کی نقل بن گئی۔",
+    "archivedBrands": "{{count}} برانڈ(ز) آرکائیو میں منتقل ہو گئے۔",
     "wouldDeleteBrands": "{{count}} برانڈ(ز) حذف ہو جائیں گے۔",
-    "setActiveCount": "{{count}} کیٹگری(ز) فعال ہو گئیں (ڈیمو)۔",
-    "setInactiveCount": "{{count}} کیٹگری(ز) غیر فعال ہو گئیں (ڈیمو)۔",
-    "deletedCategories": "{{count}} کیٹگری(ز) حذف ہو گئیں (ڈیمو)۔",
+    "setActiveCount": "{{count}} فعال ہو گئیں۔",
+    "setInactiveCount": "{{count}} غیر فعال ہو گئیں۔",
+    "deletedCategories": "{{count}} کیٹگری(ز) حذف ہو گئیں۔",
     "maxImages": "آپ زیادہ سے زیادہ {{count}} تصاویر اپ لوڈ کر سکتے ہیں۔",
     "onlyImagesAllowed": "صرف {{count}} تصاویر کی اجازت ہے۔"
+  },
+  "timeline": {
+    "title": "قیمت کی ٹائم لائن",
+    "empty": "ابھی کوئی قیمت کی سرگزشت نہیں۔",
+    "date": "تاریخ",
+    "field": "قیمت",
+    "change": "تبدیلی",
+    "previous": "پچھلی",
+    "current": "نئی",
+    "sale": "فروخت",
+    "cost": "لاگت",
+    "set": "سیٹ",
+    "increased": "اضافہ",
+    "decreased": "کمی"
   },
   "noDescription": "کوئی تفصیل نہیں",
   "images": {
@@ -152,6 +184,12 @@
     "namePlaceholder": "{{label}} کا نام درج کریں",
     "descriptionPlaceholder": "{{label}} کی مختصر تفصیل",
     "save": "{{label}} محفوظ کریں"
+  },
+  "fieldNeeds": {
+    "tablesTitle": "کیٹلاگ ٹیبلز",
+    "tablesHint": "جو ٹیبل استعمال نہیں کرتے اسے بند کریں۔ مینو، مصنوعات اور امپورٹ سے چھپ جائے گا۔",
+    "settingsTitle": "کیٹلاگ ٹیبلز",
+    "settingsHint": "منتخب کریں کہ برانڈ، کیٹگری اور ویرینٹ میں سے کون سے آپ استعمال کرتے ہیں۔"
   },
   "entity": {
     "product": "مصنوعات",

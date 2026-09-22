@@ -77,7 +77,11 @@
   "form": {
     "addNewBrand": "+ Add new brand",
     "addNewCategory": "+ Add new category",
-    "addNewVariant": "+ Add new variant"
+    "addNewVariant": "+ Add new variant",
+    "notSelected": "Not selected",
+    "selectBrand": "Select brand",
+    "selectCategory": "Select category",
+    "selectVariant": "Select variant"
   },
   "productSheet": {
     "add": "Add product",
@@ -87,9 +91,17 @@
     "create": "Create product",
     "save": "Save product"
   },
+  "viewSheet": {
+    "details": "Details",
+    "pricing": "Pricing",
+    "margin": "Margin",
+    "noImage": "No product image"
+  },
   "brandPage": {
     "addButton": "New Brand",
-    "search": "Search brands…"
+    "search": "Search brands…",
+    "edit": "Edit brand",
+    "save": "Save brand"
   },
   "categoryPage": {
     "addButton": "New Category",
@@ -115,23 +127,43 @@
   },
   "toasts": {
     "nameRequired": "Product name is required.",
+    "skuRequired": "SKU is required when using custom SKUs.",
     "categoryNameRequired": "Name is required.",
     "created": "Product created.",
     "saved": "Product saved.",
-    "categoryCreated": "Category created (demo).",
-    "categorySaved": "Category saved (demo).",
-    "variantSaved": "Saved {{name}} (demo).",
-    "deletedNamed": "Deleted {{name}} (demo).",
-    "duplicatedNamed": "Duplicated {{name}} (demo).",
-    "archivedCount": "Moved {{count}} product(s) to archive (demo).",
-    "wouldDeleteProducts": "Would delete {{count}} product(s).",
-    "archivedBrands": "Moved {{count}} brand(s) to archive (demo).",
+    "saveFailed": "Could not save product.",
+    "loadFailed": "Could not load products.",
+    "importPartial": "{{added}} imported, {{failed}} could not be imported.",
+    "importUnmatchedCatalog": "These brand, category, or variant names were not in your catalog, so those products were imported without them: {{names}}",
+    "categoryCreated": "Category created.",
+    "categorySaved": "Category saved.",
+    "brandSaved": "Brand saved.",
+    "variantSaved": "Saved {{name}}.",
+    "deletedNamed": "Deleted {{name}}.",
+    "deletedCount": "Deleted {{count}} item(s).",
+    "archivedCount": "Moved {{count}} product(s) to archive.",
+    "duplicatedNamed": "Duplicated {{name}}.",
+    "archivedBrands": "Moved {{count}} brand(s) to archive.",
     "wouldDeleteBrands": "Would delete {{count}} brand(s).",
-    "setActiveCount": "Set {{count}} categories to active (demo).",
-    "setInactiveCount": "Set {{count}} categories to inactive (demo).",
-    "deletedCategories": "Deleted {{count}} categories (demo).",
+    "setActiveCount": "Set {{count}} to active.",
+    "setInactiveCount": "Set {{count}} to inactive.",
+    "deletedCategories": "Deleted {{count}} categories.",
     "maxImages": "You can upload up to {{count}} images.",
     "onlyImagesAllowed": "Only {{count}} images are allowed."
+  },
+  "timeline": {
+    "title": "Price timeline",
+    "empty": "No price history yet.",
+    "date": "Date",
+    "field": "Price",
+    "change": "Change",
+    "previous": "Previous",
+    "current": "New",
+    "sale": "Sale",
+    "cost": "Cost",
+    "set": "Set",
+    "increased": "Increased",
+    "decreased": "Decreased"
   },
   "noDescription": "No description",
   "images": {
@@ -152,6 +184,12 @@
     "namePlaceholder": "Enter {{label}} name",
     "descriptionPlaceholder": "Short description for {{label}}",
     "save": "Save {{label}}"
+  },
+  "fieldNeeds": {
+    "tablesTitle": "Catalog tables",
+    "tablesHint": "Turn off any table you do not use. It is hidden from the menu, products, and import.",
+    "settingsTitle": "Catalog tables",
+    "settingsHint": "Choose which of brand, category, and variant you actually use."
   },
   "entity": {
     "product": "product",

@@ -2,6 +2,7 @@
 
 import { useCallback, type FormEvent } from "react"
 import { toast } from "sonner"
+import { useTranslation } from "react-i18next"
 
 import { CustomerForm } from "@/components/customers/customer-form"
 import { Button } from "@/components/ui/button"
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/sheet"
 import { useCustomers } from "@/context/customers-context"
 import {
+  customerErrorMessage,
   customerFromFormData,
   EMPTY_CUSTOMER,
   type CustomerRow,
@@ -34,22 +36,27 @@ export function CustomerQuickAddSheet({
   formId = "customer-quick-add-form",
   onCreated,
 }: CustomerQuickAddSheetProps) {
+  const { t } = useTranslation("customers")
   const { addCustomer } = useCustomers()
 
   const handleSubmit = useCallback(
-    (e: FormEvent<HTMLFormElement>) => {
+    async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault()
-      const parsed = customerFromFormData(new FormData(e.currentTarget), 0)
+      const parsed = customerFromFormData(new FormData(e.currentTarget), EMPTY_CUSTOMER)
       if (!parsed.name.trim()) {
-        toast.error("Customer name is required.")
+        toast.error(t("toasts.nameRequired"))
         return
       }
-      const created = addCustomer(parsed)
-      onCreated(created)
-      onOpenChange(false)
-      toast.success("Customer added.")
+      try {
+        const created = await addCustomer(parsed)
+        onCreated(created)
+        onOpenChange(false)
+        toast.success(t("toasts.created"))
+      } catch (error) {
+        toast.error(customerErrorMessage(error, t("toasts.saveFailed")))
+      }
     },
-    [addCustomer, onCreated, onOpenChange]
+    [addCustomer, onCreated, onOpenChange, t]
   )
 
   return (
@@ -59,10 +66,8 @@ export function CustomerQuickAddSheet({
         className="flex w-full flex-col gap-0 overflow-hidden p-0 sm:max-w-md"
       >
         <SheetHeader className="border-border/60 space-y-1 border-b px-6 py-5 text-left">
-          <SheetTitle className="text-lg leading-tight">Add customer</SheetTitle>
-          <SheetDescription>
-            Create a customer and select them on this form.
-          </SheetDescription>
+          <SheetTitle className="text-lg leading-tight">{t("sheet.add")}</SheetTitle>
+          <SheetDescription>{t("sheet.quickAddDescription")}</SheetDescription>
         </SheetHeader>
         <div key="add" className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
           <CustomerForm
@@ -74,11 +79,11 @@ export function CustomerQuickAddSheet({
         <SheetFooter className="border-border/60 gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end">
           <SheetClose asChild>
             <Button variant="outline" type="button">
-              Cancel
+              {t("actions.cancel", { ns: "common" })}
             </Button>
           </SheetClose>
           <Button type="submit" form={formId}>
-            Create customer
+            {t("sheet.create")}
           </Button>
         </SheetFooter>
       </SheetContent>

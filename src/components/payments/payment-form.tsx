@@ -3,39 +3,55 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react"
 
 import { CustomerQuickAddSheet } from "@/components/customers/customer-quick-add-sheet"
+import { DocumentNumberField } from "@/components/document-number-field"
 import { VendorQuickAddSheet } from "@/components/vendors/vendor-quick-add-sheet"
 import { InfiniteScrollSelect } from "@/components/ui/infinite-scroll-select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useCustomers } from "@/context/customers-context"
 import { useVendors } from "@/context/vendors-context"
-import { PAYMENT_METHODS, type PaymentRow } from "@/lib/payments"
+import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
+import type { CustomerRow } from "@/lib/customers"
+import type { VendorRow } from "@/lib/vendors"
+import {
+  PAYMENT_METHODS,
+  findPartyBySelectValue,
+  partySelectValue,
+  type PaymentRow,
+} from "@/lib/payments"
 import { useTranslation } from "react-i18next"
 
 type PaymentFormProps = {
   formId: string
   payment: PaymentRow
+  isNew?: boolean
   onSubmit: (e: FormEvent<HTMLFormElement>) => void
   lockType?: PaymentRow["type"]
 }
 
-function resolvePartyId(
-  parties: { id: number; name: string }[],
-  name: string
+function resolvePartySelectValue(
+  parties: { id: number; apiId?: string; name: string }[],
+  payment: PaymentRow
 ) {
-  const normalized = name.trim()
+  if (payment.partyId) {
+    const byId = findPartyBySelectValue(parties, payment.partyId)
+    if (byId) return partySelectValue(byId)
+  }
+  const normalized = payment.partyName.trim()
   if (!normalized) return ""
   const match = parties.find((party) => party.name === normalized)
-  return match ? String(match.id) : ""
+  return match ? partySelectValue(match) : ""
 }
 
 export function PaymentForm({
   formId,
   payment,
+  isNew = false,
   onSubmit,
   lockType,
 }: PaymentFormProps) {
   const { t } = useTranslation("payments")
+  const { settings: numberSettings } = useDocumentNumberSettings()
   const { customers } = useCustomers()
   const { vendors } = useVendors()
 
@@ -43,20 +59,20 @@ export function PaymentForm({
   const [type, setType] = useState<PaymentRow["type"]>(initialType)
   const parties = type === "customer" ? customers : vendors
   const [partyId, setPartyId] = useState(() =>
-    resolvePartyId(parties, payment.partyName)
+    resolvePartySelectValue(parties, payment)
   )
   const [quickAdd, setQuickAdd] = useState<"customer" | "vendor" | null>(null)
 
   const customerQuickAddFormId = `${formId}-customer-quick-add`
   const vendorQuickAddFormId = `${formId}-vendor-quick-add`
 
-  const handleCustomerCreated = useCallback((created: { id: number }) => {
-    setPartyId(String(created.id))
+  const handleCustomerCreated = useCallback((created: CustomerRow) => {
+    setPartyId(partySelectValue(created))
     setQuickAdd(null)
   }, [])
 
-  const handleVendorCreated = useCallback((created: { id: number }) => {
-    setPartyId(String(created.id))
+  const handleVendorCreated = useCallback((created: VendorRow) => {
+    setPartyId(partySelectValue(created))
     setQuickAdd(null)
   }, [])
 
@@ -66,14 +82,13 @@ export function PaymentForm({
 
   useEffect(() => {
     const nextParties = type === "customer" ? customers : vendors
-    const resolved = resolvePartyId(nextParties, payment.partyName)
-    setPartyId(resolved)
-  }, [type, customers, vendors, payment.partyName])
+    setPartyId(resolvePartySelectValue(nextParties, payment))
+  }, [type, customers, vendors, payment.partyId, payment.partyName, payment.id])
 
   const partyOptions = useMemo(
     () =>
       parties.map((party) => ({
-        value: String(party.id),
+        value: partySelectValue(party),
         label: party.name,
         description: party.description !== "—" ? party.description : party.phone,
       })),
@@ -82,18 +97,26 @@ export function PaymentForm({
 
   const partyName = useMemo(() => {
     if (!partyId) return payment.partyName
-    const party = parties.find((item) => String(item.id) === partyId)
+    const party = findPartyBySelectValue(parties, partyId)
     return party?.name ?? payment.partyName
   }, [partyId, parties, payment.partyName])
 
+  const resolvedPartyId = useMemo(() => {
+    const party = findPartyBySelectValue(parties, partyId)
+    return party?.apiId?.trim() || payment.partyId || ""
+  }, [parties, partyId, payment.partyId])
+
   const referenceLabel =
     type === "customer" ? t("form.invoiceReference") : t("form.purchaseReference")
+  const numberKey =
+    type === "customer" ? "customerPayments" : "vendorPayments"
 
   return (
     <>
     <form id={formId} className="flex flex-col gap-4 text-sm" onSubmit={onSubmit}>
       <input type="hidden" name="type" value={type} />
       <input type="hidden" name="partyName" value={partyName} />
+      <input type="hidden" name="partyId" value={resolvedPartyId} />
 
       {!lockType ? (
         <div className="flex flex-col gap-2">
@@ -140,15 +163,16 @@ export function PaymentForm({
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor={`${formId}-paymentNumber`}>{t("form.paymentNumber")}</Label>
-          <Input
-            id={`${formId}-paymentNumber`}
-            name="paymentNumber"
-            defaultValue={payment.paymentNumber}
-            placeholder={t("form.autoGenerated")}
-          />
-        </div>
+        <DocumentNumberField
+          id={`${formId}-paymentNumber`}
+          name="paymentNumber"
+          label={t("form.paymentNumber")}
+          value={payment.paymentNumber}
+          settings={numberSettings[numberKey]}
+          isNew={isNew}
+          placeholder={t("form.autoGenerated")}
+          autoHint={t("form.autoGenerated")}
+        />
         <div className="flex flex-col gap-2">
           <Label htmlFor={`${formId}-paymentDate`}>{t("form.paymentDate")}</Label>
           <Input

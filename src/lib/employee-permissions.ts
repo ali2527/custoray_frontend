@@ -10,6 +10,7 @@ export const MODULE_IDS = [
   "purchases",
   "returns",
   "payments",
+  "expenses",
   "documents",
   "pos",
   "employees",
