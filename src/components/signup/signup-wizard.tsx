@@ -418,7 +418,7 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
                   inputMode="numeric"
                   autoComplete="tel-national"
                   required
-                  placeholder={phoneProfile(values.phoneCountry || values.country).placeholder}
+                  placeholder=""
                   value={values.phone}
                   onChange={(e) => setPhone(e.target.value)}
                   aria-invalid={Boolean(errors.phone)}
