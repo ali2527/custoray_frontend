@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { IconPlus, IconTrash } from "@tabler/icons-react"
 import { toast } from "sonner"
 
+import { DocumentNumberField } from "@/components/document-number-field"
 import { ProductQuickForm } from "@/components/inventory/product-quick-form"
 import { VendorQuickAddSheet } from "@/components/vendors/vendor-quick-add-sheet"
 import { Button } from "@/components/ui/button"
@@ -20,6 +21,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useProducts } from "@/context/products-context"
 import { useVendors } from "@/context/vendors-context"
+import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
 import { formatMoney } from "@/lib/customers"
 import {
   findVendorBySelectValue,
@@ -36,6 +38,7 @@ import {
 type PurchaseFormProps = {
   formId: string
   purchase: PurchaseRow
+  isNew?: boolean
   onSubmit: (e: FormEvent<HTMLFormElement>) => void
 }
 
@@ -71,7 +74,13 @@ function resolveProductId(products: { id: number; name: string }[], name: string
   return match ? String(match.id) : ""
 }
 
-export function PurchaseForm({ formId, purchase, onSubmit }: PurchaseFormProps) {
+export function PurchaseForm({
+  formId,
+  purchase,
+  isNew = false,
+  onSubmit,
+}: PurchaseFormProps) {
+  const { settings: numberSettings } = useDocumentNumberSettings()
   const { vendors } = useVendors()
   const { products, addProduct } = useProducts()
 
@@ -204,15 +213,16 @@ export function PurchaseForm({ formId, purchase, onSubmit }: PurchaseFormProps) 
         <input type="hidden" name="vendorName" value={vendorName} required />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${formId}-purchaseNumber`}>Purchase #</Label>
-            <Input
-              id={`${formId}-purchaseNumber`}
-              name="purchaseNumber"
-              defaultValue={purchase.purchaseNumber}
-              placeholder="PO-2006"
-            />
-          </div>
+          <DocumentNumberField
+            id={`${formId}-purchaseNumber`}
+            name="purchaseNumber"
+            label="Purchase #"
+            value={purchase.purchaseNumber}
+            settings={numberSettings.purchases}
+            isNew={isNew}
+            placeholder="PO-2006"
+            autoHint="Auto-generated"
+          />
           <div className="flex flex-col gap-2">
             <Label htmlFor={`${formId}-purchaseDate`}>Purchase date</Label>
             <Input

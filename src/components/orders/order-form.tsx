@@ -202,15 +202,16 @@ export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormP
         <input type="hidden" name="customerName" value={customerName} required />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${formId}-invoiceNumber`}>Invoice number</Label>
-            <Input
-              id={`${formId}-invoiceNumber`}
-              name="invoiceNumber"
-              defaultValue={order.invoiceNumber}
-              placeholder="INV-1006"
-            />
-          </div>
+          <DocumentNumberField
+            id={`${formId}-invoiceNumber`}
+            name="invoiceNumber"
+            label="Invoice number"
+            value={order.invoiceNumber}
+            settings={numberSettings.sales}
+            isNew={isNew}
+            placeholder="INV-1006"
+            autoHint="Auto-generated"
+          />
           <div className="flex flex-col gap-2">
             <Label htmlFor={`${formId}-orderDate`}>Order date</Label>
             <Input
