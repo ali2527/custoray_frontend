@@ -36,7 +36,6 @@ import {
   formatInternationalNumber,
   formatNationalNumber,
   isPhoneCountry,
-  phoneProfile,
   validateSignupPhone,
 } from "@/lib/phone-mask"
 import { queueWelcomeFlow } from "@/lib/welcome-flow"
