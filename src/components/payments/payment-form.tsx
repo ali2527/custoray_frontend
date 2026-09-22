@@ -57,7 +57,13 @@ export function PaymentForm({
 
   const initialType = lockType ?? payment.type
   const [type, setType] = useState<PaymentRow["type"]>(initialType)
-  const parties = type === "customer" ? customers : vendors
+  const parties: Array<{
+    id: number
+    apiId?: string
+    name: string
+    description: string
+    phone: string
+  }> = type === "customer" ? customers : vendors
   const [partyId, setPartyId] = useState(() =>
     resolvePartySelectValue(parties, payment)
   )
@@ -81,7 +87,8 @@ export function PaymentForm({
   }, [lockType])
 
   useEffect(() => {
-    const nextParties = type === "customer" ? customers : vendors
+    const nextParties: Array<{ id: number; apiId?: string; name: string }> =
+      type === "customer" ? customers : vendors
     setPartyId(resolvePartySelectValue(nextParties, payment))
   }, [type, customers, vendors, payment.partyId, payment.partyName, payment.id])
 

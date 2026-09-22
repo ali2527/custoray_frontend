@@ -1237,7 +1237,7 @@ export function DataTable<TData>({
         return acc
       })
     },
-    [importRowMapper, onImportRows, onRowsImported, updateData]
+    [importRowMapper, onImportRows, onRowsImported, updateData, t]
   )
 
   const selectedRowCount = table.getFilteredSelectedRowModel().rows.length

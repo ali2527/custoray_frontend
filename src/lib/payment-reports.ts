@@ -699,6 +699,8 @@ export function buildPaymentReportDemoPayments(now = new Date()): PaymentRow[] {
 
       payments.push({
         id: id++,
+        apiId: "",
+        partyId: "",
         paymentNumber: isCustomer
           ? `CP-${customerSeq++}`
           : `VP-${vendorSeq++}`,
