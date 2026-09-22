@@ -50,6 +50,7 @@ export function mapApiOrderToRow(order: ApiOrder): OrderRow & { apiId: string } 
     .sort((a, b) => (a.lineNo ?? 0) - (b.lineNo ?? 0))
     .map((line, index) => ({
       id: index + 1,
+      productApiId: line.productId ?? "",
       productName: line.productName,
       quantity: Number(line.quantity) || 0,
       unitPrice: money(line.unitPrice),

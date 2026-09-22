@@ -19,13 +19,23 @@ import {
 export const POS_RETURN_DESCRIPTION = "POS return"
 
 export function isPosReturn(
-  returnDoc: Pick<ReturnRow, "type" | "sourceId" | "description">
+  returnDoc: Pick<
+    ReturnRow,
+    "type" | "sourceId" | "description" | "returnNumber" | "referenceNumber"
+  >
 ): boolean {
+  if (returnDoc.type !== "sales") return false
+  const description = returnDoc.description ?? ""
+  if (
+    description === POS_RETURN_DESCRIPTION ||
+    description.startsWith(`${POS_RETURN_DESCRIPTION} ·`) ||
+    description.startsWith("POS return")
+  ) {
+    return true
+  }
   return (
-    returnDoc.type === "sales" &&
-    returnDoc.sourceId === 0 &&
-    (returnDoc.description === POS_RETURN_DESCRIPTION ||
-      returnDoc.description.startsWith(`${POS_RETURN_DESCRIPTION} ·`))
+    returnDoc.returnNumber.startsWith("SR-") &&
+    returnDoc.referenceNumber.startsWith("POS-")
   )
 }
 
@@ -45,8 +55,8 @@ export type ReturnLineRow = z.infer<typeof returnLineSchema>
 
 export const returnSchema = z.object({
   id: z.number(),
-  apiId: z.string().optional().default(""),
-  sourceApiId: z.string().optional().default(""),
+  apiId: z.string().optional(),
+  sourceApiId: z.string().optional(),
   returnNumber: z.string(),
   type: z.enum(["sales", "purchase"]),
   sourceId: z.number(),

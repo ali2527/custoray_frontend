@@ -31,13 +31,11 @@ import { confirmPosSaleAction, confirmReturnAction } from "@/lib/confirm-action"
 import { formatMoney } from "@/lib/customers"
 import { type OrderRow } from "@/lib/orders"
 import {
-  buildPosReturnFromCart,
   isPosReturn,
   nextReturnNumber,
   type ReturnRow,
 } from "@/lib/returns"
 import {
-  buildPosOrderFromCart,
   cartLineTotal,
   cartSubtotal,
   computePosTotals,
@@ -407,19 +405,37 @@ export function PosTerminal() {
     setCustomerId(String(customer.id))
   }, [])
 
-  const restoreStockFromCart = React.useCallback(
-    (lines: PosCartLine[]) => {
-      for (const line of lines) {
-        const product = getProduct(line.productId)
-        if (product) {
-          updateProduct(line.productId, {
-            stock: product.stock + line.quantity,
-          })
-        }
+  const resolveStoreId = React.useCallback(async () => {
+    if (settingsStoreId) return settingsStoreId
+    return resolveDefaultStoreId()
+  }, [settingsStoreId])
+
+  const buildCheckoutLines = React.useCallback(() => {
+    const lines: {
+      productId: string
+      productName: string
+      sku: string
+      quantity: number
+      unitPrice: number
+    }[] = []
+    for (const line of cart) {
+      const apiId = getApiProductId(line.productId)
+      if (!apiId) {
+        throw new Error(`Product "${line.productName}" is not synced. Refresh inventory and try again.`)
       }
-    },
-    [getProduct, updateProduct]
-  )
+      const lineTotal = Number(cartLineTotal(line))
+      const unitPrice =
+        line.quantity > 0 ? lineTotal / line.quantity : Number(line.unitPrice) || 0
+      lines.push({
+        productId: apiId,
+        productName: line.productName,
+        sku: line.sku,
+        quantity: line.quantity,
+        unitPrice: Number(unitPrice.toFixed(2)),
+      })
+    }
+    return lines
+  }, [cart, getApiProductId])
 
   const completeSale = React.useCallback(async () => {
     if (cart.length === 0) {
@@ -470,26 +486,29 @@ export function PosTerminal() {
           ? checkoutTotals.total
           : "0.00"
 
-      const payload = buildPosOrderFromCart(cart, {
-        customerName,
-        paymentMethod,
-        invoiceNumber,
-        discountAmount: checkoutTotals.discount,
-        status: documentStatus,
-        paidAmount,
-      })
-      const created = addOrder(payload)
+      const customer =
+        customerId === WALK_IN_CUSTOMER_ID
+          ? null
+          : customers.find((item) => String(item.id) === customerId)
+      const storeId = await resolveStoreId()
+      const lines = buildCheckoutLines()
 
-      if (adjustStock) {
-        for (const line of cart) {
-          const product = getProduct(line.productId)
-          if (product) {
-            updateProduct(line.productId, {
-              stock: Math.max(0, product.stock - line.quantity),
-            })
-          }
-        }
-      }
+      const apiOrder = await apiPosCheckout({
+        storeId,
+        buyerId: customer?.apiId || null,
+        buyerName: customerName,
+        paymentMethod,
+        paidAmount: Number(paidAmount),
+        discountAmount: Number(checkoutTotals.discount) || 0,
+        status: documentStatus,
+        deductStock: adjustStock,
+        allowOverselling: settings.allowOverselling,
+        lines,
+      })
+
+      const created = addOrder(mapApiOrderToRow(apiOrder))
+      void refreshProducts({ silent: true })
+      emitProductsChanged()
 
       setLastSale(created)
       resetRegister()
@@ -511,21 +530,33 @@ export function PosTerminal() {
           ? `Sale ${created.invoiceNumber} completed.`
           : `Sale ${created.invoiceNumber} saved as ${documentStatus}.`
       )
+    } catch (error) {
+      const message =
+        error instanceof ApiClientError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Sale failed"
+      toast.error(message)
     } finally {
       setProcessing(false)
     }
   }, [
     addOrder,
+    buildCheckoutLines,
     cart,
     checkoutTotals.discount,
     checkoutTotals.total,
     customerId,
-    documentStatus,
-    resetRegister,
     customerName,
+    customers,
+    documentStatus,
     getProduct,
     orders,
     paymentMethod,
+    refreshProducts,
+    resetRegister,
+    resolveStoreId,
     settings.allowOverselling,
     settings.allowPartialPayment,
     settings.autoFocusSearchAfterSale,
@@ -535,7 +566,7 @@ export function PosTerminal() {
     settings.receiptPrefix,
     settings.requireCustomer,
     paidAmountDraft,
-    updateProduct,
+    t,
   ])
 
   const completeReturn = React.useCallback(async () => {
@@ -567,17 +598,44 @@ export function PosTerminal() {
 
     setProcessing(true)
     try {
-      const payload = buildPosReturnFromCart(cart, {
-        customerName,
-        returnNumber,
-        discountAmount: checkoutTotals.discount,
+      const storeId = await resolveStoreId()
+      const lines = cart.map((line) => {
+        const apiId = getApiProductId(line.productId)
+        const lineTotal = Number(cartLineTotal(line))
+        const unitPrice =
+          line.quantity > 0 ? lineTotal / line.quantity : Number(line.unitPrice) || 0
+        return {
+          productId: apiId ?? null,
+          productName: line.productName,
+          quantity: line.quantity,
+          unitPrice: Number(unitPrice.toFixed(2)),
+        }
+      })
+
+      if (lines.some((line) => !line.productId)) {
+        throw new Error("One or more products are not synced. Refresh inventory and try again.")
+      }
+
+      const apiReturn = await apiPosReturn({
+        storeId,
+        sourceOrderId: null,
+        partyName: customerName,
+        description:
+          Number(checkoutTotals.discount) > 0
+            ? `POS return · Discount ${checkoutTotals.discount}`
+            : "POS return",
+        status: documentStatus,
+        restock: documentStatus === "completed",
+        lines,
+      })
+
+      const created = addReturn({
+        ...mapApiReturnToRow(apiReturn),
         status: documentStatus,
       })
-      const created = addReturn({ ...payload, status: documentStatus })
 
-      if (documentStatus === "completed") {
-        restoreStockFromCart(cart)
-      }
+      void refreshProducts({ silent: true })
+      emitProductsChanged()
 
       setLastReturn(created)
       resetRegister()
@@ -586,6 +644,14 @@ export function PosTerminal() {
           ? `Return ${created.returnNumber} completed.`
           : `Return ${created.returnNumber} saved as ${documentStatus}.`
       )
+    } catch (error) {
+      const message =
+        error instanceof ApiClientError
+          ? error.message
+          : error instanceof Error
+            ? error.message
+            : "Return failed"
+      toast.error(message)
     } finally {
       setProcessing(false)
     }
@@ -597,11 +663,14 @@ export function PosTerminal() {
     customerId,
     customerName,
     documentStatus,
+    getApiProductId,
+    refreshProducts,
     resetRegister,
-    restoreStockFromCart,
+    resolveStoreId,
     returns,
     settings.confirmBeforeComplete,
     settings.requireCustomer,
+    t,
   ])
 
   return (

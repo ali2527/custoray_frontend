@@ -73,6 +73,7 @@
     "expenseTypes": "أنواع المصروفات",
     "posRegister": "صندوق POS",
     "salesHistory": "سجل المبيعات",
+    "returnsHistory": "سجل مرتجعات POS",
     "posReports": "تقارير POS",
     "posSettings": "إعدادات POS",
     "pos": "POS",

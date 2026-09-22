@@ -89,12 +89,13 @@ export function PosSettingsProvider({ children }: { children: React.ReactNode })
 
       try {
         const remote = await apiGetPosSettings(resolvedStoreId)
-        const remoteSettings = parsePersistedPosSettings(
-          JSON.stringify(remote?.settings ?? {})
-        )
-        if (remoteSettings && !cancelled) {
-          skipNextPersist.current = true
-          setSettings(remoteSettings)
+        const raw = remote?.settings
+        if (raw && typeof raw === "object" && Object.keys(raw).length > 0) {
+          const remoteSettings = parsePersistedPosSettings(JSON.stringify(raw))
+          if (remoteSettings && !cancelled) {
+            skipNextPersist.current = true
+            setSettings(remoteSettings)
+          }
         }
       } catch (error) {
         if (

@@ -62,6 +62,7 @@ function titleKeyForPath(pathname: string | null): string {
   if (path === "/pos") return "header.posRegister"
   if (path === "/pos/new-sale") return "header.posRegister"
   if (path === "/pos/sales") return "header.salesHistory"
+  if (path === "/pos/returns") return "header.returnsHistory"
   if (path === "/pos/reports") return "header.posReports"
   if (path === "/pos/settings") return "header.posSettings"
   if (path.startsWith("/pos")) return "header.pos"

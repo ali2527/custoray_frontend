@@ -59,7 +59,6 @@ const expense: ExpenseRow = {
   expenseNumber: "EX-4001",
   typeName: "Office supplies",
   payeeName: "",
-  referenceNumber: "REC-1001",
   expenseDate: "2026-06-02",
   amount: "2500.00",
   paymentMethod: "Cash",
@@ -115,11 +114,9 @@ test("write payload omits blank expense numbers", () => {
   const payload = toApiExpenseWrite({
     ...expense,
     expenseNumber: "  ",
-    referenceNumber: "—",
     notes: "—",
   })
   assert.equal(payload.expenseNumber, undefined)
-  assert.equal(payload.referenceNumber, "")
   assert.equal(payload.notes, "")
   assert.equal(payload.typeId, "type_1")
   assert.equal(payload.amount, 2500)
@@ -144,7 +141,6 @@ test("import resolves type by name to typeId", () => {
     typeName: "Office supplies",
     expenseNumber: undefined,
     payeeName: "",
-    referenceNumber: "REC-1001",
     expenseDate: "2026-09-21",
     amount: 2500,
     paymentMethod: "Cash",
@@ -216,7 +212,6 @@ test("export flatten matches import columns", () => {
     amount: "2500.00",
     paymentMethod: "Cash",
     status: "paid",
-    referenceNumber: "REC-1001",
     notes: "Monthly stock",
   })
 })
@@ -270,7 +265,6 @@ test("form data captures typeId", () => {
   fd.set("amount", "99.5")
   fd.set("paymentMethod", "Card")
   fd.set("status", "paid")
-  fd.set("referenceNumber", "REC-9")
   fd.set("notes", "Paid")
   const row = expenseFromFormData(fd, expense)
   assert.equal(row.apiId, "exp_1")

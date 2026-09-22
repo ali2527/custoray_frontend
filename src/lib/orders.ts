@@ -43,6 +43,7 @@ export const ORDER_IMPORT_SAMPLE_ROW: Record<(typeof ORDER_IMPORT_COLUMNS)[numbe
 
 export const orderLineSchema = z.object({
   id: z.number(),
+  productApiId: z.string().optional(),
   productName: z.string(),
   quantity: z.number(),
   unitPrice: z.string(),
@@ -53,7 +54,7 @@ export type OrderLineRow = z.infer<typeof orderLineSchema>
 
 export const orderSchema = z.object({
   id: z.number(),
-  apiId: z.string().optional().default(""),
+  apiId: z.string().optional(),
   invoiceNumber: z.string(),
   customerName: z.string(),
   description: z.string(),
