@@ -59,6 +59,7 @@
     "selectCustomer": "اختر عميلاً.",
     "selectVendor": "اختر مورّداً.",
     "invalidAmount": "أدخل مبلغ دفعة صالحاً.",
+    "numberRequired": "أدخل رقم الدفعة.",
     "received": "تم استلام الدفعة.",
     "recorded": "تم تسجيل الدفعة.",
     "saved": "تم حفظ الدفعة.",

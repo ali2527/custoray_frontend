@@ -38,6 +38,7 @@ import {
 } from "@/lib/returns"
 import {
   buildPosOrderFromCart,
+  cartLineTotal,
   cartSubtotal,
   computePosTotals,
   isPosOrder,
@@ -49,6 +50,10 @@ import {
 import type { CustomerRow } from "@/lib/customers"
 import type { ProductRow } from "@/lib/products"
 import { cn } from "@/lib/utils"
+import { apiPosCheckout, apiPosReturn } from "@/lib/api/business"
+import { ApiClientError } from "@/lib/api/client"
+import { mapApiOrderToRow, mapApiReturnToRow, resolveDefaultStoreId } from "@/lib/pos-api"
+import { emitProductsChanged } from "@/lib/inventory-product-rows"
 
 function formatPosMoney(value: string) {
   return formatMoney(value).replace(/^\$/, "Rs ")
@@ -73,11 +78,11 @@ const searchInputClass =
 
 export function PosTerminal() {
   const { t } = useTranslation("pos")
-  const { products, getProduct, updateProduct } = useProducts()
+  const { products, getProduct, getApiProductId, refreshProducts } = useProducts()
   const { customers } = useCustomers()
   const { orders, addOrder } = useOrders()
   const { returns, addReturn } = useReturns()
-  const { settings, hydrated } = usePosSettings()
+  const { settings, hydrated, storeId: settingsStoreId } = usePosSettings()
   const searchInputRef = React.useRef<HTMLInputElement>(null)
 
   const [mode, setMode] = React.useState<"sale" | "return">("sale")

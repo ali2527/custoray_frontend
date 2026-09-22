@@ -1,6 +1,11 @@
 import { z } from "zod"
 
 import { formatMoney, parseMoney } from "@/lib/customers"
+import {
+  DEFAULT_DOCUMENT_NUMBER_SETTINGS,
+  loadDocumentNumberSettings,
+  nextDocumentNumber,
+} from "@/lib/document-number-settings"
 import { ALL_ITEMS_RETURNED_NAME } from "@/lib/return-eligibility"
 import { computeLineTotal, computeOrderTotal, type OrderRow } from "@/lib/orders"
 import { computePurchaseTotal, type PurchaseRow } from "@/lib/purchases"
@@ -40,6 +45,8 @@ export type ReturnLineRow = z.infer<typeof returnLineSchema>
 
 export const returnSchema = z.object({
   id: z.number(),
+  apiId: z.string().optional().default(""),
+  sourceApiId: z.string().optional().default(""),
   returnNumber: z.string(),
   type: z.enum(["sales", "purchase"]),
   sourceId: z.number(),
@@ -258,15 +265,13 @@ export function nextReturnNumber(
   existing: ReturnRow[],
   type: ReturnRow["type"]
 ): string {
-  const prefix = type === "sales" ? "SR" : "PR"
-  const nums = existing
-    .filter((row) => row.type === type)
-    .map((row) => {
-      const match = row.returnNumber.match(new RegExp(`^${prefix}-(\\d+)$`))
-      return match ? Number(match[1]) : 0
-    })
-  const next = (nums.length ? Math.max(...nums) : 3000) + 1
-  return `${prefix}-${next}`
+  const key = type === "sales" ? "salesReturns" : "purchaseReturns"
+  const settings = loadDocumentNumberSettings()[key]
+  return nextDocumentNumber(
+    existing.filter((row) => row.type === type).map((row) => row.returnNumber),
+    settings.prefix,
+    DEFAULT_DOCUMENT_NUMBER_SETTINGS[key].prefix
+  )
 }
 
 export function parseReturnType(raw: string): ReturnRow["type"] {

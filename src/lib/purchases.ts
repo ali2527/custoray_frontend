@@ -1,6 +1,11 @@
 import { z } from "zod"
 
 import { formatMoney, parseMoney } from "@/lib/customers"
+import {
+  DEFAULT_DOCUMENT_NUMBER_SETTINGS,
+  loadDocumentNumberSettings,
+  nextDocumentNumber,
+} from "@/lib/document-number-settings"
 
 export { formatMoney, parseMoney }
 
@@ -258,12 +263,12 @@ export function parseStatus(raw: string): PurchaseRow["status"] {
 }
 
 export function nextPurchaseNumber(existing: PurchaseRow[]): string {
-  const maxNum = existing.reduce((max, purchase) => {
-    const match = purchase.purchaseNumber.match(/(\d+)\s*$/)
-    const num = match ? Number(match[1]) : 0
-    return Math.max(max, num)
-  }, 2000)
-  return `PO-${maxNum + 1}`
+  const settings = loadDocumentNumberSettings().purchases
+  return nextDocumentNumber(
+    existing.map((purchase) => purchase.purchaseNumber),
+    settings.prefix,
+    DEFAULT_DOCUMENT_NUMBER_SETTINGS.purchases.prefix
+  )
 }
 
 export function parseLinesFromFormData(fd: FormData): PurchaseLineRow[] {
@@ -298,7 +303,7 @@ export function purchaseFromFormData(fd: FormData, id: number): PurchaseRow {
 
   return {
     id,
-    purchaseNumber: purchaseNumber || `PO-${id || "new"}`,
+    purchaseNumber,
     vendorName: vendorName || "—",
     description: String(fd.get("description") ?? "").trim() || "—",
     purchaseDate:

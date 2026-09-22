@@ -3,6 +3,11 @@ import { z } from "zod"
 import { ApiClientError } from "@/lib/api/client"
 import type { ApiPayment, ApiPaymentWrite } from "@/lib/api/business"
 import { formatMoney, parseMoney } from "@/lib/customers"
+import {
+  DEFAULT_DOCUMENT_NUMBER_SETTINGS,
+  loadDocumentNumberSettings,
+  nextDocumentNumber,
+} from "@/lib/document-number-settings"
 
 export { formatMoney, parseMoney }
 
@@ -360,15 +365,13 @@ export function nextPaymentNumber(
   existing: PaymentRow[],
   type: PaymentRow["type"]
 ): string {
-  const prefix = type === "customer" ? "CP" : "VP"
-  const nums = existing
-    .filter((row) => row.type === type)
-    .map((row) => {
-      const match = row.paymentNumber.match(new RegExp(`^${prefix}-(\\d+)$`))
-      return match ? Number(match[1]) : 0
-    })
-  const next = (nums.length ? Math.max(...nums) : type === "customer" ? 4000 : 5000) + 1
-  return `${prefix}-${next}`
+  const key = type === "customer" ? "customerPayments" : "vendorPayments"
+  const settings = loadDocumentNumberSettings()[key]
+  return nextDocumentNumber(
+    existing.filter((row) => row.type === type).map((row) => row.paymentNumber),
+    settings.prefix,
+    DEFAULT_DOCUMENT_NUMBER_SETTINGS[key].prefix
+  )
 }
 
 export function typeLabel(type: PaymentRow["type"]) {

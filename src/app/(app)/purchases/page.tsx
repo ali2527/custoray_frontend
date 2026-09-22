@@ -938,6 +938,7 @@ export default function PurchasesPage() {
                   <PurchaseForm
                     formId={formId}
                     purchase={formPurchase}
+                    isNew={sidebar.mode === "add"}
                     onSubmit={handleSubmit}
                   />
                 ) : null}

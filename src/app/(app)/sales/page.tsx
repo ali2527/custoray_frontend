@@ -1065,6 +1065,7 @@ export default function SalesReportPage() {
                   <OrderForm
                     formId={saleFormId}
                     order={formOrder}
+                    isNew={saleFormSidebar.mode === "add"}
                     onSubmit={handleSaleFormSubmit}
                   />
                 )}

@@ -582,12 +582,200 @@ export async function apiBulkCreateVendors(items: ApiVendorWrite[]) {
   })
 }
 
-export async function apiListOrders(params?: { page?: number; limit?: number }) {
+export type ApiOrderSource = "MANUAL" | "POS" | "QR_STOREFRONT"
+export type ApiOrderStatus = "pending" | "completed" | "cancelled"
+
+export type ApiOrderLine = {
+  id: string
+  productId: string | null
+  productName: string
+  sku: string
+  quantity: number
+  unitPrice: string | number
+  lineTotal: string | number
+  lineNo: number
+}
+
+export type ApiOrder = {
+  id: string
+  storeId: string
+  invoiceNumber: string
+  buyerId: string | null
+  buyerName: string
+  description: string
+  orderDate: string
+  totalAmount: string | number
+  paidAmount: string | number
+  paymentMethod: string
+  status: ApiOrderStatus
+  source: ApiOrderSource
+  lines: ApiOrderLine[]
+}
+
+export type ApiReturnLine = {
+  id: string
+  productId: string | null
+  productName: string
+  quantity: number
+  unitPrice: string | number
+  lineTotal: string | number
+  lineNo: number
+}
+
+export type ApiReturn = {
+  id: string
+  returnNumber: string
+  type: "SALES" | "PURCHASE"
+  sourceId: string
+  referenceNumber: string
+  partyName: string
+  returnDate: string
+  description: string
+  totalAmount: string | number
+  refundedAmount: string | number
+  refundDue: string | number
+  balanceDue: string | number
+  sourceTotalBefore: string | number
+  sourceTotalAfter: string | number
+  status: ApiOrderStatus
+  lines: ApiReturnLine[]
+}
+
+export type ApiStore = {
+  id: string
+  storeId: string
+  name: string
+  isDefault: boolean
+}
+
+export type ApiPosSettingsRecord = {
+  id?: string
+  storeId?: string
+  settings: Record<string, unknown>
+}
+
+export type ApiPosCheckoutInput = {
+  storeId: string
+  buyerId?: string | null
+  buyerName?: string
+  description?: string
+  paymentMethod?: string
+  paidAmount?: number
+  discountAmount?: number
+  status?: ApiOrderStatus
+  deductStock?: boolean
+  allowOverselling?: boolean
+  lines: {
+    productId: string
+    productName: string
+    sku?: string
+    quantity: number
+    unitPrice: number
+  }[]
+}
+
+export type ApiPosReturnInput = {
+  storeId: string
+  sourceOrderId?: string | null
+  partyName?: string
+  description?: string
+  referenceNumber?: string
+  status?: ApiOrderStatus
+  restock?: boolean
+  lines: {
+    productId?: string | null
+    productName: string
+    quantity: number
+    unitPrice: number
+  }[]
+}
+
+const ORDER_LIST_LIMIT = 200
+const RETURN_LIST_LIMIT = 200
+
+export async function apiListStores() {
+  return apiFetch<ApiStore[]>("/stores")
+}
+
+export async function apiListOrders(params?: {
+  page?: number
+  limit?: number
+  source?: ApiOrderSource
+}) {
   const q = new URLSearchParams()
-  if (params?.page) q.set("page", String(params.page))
-  if (params?.limit) q.set("limit", String(params.limit))
-  const suffix = q.toString() ? `?${q}` : ""
-  return apiFetch<{ items: unknown[]; total: number }>(`/orders${suffix}`)
+  const page = Math.max(1, Math.floor(params?.page ?? 1))
+  const limit = Math.min(ORDER_LIST_LIMIT, Math.max(1, Math.floor(params?.limit ?? 50)))
+  q.set("page", String(page))
+  q.set("limit", String(limit))
+  if (params?.source) q.set("source", params.source)
+  return apiFetch<{ items: ApiOrder[]; total: number }>(`/orders?${q}`)
+}
+
+export async function apiListAllOrders(source?: ApiOrderSource) {
+  const pageSize = ORDER_LIST_LIMIT
+  let page = 1
+  const items: ApiOrder[] = []
+  let total = 0
+  while (true) {
+    const res = await apiListOrders({ page, limit: pageSize, source })
+    total = res.total ?? 0
+    items.push(...(res.items ?? []))
+    if (items.length >= total || (res.items ?? []).length < pageSize) break
+    page += 1
+    if (page > 100) break
+  }
+  return items
+}
+
+export async function apiListReturns(params?: { page?: number; limit?: number }) {
+  const q = new URLSearchParams()
+  const page = Math.max(1, Math.floor(params?.page ?? 1))
+  const limit = Math.min(RETURN_LIST_LIMIT, Math.max(1, Math.floor(params?.limit ?? 50)))
+  q.set("page", String(page))
+  q.set("limit", String(limit))
+  return apiFetch<{ items: ApiReturn[]; total: number }>(`/returns?${q}`)
+}
+
+export async function apiListAllReturns() {
+  const pageSize = RETURN_LIST_LIMIT
+  let page = 1
+  const items: ApiReturn[] = []
+  let total = 0
+  while (true) {
+    const res = await apiListReturns({ page, limit: pageSize })
+    total = res.total ?? 0
+    items.push(...(res.items ?? []))
+    if (items.length >= total || (res.items ?? []).length < pageSize) break
+    page += 1
+    if (page > 100) break
+  }
+  return items
+}
+
+export async function apiGetPosSettings(storeId: string) {
+  const q = new URLSearchParams({ storeId })
+  return apiFetch<ApiPosSettingsRecord>(`/pos/settings?${q}`)
+}
+
+export async function apiPatchPosSettings(storeId: string, settings: Record<string, unknown>) {
+  return apiFetch<ApiPosSettingsRecord>("/pos/settings", {
+    method: "PATCH",
+    body: JSON.stringify({ storeId, settings }),
+  })
+}
+
+export async function apiPosCheckout(data: ApiPosCheckoutInput) {
+  return apiFetch<ApiOrder>("/pos/checkout", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiPosReturn(data: ApiPosReturnInput) {
+  return apiFetch<ApiReturn>("/pos/return", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
 }
 
 export type ApiPaymentType = "CUSTOMER" | "VENDOR"

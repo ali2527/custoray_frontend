@@ -117,12 +117,28 @@ export function parseDocumentNumberSettings(
 
 export function loadDocumentNumberSettings(): DocumentNumberSettings {
   if (typeof window === "undefined") {
-    return structuredClone(DEFAULT_DOCUMENT_NUMBER_SETTINGS)
+    return {
+      sales: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.sales },
+      purchases: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.purchases },
+      salesReturns: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.salesReturns },
+      purchaseReturns: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.purchaseReturns },
+      customerPayments: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.customerPayments },
+      vendorPayments: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.vendorPayments },
+      expenses: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.expenses },
+    }
   }
   return (
     parseDocumentNumberSettings(
       window.localStorage.getItem(DOCUMENT_NUMBER_SETTINGS_STORAGE_KEY)
-    ) ?? structuredClone(DEFAULT_DOCUMENT_NUMBER_SETTINGS)
+    ) ?? {
+      sales: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.sales },
+      purchases: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.purchases },
+      salesReturns: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.salesReturns },
+      purchaseReturns: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.purchaseReturns },
+      customerPayments: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.customerPayments },
+      vendorPayments: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.vendorPayments },
+      expenses: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.expenses },
+    }
   )
 }
 

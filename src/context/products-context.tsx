@@ -98,9 +98,11 @@ type ProductsContextValue = {
   products: ProductRow[]
   setProducts: React.Dispatch<React.SetStateAction<ProductRow[]>>
   getProduct: (id: number) => ProductRow | undefined
+  getApiProductId: (srNo: number) => string | undefined
   addProduct: (product: Omit<ProductRow, "id" | "srNo">) => Promise<ProductRow>
   updateProduct: (id: number, patch: Partial<ProductRow>) => void
   removeProduct: (id: number) => void
+  refreshProducts: (opts?: { silent?: boolean }) => Promise<void>
   loading: boolean
 }
 
@@ -157,6 +159,11 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const getProduct = React.useCallback(
     (id: number) => products.find((p) => p.id === id),
     [products]
+  )
+
+  const getApiProductId = React.useCallback(
+    (srNo: number) => apiIdBySrNo.current.get(srNo),
+    []
   )
 
   const addProduct = React.useCallback(async (product: Omit<ProductRow, "id" | "srNo">) => {
@@ -230,12 +237,23 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
       products,
       setProducts,
       getProduct,
+      getApiProductId,
       addProduct,
       updateProduct,
       removeProduct,
+      refreshProducts: loadFromApi,
       loading,
     }),
-    [products, getProduct, addProduct, updateProduct, removeProduct, loading]
+    [
+      products,
+      getProduct,
+      getApiProductId,
+      addProduct,
+      updateProduct,
+      removeProduct,
+      loadFromApi,
+      loading,
+    ]
   )
 
   return (

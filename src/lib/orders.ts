@@ -1,6 +1,11 @@
 import { z } from "zod"
 
 import { formatMoney, parseMoney } from "@/lib/customers"
+import {
+  DEFAULT_DOCUMENT_NUMBER_SETTINGS,
+  loadDocumentNumberSettings,
+  nextDocumentNumber,
+} from "@/lib/document-number-settings"
 import i18n from "@/i18n"
 import { dateLocaleForLanguage } from "@/i18n/config"
 
@@ -48,6 +53,7 @@ export type OrderLineRow = z.infer<typeof orderLineSchema>
 
 export const orderSchema = z.object({
   id: z.number(),
+  apiId: z.string().optional().default(""),
   invoiceNumber: z.string(),
   customerName: z.string(),
   description: z.string(),
@@ -602,12 +608,12 @@ export function parsePaymentMethod(raw: string): OrderRow["paymentMethod"] {
 }
 
 export function nextInvoiceNumber(existing: OrderRow[]): string {
-  const maxNum = existing.reduce((max, order) => {
-    const match = order.invoiceNumber.match(/(\d+)\s*$/)
-    const num = match ? Number(match[1]) : 0
-    return Math.max(max, num)
-  }, 1000)
-  return `INV-${maxNum + 1}`
+  const settings = loadDocumentNumberSettings().sales
+  return nextDocumentNumber(
+    existing.map((order) => order.invoiceNumber),
+    settings.prefix,
+    DEFAULT_DOCUMENT_NUMBER_SETTINGS.sales.prefix
+  )
 }
 
 export function parseLinesFromFormData(fd: FormData): OrderLineRow[] {
@@ -642,7 +648,7 @@ export function orderFromFormData(fd: FormData, id: number): OrderRow {
 
   return {
     id,
-    invoiceNumber: invoiceNumber || `INV-${id || "new"}`,
+    invoiceNumber,
     customerName: customerName || "—",
     description: String(fd.get("description") ?? "").trim() || "—",
     orderDate:
