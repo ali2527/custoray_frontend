@@ -36,6 +36,7 @@ import {
   formatInternationalNumber,
   formatNationalNumber,
   isPhoneCountry,
+  phoneProfile,
   validateSignupPhone,
 } from "@/lib/phone-mask"
 import { queueWelcomeFlow } from "@/lib/welcome-flow"
@@ -417,7 +418,7 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
                   inputMode="numeric"
                   autoComplete="tel-national"
                   required
-                  placeholder=""
+                  placeholder={phoneProfile(values.phoneCountry || values.country).placeholder}
                   value={values.phone}
                   onChange={(e) => setPhone(e.target.value)}
                   aria-invalid={Boolean(errors.phone)}
