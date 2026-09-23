@@ -33,7 +33,6 @@ import {
   loadActiveCompanyId,
   loadLocalCompanies,
   saveActiveCompanyId,
-  saveLocalCompanies,
 } from "@/lib/company-memberships"
 import { accessFromSession, type AccessInfo } from "@/lib/subscription-access"
 import {
