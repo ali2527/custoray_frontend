@@ -1,43 +1,40 @@
 on:
   push:
     branches:
+      - customdev
       - live
 
-name: 🚀 Deploy website on push
+name: Deploy static website
 
 jobs:
   web-deploy:
-    name: 🎉 Deploy
+    name: Deploy
     runs-on: ubuntu-latest
-    environment: live
+    # Uses GitHub Environment named after the branch (customdev | live)
+    # so SERVER / FTP / DEPLOYMENT_URL stay isolated per environment.
+    environment: ${{ github.ref_name }}
     steps:
-      - name: 🚚 Get latest code
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Use Node.js 22
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
 
-      - name: Cache npm dependencies
-        uses: actions/cache@v3
-        id: cache-node-modules
-        with:
-          path: "**/node_modules"
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+        env:
+          NODE_OPTIONS: "--max_old_space_size=8192"
 
-      - name: 🔨 Install Dependencies
-        if: steps.cache-node-modules.outputs.cache-hit != 'true'
-        run: |
-          npm install --legacy-peer-deps
+      - name: Build static export
+        run: npm run build
         env:
           NODE_OPTIONS: "--max_old_space_size=8192"
           CI: false
 
-      - name: 🏗 Build Project
-        run: npm run build
-
-      - name: 📂 Sync files
+      - name: Upload out/
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ vars.SERVER }}
@@ -50,14 +47,14 @@ jobs:
   health-check:
     name: Health Check
     runs-on: ubuntu-latest
-    environment: live
+    environment: ${{ github.ref_name }}
     needs: web-deploy
     steps:
-        - name: Check the deployed service URLs
-          uses: jtalk/url-health-check-action@v4
-          with:
-              url: ${{ vars.DEPLOYMENT_URL }}
-              follow-redirect: false
-              max-attempts: 3
-              retry-delay: 5s
-              retry-all: false
+      - name: Check the deployed service URL
+        uses: jtalk/url-health-check-action@v4
+        with:
+          url: ${{ vars.DEPLOYMENT_URL }}
+          follow-redirect: false
+          max-attempts: 3
+          retry-delay: 5s
+          retry-all: false
