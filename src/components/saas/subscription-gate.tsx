@@ -4,11 +4,12 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
 import { useAuth } from "@/context/auth-context"
+import { isApiEnabled } from "@/lib/api/client"
 
 export function SubscriptionGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const { hydrated, isAuthenticated, access } = useAuth()
-  const useApi = Boolean(process.env.NEXT_PUBLIC_API_URL)
+  const useApi = isApiEnabled()
 
   useEffect(() => {
     if (!hydrated || !useApi) return

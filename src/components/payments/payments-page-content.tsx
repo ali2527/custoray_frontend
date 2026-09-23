@@ -40,20 +40,35 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { useCustomers } from "@/context/customers-context"
 import { usePayments } from "@/context/payments-context"
+import { useVendors } from "@/context/vendors-context"
+import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
 import {
   confirmDeleteAction,
   confirmDuplicateAction,
 } from "@/lib/confirm-action"
+import { buildSampleCsv } from "@/lib/csv"
 import {
+  DEFAULT_DOCUMENT_NUMBER_SETTINGS,
+  resolveDocumentNumber,
+} from "@/lib/document-number-settings"
+import {
+  CUSTOMER_PAYMENT_IMPORT_SAMPLE_ROW,
   EMPTY_PAYMENT,
+  PAYMENT_IMPORT_COLUMNS,
   PAYMENT_METHODS,
+  PAYMENT_STATUSES,
+  VENDOR_PAYMENT_IMPORT_SAMPLE_ROW,
+  flattenPaymentForExport,
   formatDate,
   formatMoney,
-  mapImportedPayment,
+  mapImportedPaymentWrite,
+  paymentErrorMessage,
   paymentFromFormData,
   paymentStatusTabFilter,
   statusBadgeClass,
+  type PaymentParty,
   type PaymentRow,
 } from "@/lib/payments"
 
@@ -67,6 +82,25 @@ type PaymentSidebarState =
 
 type PaymentsPageContentProps = {
   paymentType: PaymentRow["type"]
+}
+
+function textFilterMeta(label: string) {
+  return { dataTableFilterVariant: "text" as const, dataTableFilterLabel: label }
+}
+
+function rangeFilterMeta(label: string) {
+  return { dataTableFilterVariant: "range" as const, dataTableFilterLabel: label }
+}
+
+function selectFilterMeta(
+  label: string,
+  selectLabels: Record<string, string>
+) {
+  return {
+    dataTableFilterVariant: "select" as const,
+    dataTableFilterLabel: label,
+    dataTableFilterSelectLabels: selectLabels,
+  }
 }
 
 function selectColumn<T>(t: TFunction<"payments">): ColumnDef<T> {
@@ -141,7 +175,7 @@ function getPaymentColumns(
         </button>
       ),
       enableHiding: false,
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.paymentNumber")),
     },
     {
       accessorKey: "partyName",
@@ -153,7 +187,7 @@ function getPaymentColumns(
           {row.original.partyName}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(partyLabel),
     },
     {
       accessorKey: "referenceNumber",
@@ -165,7 +199,7 @@ function getPaymentColumns(
           {row.original.referenceNumber}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.reference")),
     },
     {
       accessorKey: "paymentDate",
@@ -177,7 +211,7 @@ function getPaymentColumns(
           {formatDate(row.original.paymentDate)}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.date")),
     },
     {
       accessorKey: "amount",
@@ -191,7 +225,7 @@ function getPaymentColumns(
           </span>
         </div>
       ),
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.amount")),
     },
     {
       accessorKey: "paymentMethod",
@@ -201,7 +235,10 @@ function getPaymentColumns(
       cell: ({ row }) => (
         <span className="text-muted-foreground text-xs">{row.original.paymentMethod}</span>
       ),
-      meta: { dataTableFilter: false },
+      meta: selectFilterMeta(
+        t("columns.method"),
+        Object.fromEntries(PAYMENT_METHODS.map((method) => [method, method]))
+      ),
     },
     {
       accessorKey: "status",
@@ -213,7 +250,11 @@ function getPaymentColumns(
           {t(`status.${row.original.status}`, { ns: "common" })}
         </Badge>
       ),
-      meta: { dataTableFilter: false },
+      meta: selectFilterMeta(t("columns.status"), {
+        pending: t("status.pending", { ns: "common" }),
+        completed: t("status.completed", { ns: "common" }),
+        voided: t("status.voided", { ns: "common" }),
+      }),
     },
     {
       id: "actions",
@@ -257,7 +298,9 @@ function getPaymentColumns(
 
 export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
   const { t } = useTranslation("payments")
+  const { settings: numberSettings } = useDocumentNumberSettings()
   const isCustomer = paymentType === "customer"
+  const numberKey = isCustomer ? "customerPayments" : "vendorPayments"
   const partyLabel = isCustomer ? t("columns.customer") : t("columns.vendor")
   const addButtonLabel = isCustomer ? t("receive") : t("make")
   const searchPlaceholder = isCustomer
@@ -271,13 +314,16 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
     : "vendor-payments-sample.csv"
 
   const {
-    payments,
-    setPayments,
     addPayment,
     updatePayment,
     removePayment,
     duplicatePayment,
+    removeMany,
+    bulkCreate,
+    payments,
   } = usePayments()
+  const { customers } = useCustomers()
+  const { vendors } = useVendors()
   const [sidebar, setSidebar] = useState<PaymentSidebarState>(null)
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
@@ -294,6 +340,13 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
         .filter(Boolean)
         .sort((a, b) => a.localeCompare(b)),
     [typePayments]
+  )
+  const importParties = useMemo<PaymentParty[]>(
+    () =>
+      (isCustomer ? customers : vendors)
+        .map((party) => ({ name: party.name, apiId: party.apiId }))
+        .filter((party) => party.apiId),
+    [customers, vendors, isCustomer]
   )
   const filteredPayments = useMemo(
     () =>
@@ -314,6 +367,17 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
     Number(methodFilter !== "all") +
     Number(partyFilter !== "all")
 
+  const importSampleCsv = useMemo(
+    () =>
+      buildSampleCsv(
+        [...PAYMENT_IMPORT_COLUMNS],
+        isCustomer
+          ? CUSTOMER_PAYMENT_IMPORT_SAMPLE_ROW
+          : VENDOR_PAYMENT_IMPORT_SAMPLE_ROW
+      ),
+    [isCustomer]
+  )
+
   const closeSidebar = () => setSidebar(null)
 
   const handleDelete = useCallback(
@@ -326,13 +390,17 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
       ) {
         return
       }
-      removePayment(payment.id)
-      if (sidebar?.mode !== "add" && sidebar?.payment.id === payment.id) {
-        closeSidebar()
+      try {
+        await removePayment(payment.id)
+        if (sidebar?.mode !== "add" && sidebar?.payment.id === payment.id) {
+          closeSidebar()
+        }
+        toast.success(t("toasts.removedNamed", { name: payment.paymentNumber }))
+      } catch (error) {
+        toast.error(paymentErrorMessage(error, t("toasts.saveFailed")))
       }
-      toast.message(t("toasts.removedNamed", { name: payment.paymentNumber }))
     },
-    [removePayment, sidebar]
+    [removePayment, sidebar, t]
   )
 
   const handleDuplicate = useCallback(
@@ -345,18 +413,25 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
       ) {
         return
       }
-      const copy = duplicatePayment(payment.id)
-      if (copy) toast.success(t("toasts.duplicatedNamed", { name: copy.paymentNumber }))
+      try {
+        const copy = await duplicatePayment(payment.id)
+        if (copy) {
+          toast.success(t("toasts.duplicatedNamed", { name: copy.paymentNumber }))
+        }
+      } catch (error) {
+        toast.error(paymentErrorMessage(error, t("toasts.saveFailed")))
+      }
     },
-    [duplicatePayment]
+    [duplicatePayment, t]
   )
 
   const handleSubmit = useCallback(
-    (e: FormEvent<HTMLFormElement>) => {
+    async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault()
       const fd = new FormData(e.currentTarget)
       const partyName = String(fd.get("partyName") ?? "").trim()
-      if (!partyName) {
+      const partyId = String(fd.get("partyId") ?? "").trim()
+      if (!partyName || !partyId) {
         toast.error(isCustomer ? t("toasts.selectCustomer") : t("toasts.selectVendor"))
         return
       }
@@ -368,21 +443,54 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
       }
 
       fd.set("type", paymentType)
-
-      if (sidebar?.mode === "add") {
-        addPayment(paymentFromFormData(fd, 0))
-        toast.success(isCustomer ? t("toasts.received") : t("toasts.recorded"))
-        closeSidebar()
+      const isNew = sidebar?.mode === "add"
+      const base = isNew
+        ? { ...EMPTY_PAYMENT, type: paymentType }
+        : sidebar?.payment ?? { ...EMPTY_PAYMENT, type: paymentType }
+      const draft = paymentFromFormData(fd, base)
+      const paymentNumber = resolveDocumentNumber({
+        settings: numberSettings[numberKey],
+        fallbackPrefix: DEFAULT_DOCUMENT_NUMBER_SETTINGS[numberKey].prefix,
+        existing: typePayments.map((row) => row.paymentNumber),
+        value: draft.paymentNumber,
+        isNew: Boolean(isNew),
+      })
+      if (isNew && numberSettings[numberKey].mode === "custom" && !paymentNumber) {
+        toast.error(t("toasts.numberRequired"))
         return
       }
 
-      if (sidebar?.mode === "edit" && sidebar.payment) {
-        updatePayment(sidebar.payment.id, paymentFromFormData(fd, sidebar.payment.id))
-        toast.success(t("toasts.saved"))
-        closeSidebar()
+      try {
+        if (isNew) {
+          await addPayment({ ...draft, paymentNumber })
+          toast.success(isCustomer ? t("toasts.received") : t("toasts.recorded"))
+          closeSidebar()
+          return
+        }
+
+        if (sidebar?.mode === "edit" && sidebar.payment) {
+          await updatePayment(sidebar.payment.id, {
+            ...draft,
+            paymentNumber: paymentNumber || sidebar.payment.paymentNumber,
+          })
+          toast.success(t("toasts.saved"))
+          closeSidebar()
+        }
+      } catch (error) {
+        toast.error(paymentErrorMessage(error, t("toasts.saveFailed")))
       }
     },
-    [sidebar, addPayment, updatePayment, isCustomer, paymentType]
+    [
+      sidebar,
+      addPayment,
+      updatePayment,
+      isCustomer,
+      paymentType,
+      numberKey,
+      numberSettings,
+      typePayments,
+      t,
+    ]
   )
 
   const columns = useMemo(
@@ -415,25 +523,59 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
         : `${paymentType}-payment-edit`
 
   const handleImportRows = useCallback(
-    (rows: Record<string, string>[]) => {
-      let added = 0
-      setPayments((prev) => {
-        let acc = [...prev]
-        for (const row of rows) {
-          const mapped = mapImportedPayment(
-            { ...row, type: paymentType },
-            acc
-          )
-          if (mapped && mapped.type === paymentType) {
-            acc = [...acc, mapped]
-            added++
-          }
+    async (rows: Record<string, string>[]) => {
+      const payload = rows
+        .map((row) =>
+          mapImportedPaymentWrite({ ...row, type: paymentType }, paymentType, importParties)
+        )
+        .filter((row): row is NonNullable<typeof row> => row != null)
+        .slice(0, 100)
+      if (payload.length === 0) return 0
+      try {
+        const res = await bulkCreate(payload)
+        const added = res.added ?? res.items?.length ?? 0
+        const failed = rows.length - payload.length + (res.errors?.length ?? 0)
+        if (failed > 0) {
+          toast.error(t("toasts.importPartial", { added, failed }))
         }
-        return acc
-      })
-      return added
+        return added
+      } catch (error) {
+        toast.error(paymentErrorMessage(error, t("toasts.saveFailed")))
+        return 0
+      }
     },
-    [paymentType, setPayments]
+    [paymentType, importParties, bulkCreate, t]
+  )
+
+  const handleBulkDelete = useCallback(
+    async (selected: PaymentRow[]) => {
+      if (
+        !(await confirmDeleteAction({
+          count: selected.length,
+          entityLabel: t("entity.payment"),
+        }))
+      ) {
+        return
+      }
+      const ids = selected.map((row) => row.apiId).filter(Boolean)
+      if (ids.length === 0) return
+      try {
+        const result = await removeMany(ids)
+        if (result.failed > 0) {
+          toast.error(
+            t("toasts.importPartial", {
+              added: result.deleted,
+              failed: result.failed,
+            })
+          )
+          return
+        }
+        toast.success(t("toasts.removedCount", { count: result.deleted }))
+      } catch (error) {
+        toast.error(paymentErrorMessage(error, t("toasts.saveFailed")))
+      }
+    },
+    [removeMany, t]
   )
 
   return (
@@ -498,6 +640,7 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
                   <PaymentForm
                     formId={formId}
                     payment={formPayment}
+                    isNew={sidebar.mode === "add"}
                     onSubmit={handleSubmit}
                     lockType={paymentType}
                   />
@@ -649,10 +792,19 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
       <DataTable
         data={filteredPayments}
         columns={columns}
+        settingsKey={isCustomer ? "customer-payments" : "vendor-payments"}
         addButtonLabel={addButtonLabel}
         searchPlaceholder={searchPlaceholder}
         importSampleFilename={importSampleFilename}
+        importSampleCsvContent={importSampleCsv}
+        importColumns={[...PAYMENT_IMPORT_COLUMNS]}
+        importSelectColumns={{
+          status: [...PAYMENT_STATUSES],
+          paymentMethod: [...PAYMENT_METHODS],
+        }}
+        importRequiredSelectColumns={[]}
         exportFilename={exportFilename}
+        exportRowTransform={flattenPaymentForExport}
         onImportRows={handleImportRows}
         onAddClick={() => setSidebar({ mode: "add" })}
         bulkActions={[
@@ -661,18 +813,8 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
             label: t("actions.deleteSelected"),
             icon: <IconTrash className="size-4" />,
             variant: "destructive",
-            onClick: async (selected) => {
-              if (
-                !(await confirmDeleteAction({
-                  count: selected.length,
-                  entityLabel: t("entity.payment"),
-                }))
-              ) {
-                return
-              }
-              const ids = new Set(selected.map((row) => row.id))
-              setPayments((prev) => prev.filter((row) => !ids.has(row.id)))
-              toast.message(t("toasts.removedCount", { count: selected.length }))
+            onClick: (selected) => {
+              void handleBulkDelete(selected)
             },
           },
         ]}

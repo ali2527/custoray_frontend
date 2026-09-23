@@ -49,20 +49,23 @@
   },
   "sheet": {
     "edit": "ادائیگی میں ترمیم",
-    "addCustomerDescription": "گاہک سے موصول ادائیگی درج کریں۔ محفوظ کرنا صرف ڈیمو ہے۔",
-    "addVendorDescription": "سپلائر کو کی گئی ادائیگی درج کریں۔ محفوظ کرنا صرف ڈیمو ہے۔",
+    "addCustomerDescription": "گاہک سے موصول ادائیگی درج کریں۔",
+    "addVendorDescription": "سپلائر کو کی گئی ادائیگی درج کریں۔",
     "save": "ادائیگی محفوظ کریں"
   },
   "toasts": {
-    "removedNamed": "{{name}} ہٹا دیا گیا (ڈیمو)۔",
-    "duplicatedNamed": "{{name}} کے طور پر نقل بن گئی (ڈیمو)۔",
+    "removedNamed": "{{name}} ہٹا دیا گیا۔",
+    "duplicatedNamed": "{{name}} کے طور پر نقل بن گئی۔",
     "selectCustomer": "گاہک منتخب کریں۔",
     "selectVendor": "سپلائر منتخب کریں۔",
     "invalidAmount": "درست ادائیگی کی رقم درج کریں۔",
-    "received": "ادائیگی وصول ہو گئی (ڈیمو)۔",
-    "recorded": "ادائیگی درج ہو گئی (ڈیمو)۔",
-    "saved": "ادائیگی محفوظ ہو گئی (ڈیمو)۔",
-    "removedCount": "{{count}} ادائیگی(اں) ہٹا دی گئیں (ڈیمو)۔"
+    "numberRequired": "ادائیگی نمبر درج کریں۔",
+    "received": "ادائیگی وصول ہو گئی۔",
+    "recorded": "ادائیگی درج ہو گئی۔",
+    "saved": "ادائیگی محفوظ ہو گئی۔",
+    "removedCount": "{{count}} ادائیگی(اں) ہٹا دی گئیں۔",
+    "saveFailed": "ادائیگی محفوظ نہیں ہو سکی۔",
+    "importPartial": "{{added}} درآمد ہوئیں، {{failed}} درآمد نہیں ہو سکیں۔"
   },
   "form": {
     "type": "ادائیگی کی قسم",

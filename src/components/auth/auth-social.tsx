@@ -13,6 +13,7 @@ import {
   loadGoogleIdentityServices,
   requestGoogleAuthCode,
 } from "@/lib/google-gsi"
+import { queueWelcomeFlow } from "@/lib/welcome-flow"
 
 function GoogleIcon() {
   return (
@@ -72,8 +73,8 @@ export function AuthSocialButtons({
       }
 
       if (result.isNewUser) {
-        toast.success(t("signup.toastWelcome"))
-        router.replace("/onboarding")
+        queueWelcomeFlow()
+        router.replace(result.accessAllowed ? "/home/?welcome=1" : "/trial-ended")
         return
       }
 

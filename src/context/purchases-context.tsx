@@ -11,6 +11,7 @@ import {
 
 type PurchasesContextValue = {
   purchases: PurchaseRow[]
+  hydrated: boolean
   setPurchases: React.Dispatch<React.SetStateAction<PurchaseRow[]>>
   getPurchase: (id: number) => PurchaseRow | undefined
   addPurchase: (purchase: Omit<PurchaseRow, "id">) => PurchaseRow
@@ -102,6 +103,7 @@ export function PurchasesProvider({ children }: { children: React.ReactNode }) {
   const value = React.useMemo(
     () => ({
       purchases,
+      hydrated,
       setPurchases,
       getPurchase,
       addPurchase,
@@ -111,6 +113,7 @@ export function PurchasesProvider({ children }: { children: React.ReactNode }) {
     }),
     [
       purchases,
+      hydrated,
       getPurchase,
       addPurchase,
       updatePurchase,

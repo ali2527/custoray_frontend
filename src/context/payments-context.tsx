@@ -1,106 +1,122 @@
 "use client"
 
 import * as React from "react"
+
+import { usePaymentsQuery } from "@/hooks/use-payments"
 import {
+  mapApiPaymentToRow,
+  toApiPaymentWrite,
   type PaymentRow,
-  PAYMENTS_STORAGE_KEY,
-  initialPayments,
-  nextPaymentNumber,
-  parsePersistedPayments,
 } from "@/lib/payments"
 
 type PaymentsContextValue = {
   payments: PaymentRow[]
-  setPayments: React.Dispatch<React.SetStateAction<PaymentRow[]>>
+  loading: boolean
   getPayment: (id: number) => PaymentRow | undefined
-  addPayment: (payment: Omit<PaymentRow, "id">) => PaymentRow
-  updatePayment: (id: number, patch: Partial<PaymentRow>) => void
-  removePayment: (id: number) => void
-  duplicatePayment: (id: number) => PaymentRow | null
+  addPayment: (payment: Omit<PaymentRow, "id" | "apiId">) => Promise<PaymentRow>
+  updatePayment: (id: number, patch: Partial<PaymentRow>) => Promise<void>
+  removePayment: (id: number) => Promise<void>
+  duplicatePayment: (id: number) => Promise<PaymentRow | null>
+  removeMany: (ids: string[]) => Promise<{ deleted: number; failed: number }>
+  bulkCreate: ReturnType<typeof usePaymentsQuery>["bulkCreate"]
 }
 
 const PaymentsContext = React.createContext<PaymentsContextValue | null>(null)
 
 export function PaymentsProvider({ children }: { children: React.ReactNode }) {
-  const [payments, setPayments] = React.useState<PaymentRow[]>(() => [...initialPayments])
-  const [hydrated, setHydrated] = React.useState(false)
-
-  React.useEffect(() => {
-    const saved = parsePersistedPayments(
-      typeof window !== "undefined"
-        ? window.localStorage.getItem(PAYMENTS_STORAGE_KEY)
-        : null
-    )
-    if (saved) setPayments(saved)
-    setHydrated(true)
-  }, [])
-
-  React.useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return
-    window.localStorage.setItem(PAYMENTS_STORAGE_KEY, JSON.stringify(payments))
-  }, [payments, hydrated])
+  const {
+    payments,
+    isLoading,
+    create,
+    update,
+    removeMany,
+    bulkCreate,
+  } = usePaymentsQuery()
+  const paymentsRef = React.useRef(payments)
+  paymentsRef.current = payments
 
   const getPayment = React.useCallback(
     (id: number) => payments.find((row) => row.id === id),
     [payments]
   )
 
-  const addPayment = React.useCallback((payment: Omit<PaymentRow, "id">) => {
-    let created = { ...payment, id: 0 } as PaymentRow
-    setPayments((prev) => {
-      const maxId = prev.reduce((m, x) => Math.max(m, x.id), 0)
-      created = {
-        ...payment,
-        id: maxId + 1,
-        paymentNumber:
-          payment.paymentNumber.trim() || nextPaymentNumber(prev, payment.type),
-      }
-      return [...prev, created]
-    })
-    return created
-  }, [])
+  const addPayment = React.useCallback(
+    async (payment: Omit<PaymentRow, "id" | "apiId">) => {
+      const saved = await create(
+        toApiPaymentWrite({ ...payment, id: 0, apiId: "" })
+      )
+      return mapApiPaymentToRow(saved, 0)
+    },
+    [create]
+  )
 
-  const updatePayment = React.useCallback((id: number, patch: Partial<PaymentRow>) => {
-    setPayments((prev) =>
-      prev.map((row) => (row.id === id ? { ...row, ...patch, id: row.id } : row))
-    )
-  }, [])
+  const updatePayment = React.useCallback(
+    async (id: number, patch: Partial<PaymentRow>) => {
+      const current = paymentsRef.current.find((row) => row.id === id)
+      if (!current?.apiId) return
+      const next = { ...current, ...patch, id: current.id, apiId: current.apiId }
+      await update({ id: current.apiId, data: toApiPaymentWrite(next) })
+    },
+    [update]
+  )
 
-  const removePayment = React.useCallback((id: number) => {
-    setPayments((prev) => prev.filter((row) => row.id !== id))
-  }, [])
+  const removePayment = React.useCallback(
+    async (id: number) => {
+      const current = paymentsRef.current.find((row) => row.id === id)
+      if (!current?.apiId) return
+      await removeMany([current.apiId])
+    },
+    [removeMany]
+  )
 
-  const duplicatePayment = React.useCallback((id: number) => {
-    let copy: PaymentRow | null = null
-    setPayments((prev) => {
-      const source = prev.find((row) => row.id === id)
-      if (!source) return prev
-      const maxId = prev.reduce((m, x) => Math.max(m, x.id), 0)
-      copy = {
-        ...source,
-        id: maxId + 1,
-        paymentNumber: nextPaymentNumber(prev, source.type),
+  const duplicatePayment = React.useCallback(
+    async (id: number) => {
+      const source = paymentsRef.current.find((row) => row.id === id)
+      if (!source) return null
+      return addPayment({
+        partyId: source.partyId,
+        paymentNumber: "",
+        type: source.type,
+        partyName: source.partyName,
+        referenceNumber: source.referenceNumber,
+        paymentDate: source.paymentDate,
+        amount: source.amount,
+        paymentMethod: source.paymentMethod,
         status: "pending",
-      }
-      return [...prev, copy]
-    })
-    return copy
-  }, [])
+        notes: source.notes,
+      })
+    },
+    [addPayment]
+  )
 
   const value = React.useMemo(
     () => ({
       payments,
-      setPayments,
+      loading: isLoading,
       getPayment,
       addPayment,
       updatePayment,
       removePayment,
       duplicatePayment,
+      removeMany,
+      bulkCreate,
     }),
-    [payments, getPayment, addPayment, updatePayment, removePayment, duplicatePayment]
+    [
+      payments,
+      isLoading,
+      getPayment,
+      addPayment,
+      updatePayment,
+      removePayment,
+      duplicatePayment,
+      removeMany,
+      bulkCreate,
+    ]
   )
 
-  return <PaymentsContext.Provider value={value}>{children}</PaymentsContext.Provider>
+  return (
+    <PaymentsContext.Provider value={value}>{children}</PaymentsContext.Provider>
+  )
 }
 
 export function usePayments() {

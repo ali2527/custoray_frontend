@@ -56,6 +56,22 @@ export function flattenPurchasesToLines(
   })
 }
 
+export function flattenPurchaseLineForExport(
+  line: PurchaseLineReportRow
+): Record<string, unknown> {
+  return {
+    purchaseNumber: line.purchaseNumber,
+    vendorName: line.vendorName,
+    purchaseDate: line.purchaseDate,
+    productName: line.productName,
+    quantity: line.quantity,
+    unitPrice: line.unitPrice,
+    paidAmount: "",
+    status: line.purchaseStatus,
+    description: "",
+  }
+}
+
 export function mapImportedPurchaseLine(
   row: Record<string, string>,
 ): PurchaseLineReportRow | null {

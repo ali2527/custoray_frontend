@@ -21,6 +21,22 @@
     "email": "Email",
     "status": "Status"
   },
+  "fields": {
+    "name": "Customer name",
+    "namePlaceholder": "Company or person",
+    "description": "Description",
+    "descriptionPlaceholder": "Notes, terms, segment…",
+    "openingBalance": "Opening balance",
+    "phone": "Phone number",
+    "phonePlaceholder": "+92 300 1234567",
+    "status": "Status"
+  },
+  "images": {
+    "photo": "Customer photo",
+    "upload": "Upload customer photo",
+    "change": "Change customer photo",
+    "remove": "Remove customer photo"
+  },
   "actions": {
     "view": "View",
     "edit": "Edit",
@@ -29,7 +45,9 @@
     "openMenu": "Open menu",
     "deleteSelected": "Delete selected",
     "viewRecord": "View record",
-    "viewTimeline": "View timeline"
+    "viewTimeline": "View timeline",
+    "setActive": "Set active",
+    "setInactive": "Set inactive"
   },
   "record": "Customer record",
   "timeline": {
@@ -43,22 +61,118 @@
     "balance": "Balance",
     "return": "Return",
     "returnAmount": "Return amount",
-    "itemCount": "{{count}} items"
+    "itemCount": "{{count}} items",
+    "search": "Search invoices and returns…",
+    "emptyFiltered": "No records match these filters.",
+    "typeInvoice": "Invoice",
+    "typeReturn": "Return",
+    "filters": {
+      "allTypes": "All types",
+      "allStatuses": "All statuses",
+      "allMonths": "All months",
+      "status": "Status",
+      "month": "Month"
+    },
+    "summary": {
+      "total": "Total",
+      "credit": "Credit",
+      "remaining": "Remaining",
+      "balance": "Balance"
+    },
+    "tabs": {
+      "all": "All",
+      "invoices": "Invoices",
+      "returns": "Returns"
+    },
+    "columns": {
+      "date": "Date",
+      "type": "Type",
+      "document": "Document",
+      "details": "Details",
+      "number": "Number",
+      "reference": "Reference",
+      "description": "Description",
+      "amount": "Amount",
+      "paid": "Paid",
+      "balance": "Due",
+      "running": "Running",
+      "status": "Status",
+      "month": "Month",
+      "items": "Items"
+    },
+    "recordCount": "{{count}} records",
+    "exportRange": {
+      "label": "Export range",
+      "all": "All dates",
+      "months": "Months",
+      "dates": "Dates",
+      "fromMonth": "From month",
+      "toMonth": "To month",
+      "fromDate": "From date",
+      "toDate": "To date",
+      "hintAll": "Export every matching invoice and return.",
+      "hintMonths": "Export from the start of the first month through the end of the last month.",
+      "hintDates": "Export records on and between these dates.",
+      "preview": "{{count}} records · {{months}} months",
+      "previewEmpty": "No records in this range."
+    },
+    "export": {
+      "title": "Export statement",
+      "description": "Choose a date range, then download a PDF statement, Excel workbook, CSV, or JSON.",
+      "xlsx": "Excel",
+      "xlsxDesc": "Workbook with summary, ledger, and a sheet per month",
+      "csv": "CSV",
+      "csvDesc": "Spreadsheet rows with dates, amounts, and line items",
+      "json": "JSON",
+      "jsonDesc": "Structured records for other systems",
+      "ledger": "Ledger"
+    },
+    "report": {
+      "title": "Customer statement",
+      "generated": "Generated",
+      "period": "Period",
+      "customer": "Bill to",
+      "phone": "Phone",
+      "item": "Item",
+      "qty": "Qty",
+      "rate": "Rate",
+      "lineAmount": "Amount",
+      "html": "PDF",
+      "htmlDesc": "Detailed PDF statement with items and monthly totals",
+      "pdf": "PDF",
+      "pdfDesc": "Detailed PDF statement with items and monthly totals"
+    }
   },
   "sheet": {
     "add": "Add customer",
     "edit": "Edit customer",
-    "addDescription": "Fill in customer details and photo. Saving is demo only.",
+    "addDescription": "Fill in customer details and photo.",
+    "quickAddDescription": "Create a customer and select them on this form.",
     "create": "Create customer",
     "save": "Save customer"
   },
+  "viewSheet": {
+    "noPhoto": "No customer photo",
+    "account": "Account",
+    "details": "Details",
+    "recent": "Recent activity",
+    "viewAll": "View all",
+    "outstanding": "Outstanding",
+    "credit": "Credit",
+    "settled": "Settled",
+    "idLabel": "ID {{id}}"
+  },
   "toasts": {
-    "removedNamed": "Removed {{name}} (demo).",
-    "duplicatedNamed": "Duplicated {{name}} (demo).",
+    "removedNamed": "Removed {{name}}.",
+    "duplicatedNamed": "Duplicated {{name}}.",
     "nameRequired": "Customer name is required.",
-    "created": "Customer created (demo).",
-    "saved": "Customer saved (demo).",
-    "removedCount": "Removed {{count}} customer(s) (demo)."
+    "created": "Customer created.",
+    "saved": "Customer saved.",
+    "saveFailed": "Could not save customer.",
+    "removedCount": "Removed {{count}} customer(s).",
+    "importPartial": "{{added}} imported, {{failed}} could not be imported.",
+    "setActiveCount": "Set {{count}} to active.",
+    "setInactiveCount": "Set {{count}} to inactive."
   },
   "entity": {
     "customer": "customer"

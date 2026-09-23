@@ -17,7 +17,33 @@ export function rowsToCsv(rows: Record<string, unknown>[]): string {
   return lines.join("\r\n")
 }
 
-function parseCsvLine(line: string): string[] {
+export function pickObjectKeys(
+  row: Record<string, unknown>,
+  columns: string[]
+): Record<string, unknown> {
+  const next: Record<string, unknown> = {}
+  for (const column of columns) {
+    next[column] = row[column] ?? ""
+  }
+  return next
+}
+
+export function projectCsvRecord(
+  cells: Record<string, string>,
+  columns: string[]
+): Record<string, string> {
+  const lookup = new Map<string, string>()
+  for (const [key, value] of Object.entries(cells)) {
+    lookup.set(key.trim().toLowerCase(), value)
+  }
+  const next: Record<string, string> = {}
+  for (const column of columns) {
+    next[column] = lookup.get(column.toLowerCase()) ?? ""
+  }
+  return next
+}
+
+export function parseCsvLine(line: string): string[] {
   const out: string[] = []
   let cur = ""
   let inQuotes = false
@@ -41,20 +67,31 @@ function parseCsvLine(line: string): string[] {
   return out
 }
 
-export function parseCsv(text: string): Record<string, string>[] {
+export function splitCsvLines(text: string): string[] {
   const raw = text.trim()
   if (!raw) return []
-  const lines = raw.split(/\r?\n/).filter((l) => l.length > 0)
+  return raw.split(/\r?\n/).filter((l) => l.length > 0)
+}
+
+export function csvRecordFromLine(
+  line: string,
+  headers: string[]
+): Record<string, string> {
+  const vals = parseCsvLine(line)
+  const row: Record<string, string> = {}
+  headers.forEach((h, j) => {
+    row[h] = vals[j]?.trim() ?? ""
+  })
+  return row
+}
+
+export function parseCsv(text: string): Record<string, string>[] {
+  const lines = splitCsvLines(text)
   if (lines.length < 2) return []
   const headers = parseCsvLine(lines[0]).map((h) => h.trim())
   const rows: Record<string, string>[] = []
   for (let i = 1; i < lines.length; i++) {
-    const vals = parseCsvLine(lines[i])
-    const row: Record<string, string> = {}
-    headers.forEach((h, j) => {
-      row[h] = vals[j]?.trim() ?? ""
-    })
-    rows.push(row)
+    rows.push(csvRecordFromLine(lines[i], headers))
   }
   return rows
 }

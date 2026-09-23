@@ -12,8 +12,8 @@ import { loadCompanySettings } from "@/lib/company-settings"
 import {
   computeBalance as computeCustomerBalance,
   CUSTOMERS_STORAGE_KEY,
-  initialCustomers,
   parsePersistedCustomers,
+  type CustomerRow,
 } from "@/lib/customers"
 import { loadDocumentDisplaySettings } from "@/lib/document-display-settings"
 import { resolveActiveTemplateForPdf } from "@/lib/invoice-templates"
@@ -33,9 +33,13 @@ type InvoicePdfButtonProps = {
 
 function lookupCustomerBalance(customerName: string): string | undefined {
   if (typeof window === "undefined") return undefined
-  const customers =
-    parsePersistedCustomers(window.localStorage.getItem(CUSTOMERS_STORAGE_KEY)) ??
-    initialCustomers
+  const customers: CustomerRow[] = []
+  for (let i = 0; i < window.localStorage.length; i += 1) {
+    const key = window.localStorage.key(i)
+    if (!key?.startsWith(CUSTOMERS_STORAGE_KEY)) continue
+    const parsed = parsePersistedCustomers(window.localStorage.getItem(key))
+    if (parsed?.length) customers.push(...parsed)
+  }
   const match = customers.find(
     (customer) =>
       customer.name.trim().toLowerCase() === customerName.trim().toLowerCase()

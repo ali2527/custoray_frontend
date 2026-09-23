@@ -29,6 +29,14 @@ import type { LucideIcon } from "lucide-react"
 
 export type ExportFormatId = "csv" | "xls" | "json"
 
+export type ExportCustomFormat = {
+  id: string
+  title: string
+  description: string
+  actionLabel?: string
+  Icon: LucideIcon
+}
+
 const FORMAT_META: {
   id: ExportFormatId
   extension: string
@@ -59,8 +67,15 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   rowCount: number
-  getRows: () => Record<string, unknown>[]
+  getRows?: () => Record<string, unknown>[]
   filename?: string
+  extra?: React.ReactNode
+  title?: string
+  description?: string
+  defaultFormat?: string
+  builtInFormats?: ExportFormatId[]
+  customFormats?: ExportCustomFormat[]
+  onCustomDownload?: (id: string) => void | Promise<void>
 }
 
 export function DataTableExportDialog({
@@ -69,37 +84,70 @@ export function DataTableExportDialog({
   rowCount,
   getRows,
   filename = "export.csv",
+  extra,
+  title,
+  description,
+  defaultFormat,
+  builtInFormats,
+  customFormats = [],
+  onCustomDownload,
 }: Props) {
   const { t } = useTranslation()
-  const [format, setFormat] = React.useState<ExportFormatId>("csv")
+  const [format, setFormat] = React.useState<string>(defaultFormat ?? "csv")
   const [busy, setBusy] = React.useState(false)
+  const allowedBuiltIns = builtInFormats ?? FORMAT_META.map((meta) => meta.id)
 
-  const formats = FORMAT_META.map((meta) => ({
+  const fileFormats = FORMAT_META.filter((meta) =>
+    allowedBuiltIns.includes(meta.id)
+  ).map((meta) => ({
     ...meta,
     title: t(`exportDialog.${meta.id}`),
     description: t(`exportDialog.${meta.id}Desc`),
+    actionLabel: t("exportDialog.download", {
+      format: t(`exportDialog.${meta.id}`),
+    }),
   }))
+  const formats = [...fileFormats, ...customFormats]
 
   React.useEffect(() => {
-    if (open) setFormat("csv")
-  }, [open])
+    if (open) setFormat(defaultFormat ?? "csv")
+  }, [open, defaultFormat])
 
   const handleDownload = async () => {
-    const rows = getRows()
+    if (rowCount === 0) {
+      toast.error(t("exportDialog.toastNothing"))
+      return
+    }
+    const custom = customFormats.find((item) => item.id === format)
+    if (custom) {
+      try {
+        setBusy(true)
+        await onCustomDownload?.(custom.id)
+        onOpenChange(false)
+      } catch {
+        toast.error(t("exportDialog.toastFailed"))
+      } finally {
+        setBusy(false)
+      }
+      return
+    }
+    const rows = getRows?.() ?? []
     if (rows.length === 0) {
       toast.error(t("exportDialog.toastNothing"))
       return
     }
-    const meta = FORMAT_META.find((f) => f.id === format)!
-    const formatTitle = t(`exportDialog.${format}`)
+    const fileFormat = format as ExportFormatId
+    const meta = FORMAT_META.find((f) => f.id === fileFormat)
+    if (!meta) return
+    const formatTitle = t(`exportDialog.${fileFormat}`)
     const base = exportFilenameBase(filename)
     const outName = `${base}.${meta.extension}`
 
     try {
       setBusy(true)
-      if (format === "csv") {
+      if (fileFormat === "csv") {
         downloadTextFile(outName, rowsToCsv(rows), meta.mime)
-      } else if (format === "json") {
+      } else if (fileFormat === "json") {
         downloadTextFile(outName, rowsToJson(rows), meta.mime)
       } else {
         const { downloadRowsAsXls } = await import("@/lib/excel-export")
@@ -116,17 +164,21 @@ export function DataTableExportDialog({
     }
   }
 
-  const selectedTitle = t(`exportDialog.${format}`)
+  const selected = formats.find((item) => item.id === format)
+  const selectedTitle =
+    selected && "actionLabel" in selected && selected.actionLabel
+      ? selected.actionLabel
+      : t("exportDialog.download", { format: t(`exportDialog.${format}`) })
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className={cn(dataTableDialogContentClassName, "gap-0")}>
         <DataTableDialogHeaderSection>
           <DialogTitle className="text-xl font-semibold tracking-tight sm:text-2xl">
-            {t("exportDialog.title")}
+            {title ?? t("exportDialog.title")}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground text-base leading-relaxed">
-            {t("exportDialog.description")}
+            {description ?? t("exportDialog.description")}
           </DialogDescription>
           <div className="bg-primary/10 text-primary mt-4 inline-flex w-fit items-center gap-2 rounded-full border border-primary/20 px-4 py-2 text-sm font-medium">
             <CloudDownload className="size-4 shrink-0" aria-hidden />
@@ -137,11 +189,17 @@ export function DataTableExportDialog({
         </DataTableDialogHeaderSection>
 
         <DataTableDialogBody>
+          {extra ? <div className="mb-6">{extra}</div> : null}
           <div className="space-y-3">
             <h3 className="text-foreground text-sm font-medium">
               {t("exportDialog.downloadFormat")}
             </h3>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div
+              className={cn(
+                "grid gap-3",
+                formats.length > 3 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-3"
+              )}
+            >
               {formats.map((f) => {
                 const selected = format === f.id
                 return (
@@ -198,7 +256,7 @@ export function DataTableExportDialog({
             >
               {busy
                 ? t("exportDialog.preparing")
-                : t("exportDialog.download", { format: selectedTitle })}
+                : selectedTitle}
             </Button>
           </div>
         </DataTableDialogFooterSection>

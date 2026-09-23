@@ -5,10 +5,8 @@ import { usePathname, useRouter } from "next/navigation"
 import { toast } from "sonner"
 
 import {
-  authenticateCredentials,
   clearSession,
   GUEST_SESSION,
-  loadSession,
   saveSession,
   sessionToNavUser,
   type AuthSession,
@@ -36,7 +34,6 @@ import {
   loadLocalCompanies,
   saveActiveCompanyId,
   saveLocalCompanies,
-  slugifyCompanyName,
 } from "@/lib/company-memberships"
 import { accessFromSession, type AccessInfo } from "@/lib/subscription-access"
 import {
@@ -82,7 +79,7 @@ type AuthContextValue = {
   completeTwoFactor: (code: string) => Promise<LoginResult>
   logout: (redirectTo?: string) => void
   refreshAccess: () => Promise<AccessInfo | null>
-  switchCompany: (tenantId: string) => Promise<void>
+  switchCompany: (companyId: string) => Promise<void>
   createCompany: (businessName: string) => Promise<void>
   canView: boolean
   canEdit: boolean
@@ -94,7 +91,9 @@ const AuthContext = React.createContext<AuthContextValue | null>(null)
 
 function sessionFromMe(me: SessionPayload): AuthSession {
   const membership =
-    me.companies?.find((company) => company.id === me.tenant.id) ?? me.companies?.[0]
+    me.companies?.find((company) => company.id === me.activeCompanyId) ??
+    me.companies?.find((company) => company.id === me.tenant.id) ??
+    me.companies?.[0]
   return {
     userId: me.user.id,
     name: me.user.name,
@@ -103,6 +102,7 @@ function sessionFromMe(me: SessionPayload): AuthSession {
     employeeId: null,
     permissions: me.permissions,
     designation: membership?.role?.trim() || (me.user.isOwner ? "Owner" : ""),
+    tenantId: me.tenant.id,
   }
 }
 
@@ -110,7 +110,7 @@ function companiesFromMe(me: SessionPayload): CompanyMembership[] {
   if (me.companies?.length) return me.companies
   return [
     {
-      id: me.tenant.id,
+      id: me.activeCompanyId || me.tenant.id,
       name: me.companySettings?.name || me.tenant.name,
       slug: me.tenant.slug,
       plan: me.plan.displayName,
@@ -138,44 +138,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveSession(nextSession)
     setSession(nextSession)
     setCompanies(nextCompanies)
-    setActiveCompanyId(me.tenant.id)
-    saveActiveCompanyId(me.tenant.id)
+    const nextCompanyId =
+      me.activeCompanyId && nextCompanies.some((company) => company.id === me.activeCompanyId)
+        ? me.activeCompanyId
+        : nextCompanies[0]?.id ?? me.tenant.id
+    setActiveCompanyId(nextCompanyId)
+    saveActiveCompanyId(nextCompanyId)
     setAccess(nextAccess)
     return nextAccess
   }, [])
 
   React.useEffect(() => {
-    const useApi = Boolean(process.env.NEXT_PUBLIC_API_URL)
-
-    if (useApi) {
-      apiMe()
-        .then((me) => applyRemoteSession(me))
-        .catch(() => {
-          clearSession()
-          setSession(null)
-          setAccess(null)
-        })
-        .finally(() => setHydrated(true))
-      return
-    }
-
-    const local = loadSession()
-    setSession(local)
-    const localCompanies = loadLocalCompanies()
-    setCompanies(localCompanies)
-    setActiveCompanyId(loadActiveCompanyId(localCompanies))
-    setHydrated(true)
+    apiMe()
+      .then((me) => applyRemoteSession(me))
+      .catch(() => {
+        clearSession()
+        setSession(null)
+        setAccess(null)
+      })
+      .finally(() => setHydrated(true))
   }, [applyRemoteSession])
 
   const logout = React.useCallback(
     async (redirectTo?: string) => {
       const path = typeof redirectTo === "string" && redirectTo.startsWith("/") ? redirectTo : "/"
-      if (process.env.NEXT_PUBLIC_API_URL) {
-        try {
-          await apiLogout()
-        } catch {
-          /* ignore */
-        }
+      try {
+        await apiLogout()
+      } catch {
+        /* ignore */
       }
       clearSession()
       clearTwoFactorChallenge()
@@ -239,41 +229,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { ok: false, error: "Email and password are required." }
       }
 
-      if (process.env.NEXT_PUBLIC_API_URL) {
-        try {
-          const data = await apiLogin(trimmedEmail, password)
-          if (data.requiresTwoFactor) {
-            if (!data.challengeToken) {
-              return { ok: false, error: "Authenticator challenge missing. Try again." }
-            }
-            clearSession()
-            setSession(null)
-            setAccess(null)
-            saveTwoFactorChallenge(data.challengeToken)
-            return { ok: true, accessAllowed: false, requiresTwoFactor: true }
+      try {
+        const data = await apiLogin(trimmedEmail, password)
+        if (data.requiresTwoFactor) {
+          if (!data.challengeToken) {
+            return { ok: false, error: "Authenticator challenge missing. Try again." }
           }
-          const me = await apiMe()
-          const nextAccess = applyRemoteSession(me)
-          return { ok: true, accessAllowed: nextAccess.allowed }
-        } catch (err) {
-          return {
-            ok: false,
-            error: err instanceof Error ? err.message : "Login failed",
-          }
+          clearSession()
+          setSession(null)
+          setAccess(null)
+          saveTwoFactorChallenge(data.challengeToken)
+          return { ok: true, accessAllowed: false, requiresTwoFactor: true }
         }
-      }
-
-      const nextSession = authenticateCredentials(trimmedEmail, password)
-      if (!nextSession) {
+        const me = await apiMe()
+        const nextAccess = applyRemoteSession(me)
+        return { ok: true, accessAllowed: nextAccess.allowed }
+      } catch (err) {
         return {
           ok: false,
-          error: "Invalid email or password, or portal access is disabled.",
+          error: err instanceof Error ? err.message : "Login failed",
         }
       }
-
-      saveSession(nextSession)
-      setSession(nextSession)
-      return { ok: true, accessAllowed: true }
     },
     [applyRemoteSession]
   )
@@ -354,7 +330,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   )
 
   const refreshAccess = React.useCallback(async () => {
-    if (!process.env.NEXT_PUBLIC_API_URL) return access
     try {
       const me = await apiMe()
       return applyRemoteSession(me)
@@ -364,16 +339,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [access, applyRemoteSession])
 
   const switchCompany = React.useCallback(
-    async (tenantId: string) => {
-      if (process.env.NEXT_PUBLIC_API_URL && session) {
-        const me = await apiSwitchCompany(tenantId)
-        const nextAccess = applyRemoteSession(me)
-        window.location.assign(nextAccess.allowed ? "/home" : "/trial-ended")
-        return
-      }
-
-      setActiveCompanyId(tenantId)
-      saveActiveCompanyId(tenantId)
+    async (companyId: string) => {
+      if (!session) return
+      const me = await apiSwitchCompany(companyId)
+      const nextAccess = applyRemoteSession(me)
+      window.location.assign(nextAccess.allowed ? "/home" : "/trial-ended")
     },
     [session, applyRemoteSession]
   )
@@ -382,35 +352,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (businessName: string) => {
       const name = businessName.trim()
       if (!name) throw new Error("Company name is required.")
+      if (!session) throw new Error("Sign in required.")
 
-      if (process.env.NEXT_PUBLIC_API_URL && session) {
-        const me = await apiCreateCompany(name)
-        const nextAccess = applyRemoteSession(me)
-        window.location.assign(nextAccess.allowed ? "/home" : "/trial-ended")
-        return
-      }
-
-      const id =
-        typeof crypto !== "undefined" && "randomUUID" in crypto
-          ? crypto.randomUUID()
-          : `local-${Date.now()}`
-      const next: CompanyMembership = {
-        id,
-        name,
-        slug: slugifyCompanyName(name),
-        plan: "Demo",
-        planCode: "starter",
-        role: "Owner",
-        isOwner: true,
-        logoUrl: "",
-      }
-      setCompanies((prev) => {
-        const list = [...prev, next]
-        saveLocalCompanies(list)
-        return list
-      })
-      setActiveCompanyId(id)
-      saveActiveCompanyId(id)
+      const me = await apiCreateCompany(name)
+      const nextAccess = applyRemoteSession(me)
+      window.location.assign(nextAccess.allowed ? "/home" : "/trial-ended")
     },
     [session, applyRemoteSession]
   )

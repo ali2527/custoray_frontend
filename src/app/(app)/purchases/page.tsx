@@ -58,14 +58,19 @@ import {
   computeBalance,
   computePurchaseTotal,
   EMPTY_PURCHASE,
+  flattenPurchaseForExport,
   formatDate,
   formatMoney,
-  mapImportedPurchase,
+  importPurchasesFromRows,
   nextPurchaseNumber,
+  PURCHASE_IMPORT_COLUMNS,
+  PURCHASE_IMPORT_SAMPLE_ROW,
+  PURCHASE_STATUSES,
   purchaseFromFormData,
   type PurchaseRow,
 } from "@/lib/purchases"
 import {
+  flattenPurchaseLineForExport,
   flattenPurchasesToLines,
   type PurchaseLineReportRow,
 } from "@/lib/purchases-report"
@@ -86,6 +91,26 @@ function purchaseTabFilter(row: PurchaseRow, tab: string) {
 function purchaseLineTabFilter(row: PurchaseLineReportRow, tab: string) {
   if (tab === "all") return true
   return row.purchaseStatus === tab
+}
+
+function textFilterMeta(label: string) {
+  return { dataTableFilterVariant: "text" as const, dataTableFilterLabel: label }
+}
+
+function rangeFilterMeta(label: string) {
+  return { dataTableFilterVariant: "range" as const, dataTableFilterLabel: label }
+}
+
+function statusFilterMeta(t: TFunction<"purchases">) {
+  return {
+    dataTableFilterVariant: "select" as const,
+    dataTableFilterLabel: t("columns.status"),
+    dataTableFilterSelectLabels: {
+      pending: t("status.pending"),
+      completed: t("status.completed"),
+      cancelled: t("status.cancelled"),
+    },
+  }
 }
 
 function getPurchaseColumns(
@@ -151,7 +176,7 @@ function getPurchaseColumns(
         </button>
       ),
       enableHiding: false,
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.poNumber")),
     },
     {
       accessorKey: "vendorName",
@@ -163,7 +188,7 @@ function getPurchaseColumns(
           {row.original.vendorName}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.vendor")),
     },
     {
       id: "items",
@@ -178,7 +203,7 @@ function getPurchaseColumns(
           </span>
         </div>
       ),
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.items")),
     },
     {
       accessorKey: "purchaseDate",
@@ -190,7 +215,7 @@ function getPurchaseColumns(
           {formatDate(row.original.purchaseDate)}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.date")),
     },
     {
       accessorKey: "totalAmount",
@@ -204,7 +229,7 @@ function getPurchaseColumns(
           </span>
         </div>
       ),
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.totalAmount")),
     },
     {
       accessorKey: "paidAmount",
@@ -218,7 +243,7 @@ function getPurchaseColumns(
           </span>
         </div>
       ),
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.paidAmount")),
     },
     {
       id: "balance",
@@ -242,13 +267,13 @@ function getPurchaseColumns(
           </div>
         )
       },
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.balance")),
     },
     {
       accessorKey: "status",
       header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.status")} />,
       cell: ({ row }) => <PurchaseStatusBadge status={row.original.status} />,
-      meta: { dataTableFilter: false },
+      meta: statusFilterMeta(t),
     },
     {
       id: "actions",
@@ -367,7 +392,7 @@ function getPurchaseLineColumns(
         </button>
       ),
       enableHiding: false,
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.poNumber")),
     },
     {
       accessorKey: "vendorName",
@@ -379,7 +404,7 @@ function getPurchaseLineColumns(
           {row.original.vendorName}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.vendor")),
     },
     {
       accessorKey: "purchaseDate",
@@ -391,7 +416,7 @@ function getPurchaseLineColumns(
           {formatDate(row.original.purchaseDate)}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.date")),
     },
     {
       accessorKey: "productName",
@@ -408,7 +433,7 @@ function getPurchaseLineColumns(
         </button>
       ),
       enableHiding: false,
-      meta: { dataTableFilter: false },
+      meta: textFilterMeta(t("columns.item")),
     },
     {
       accessorKey: "quantity",
@@ -420,7 +445,7 @@ function getPurchaseLineColumns(
           <span className="text-foreground tabular-nums">{row.original.quantity}</span>
         </div>
       ),
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.qty")),
     },
     {
       accessorKey: "unitPrice",
@@ -434,7 +459,7 @@ function getPurchaseLineColumns(
           </span>
         </div>
       ),
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.unitPrice")),
     },
     {
       accessorKey: "lineTotal",
@@ -448,7 +473,7 @@ function getPurchaseLineColumns(
           </span>
         </div>
       ),
-      meta: { dataTableFilter: false },
+      meta: rangeFilterMeta(t("columns.lineTotal")),
     },
     {
       accessorKey: "purchaseStatus",
@@ -456,7 +481,7 @@ function getPurchaseLineColumns(
       cell: ({ row }) => (
         <PurchaseStatusBadge status={row.original.purchaseStatus} />
       ),
-      meta: { dataTableFilter: false },
+      meta: statusFilterMeta(t),
     },
     {
       id: "actions",
@@ -562,26 +587,19 @@ export default function PurchasesPage() {
     (rows: Record<string, string>[]) => {
       let added = 0
       setPurchases((prev) => {
-        let acc = [...prev]
-        for (const row of rows) {
-          const mapped = mapImportedPurchase(row, acc)
-          if (mapped) {
-            acc = [...acc, mapped]
-            added++
-          }
-        }
-        return acc
+        const created = importPurchasesFromRows(rows, prev)
+        added = created.length
+        return added > 0 ? [...prev, ...created] : prev
       })
       return added
     },
     [setPurchases]
   )
 
-  const purchaseImportSampleCsv = useMemo(() => {
-    const example = purchases[0] as Record<string, unknown> | undefined
-    if (!example) return undefined
-    return buildSampleCsv(Object.keys(example), example)
-  }, [purchases])
+  const purchaseImportSampleCsv = useMemo(
+    () => buildSampleCsv([...PURCHASE_IMPORT_COLUMNS], PURCHASE_IMPORT_SAMPLE_ROW),
+    []
+  )
 
   const openPurchaseBill = useCallback(
     (purchaseId: number) => {
@@ -611,7 +629,7 @@ export default function PurchasesPage() {
       }
       toast.message(t("toasts.removedNamed", { name: purchase.purchaseNumber }))
     },
-    [removePurchase, sidebar]
+    [removePurchase, sidebar, t]
   )
 
   const handleDuplicate = useCallback(
@@ -627,7 +645,7 @@ export default function PurchasesPage() {
       const copy = duplicatePurchase(purchase.id)
       if (copy) toast.success(t("toasts.duplicatedNamed", { name: purchase.purchaseNumber }))
     },
-    [duplicatePurchase]
+    [duplicatePurchase, t]
   )
 
   const handleDeleteLines = useCallback(
@@ -665,7 +683,7 @@ export default function PurchasesPage() {
 
       toast.message(t("toasts.removedLines", { count: selected.length }))
     },
-    [setPurchases, viewLine]
+    [setPurchases, viewLine, t]
   )
 
   const handleDeleteLine = useCallback(
@@ -681,7 +699,7 @@ export default function PurchasesPage() {
       return
     }
     setReturnDraft(buildReturnFromPurchase(purchase))
-  }, [])
+  }, [t])
 
   const openReturnFromLine = useCallback(
     (line: PurchaseLineReportRow) => {
@@ -696,7 +714,7 @@ export default function PurchasesPage() {
       }
       setReturnDraft(buildReturnFromPurchase(purchase, { lineIds: [line.lineId] }))
     },
-    [getPurchase]
+    [getPurchase, t]
   )
 
   const handleCancelBill = useCallback(
@@ -716,7 +734,7 @@ export default function PurchasesPage() {
       }
       toast.success(t("toasts.cancelled", { name: purchase.purchaseNumber }))
     },
-    [sidebar, updatePurchase, closeSidebar]
+    [sidebar, updatePurchase, closeSidebar, t]
   )
 
   const handleCancelLine = useCallback(
@@ -738,7 +756,7 @@ export default function PurchasesPage() {
       if (viewLine?.purchaseId === purchase.id) setViewLine(null)
       toast.success(t("toasts.cancelled", { name: purchase.purchaseNumber }))
     },
-    [getPurchase, updatePurchase, viewLine]
+    [getPurchase, updatePurchase, viewLine, t]
   )
 
   const resolvePurchaseForLine = useCallback(
@@ -788,7 +806,7 @@ export default function PurchasesPage() {
         closeSidebar()
       }
     },
-    [sidebar, addPurchase, updatePurchase]
+    [sidebar, addPurchase, updatePurchase, t]
   )
 
   const billColumns = useMemo(
@@ -920,6 +938,7 @@ export default function PurchasesPage() {
                   <PurchaseForm
                     formId={formId}
                     purchase={formPurchase}
+                    isNew={sidebar.mode === "add"}
                     onSubmit={handleSubmit}
                   />
                 ) : null}
@@ -1004,12 +1023,19 @@ export default function PurchasesPage() {
           <DataTable
             data={purchases}
             columns={billColumns}
+            settingsKey="purchases-bills"
             addButtonLabel={t("addButton")}
             searchPlaceholder={t("search.bills")}
             importSampleFilename="purchases-sample.csv"
             importSampleCsvContent={purchaseImportSampleCsv}
+            importColumns={[...PURCHASE_IMPORT_COLUMNS]}
+            importSelectColumns={{
+              status: [...PURCHASE_STATUSES],
+            }}
+            importRequiredSelectColumns={[]}
             exportFilename="purchases-export.csv"
             onImportRows={handleImportPurchases}
+            exportRowTransform={flattenPurchaseForExport}
             onAddClick={openCreatePurchase}
             tableOptionsExtra={purchaseTableOptions}
             bulkActions={[
@@ -1029,9 +1055,7 @@ export default function PurchasesPage() {
                   }
                   const ids = new Set(selected.map((s) => s.id))
                   setPurchases((prev) => prev.filter((r) => !ids.has(r.id)))
-                  toast.message(
-                    toast.message(t("toasts.removedPurchases", { count: selected.length }))
-                  )
+                  toast.message(t("toasts.removedPurchases", { count: selected.length }))
                 },
               },
             ]}
@@ -1043,11 +1067,18 @@ export default function PurchasesPage() {
           <DataTable
             data={purchaseLines}
             columns={lineColumns}
+            settingsKey="purchases-items"
             addButtonLabel={t("addButton")}
             searchPlaceholder={t("search.items")}
             importSampleFilename="purchases-sample.csv"
             importSampleCsvContent={purchaseImportSampleCsv}
+            importColumns={[...PURCHASE_IMPORT_COLUMNS]}
+            importSelectColumns={{
+              status: [...PURCHASE_STATUSES],
+            }}
+            importRequiredSelectColumns={[]}
             onImportRows={handleImportPurchases}
+            exportRowTransform={flattenPurchaseLineForExport}
             onAddClick={openCreatePurchase}
             exportFilename="purchase-lines-export.csv"
             tableOptionsExtra={purchaseTableOptions}

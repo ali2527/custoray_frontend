@@ -59,6 +59,20 @@ export function loadProductPriceHistory(sku: string): ProductPriceEvent[] {
   return [...events].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
 
+function historyEventKey(event: ProductPriceEvent) {
+  return `${event.field}|${event.kind}|${event.previousPrice ?? ""}|${event.price}|${event.createdAt.slice(0, 16)}`
+}
+
+export function mergeProductPriceHistory(
+  apiEvents: ProductPriceEvent[],
+  localEvents: ProductPriceEvent[]
+): ProductPriceEvent[] {
+  const merged = new Map<string, ProductPriceEvent>()
+  for (const event of localEvents) merged.set(historyEventKey(event), event)
+  for (const event of apiEvents) merged.set(historyEventKey(event), event)
+  return [...merged.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
 function appendEvents(sku: string, events: ProductPriceEvent[]) {
   if (events.length === 0) return
   const key = historyKey(sku)

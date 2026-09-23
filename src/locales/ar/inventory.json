@@ -77,7 +77,11 @@
   "form": {
     "addNewBrand": "+ إضافة علامة تجارية جديدة",
     "addNewCategory": "+ إضافة فئة جديدة",
-    "addNewVariant": "+ إضافة متغير جديد"
+    "addNewVariant": "+ إضافة متغير جديد",
+    "notSelected": "غير محدد",
+    "selectBrand": "اختر العلامة التجارية",
+    "selectCategory": "اختر الفئة",
+    "selectVariant": "اختر المتغير"
   },
   "productSheet": {
     "add": "إضافة منتج",
@@ -87,9 +91,17 @@
     "create": "إنشاء منتج",
     "save": "حفظ المنتج"
   },
+  "viewSheet": {
+    "details": "التفاصيل",
+    "pricing": "الأسعار",
+    "margin": "الهامش",
+    "noImage": "لا توجد صورة للمنتج"
+  },
   "brandPage": {
     "addButton": "علامة تجارية جديدة",
-    "search": "البحث في العلامات التجارية…"
+    "search": "البحث في العلامات التجارية…",
+    "edit": "تعديل العلامة التجارية",
+    "save": "حفظ العلامة التجارية"
   },
   "categoryPage": {
     "addButton": "فئة جديدة",
@@ -115,23 +127,43 @@
   },
   "toasts": {
     "nameRequired": "اسم المنتج مطلوب.",
+    "skuRequired": "رمز الصنف مطلوب عند استخدام الرموز المخصصة.",
     "categoryNameRequired": "الاسم مطلوب.",
     "created": "تم إنشاء المنتج.",
     "saved": "تم حفظ المنتج.",
-    "categoryCreated": "تم إنشاء الفئة (تجريبي).",
-    "categorySaved": "تم حفظ الفئة (تجريبي).",
-    "variantSaved": "تم حفظ {{name}} (تجريبي).",
-    "deletedNamed": "تم حذف {{name}} (تجريبي).",
-    "duplicatedNamed": "تم تكرار {{name}} (تجريبي).",
-    "archivedCount": "تم نقل {{count}} منتج إلى الأرشيف (تجريبي).",
-    "wouldDeleteProducts": "سيتم حذف {{count}} منتج.",
-    "archivedBrands": "تم نقل {{count}} علامة تجارية إلى الأرشيف (تجريبي).",
+    "saveFailed": "تعذر حفظ المنتج.",
+    "loadFailed": "تعذر تحميل المنتجات.",
+    "importPartial": "تم استيراد {{added}}، وتعذر استيراد {{failed}}.",
+    "importUnmatchedCatalog": "أسماء العلامة أو الفئة أو المتغير غير الموجودة في قائمتك تُركت فارغة: {{names}}",
+    "categoryCreated": "تم إنشاء الفئة.",
+    "categorySaved": "تم حفظ الفئة.",
+    "brandSaved": "تم حفظ العلامة التجارية.",
+    "variantSaved": "تم حفظ {{name}}.",
+    "deletedNamed": "تم حذف {{name}}.",
+    "deletedCount": "تم حذف {{count}} منتج.",
+    "archivedCount": "تم نقل {{count}} منتج إلى الأرشيف.",
+    "duplicatedNamed": "تم تكرار {{name}}.",
+    "archivedBrands": "تم نقل {{count}} علامة تجارية إلى الأرشيف.",
     "wouldDeleteBrands": "سيتم حذف {{count}} علامة تجارية.",
-    "setActiveCount": "تم تعيين {{count}} فئة كنشطة (تجريبي).",
-    "setInactiveCount": "تم تعيين {{count}} فئة كغير نشطة (تجريبي).",
-    "deletedCategories": "تم حذف {{count}} فئة (تجريبي).",
+    "setActiveCount": "تم تعيين {{count}} كنشطة.",
+    "setInactiveCount": "تم تعيين {{count}} كغير نشطة.",
+    "deletedCategories": "تم حذف {{count}} فئة.",
     "maxImages": "يمكنك رفع حتى {{count}} صور.",
     "onlyImagesAllowed": "يُسمح بـ {{count}} صور فقط."
+  },
+  "timeline": {
+    "title": "سجل الأسعار",
+    "empty": "لا يوجد سجل أسعار بعد.",
+    "date": "التاريخ",
+    "field": "السعر",
+    "change": "التغيير",
+    "previous": "السابق",
+    "current": "الجديد",
+    "sale": "البيع",
+    "cost": "التكلفة",
+    "set": "تعيين",
+    "increased": "زيادة",
+    "decreased": "انخفاض"
   },
   "noDescription": "لا يوجد وصف",
   "images": {
@@ -152,6 +184,12 @@
     "namePlaceholder": "أدخل اسم {{label}}",
     "descriptionPlaceholder": "وصف مختصر لـ {{label}}",
     "save": "حفظ {{label}}"
+  },
+  "fieldNeeds": {
+    "tablesTitle": "جداول الكتالوج",
+    "tablesHint": "أوقف أي جدول لا تستخدمه. يُخفى من القائمة والمنتجات والاستيراد.",
+    "settingsTitle": "جداول الكتالوج",
+    "settingsHint": "اختر أيًا من العلامة والفئة والنوع تستخدمه فعلاً."
   },
   "entity": {
     "product": "منتج",

@@ -153,7 +153,7 @@ export function PublicStorefront({ storeId }: { storeId: string }) {
         },
       ]
     })
-  }, [])
+  }, [t])
 
   const setQuantity = React.useCallback((productId: number, quantity: number) => {
     setCart((prev) => {
@@ -213,6 +213,7 @@ export function PublicStorefront({ storeId }: { storeId: string }) {
     qrPrefill.category,
     qrPrefill.variant,
     selectedCustomer,
+    t,
     updateProduct,
   ])
 

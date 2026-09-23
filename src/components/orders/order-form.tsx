@@ -5,6 +5,7 @@ import { IconPlus, IconTrash } from "@tabler/icons-react"
 import { toast } from "sonner"
 
 import { CustomerQuickAddSheet } from "@/components/customers/customer-quick-add-sheet"
+import { DocumentNumberField } from "@/components/document-number-field"
 import { ProductQuickForm } from "@/components/inventory/product-quick-form"
 import { Button } from "@/components/ui/button"
 import {
@@ -20,6 +21,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useCustomers } from "@/context/customers-context"
 import { useProducts } from "@/context/products-context"
+import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
 import { formatMoney } from "@/lib/customers"
 import {
   computeLineTotal,
@@ -32,6 +34,7 @@ import { EMPTY_PRODUCT, nextSku, productFromFormData } from "@/lib/products"
 type OrderFormProps = {
   formId: string
   order: OrderRow
+  isNew?: boolean
   onSubmit: (e: FormEvent<HTMLFormElement>) => void
 }
 
@@ -64,7 +67,8 @@ function resolveProductId(products: { id: number; name: string }[], name: string
   return match ? String(match.id) : ""
 }
 
-export function OrderForm({ formId, order, onSubmit }: OrderFormProps) {
+export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormProps) {
+  const { settings: numberSettings } = useDocumentNumberSettings()
   const { customers } = useCustomers()
   const { products, addProduct } = useProducts()
 
@@ -162,7 +166,7 @@ export function OrderForm({ formId, order, onSubmit }: OrderFormProps) {
   }, [])
 
   const handleAddProduct = useCallback(
-    (e: FormEvent<HTMLFormElement>) => {
+    async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault()
       if (quickAdd?.type !== "product") return
 
@@ -173,13 +177,17 @@ export function OrderForm({ formId, order, onSubmit }: OrderFormProps) {
         return
       }
 
-      const created = addProduct(parsed)
-      updateLine(quickAdd.lineIndex, {
-        productName: created.name,
-        unitPrice: created.salePrice,
-      })
-      setQuickAdd(null)
-      toast.success("Product added.")
+      try {
+        const created = await addProduct(parsed)
+        updateLine(quickAdd.lineIndex, {
+          productName: created.name,
+          unitPrice: created.salePrice,
+        })
+        setQuickAdd(null)
+        toast.success("Product added.")
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not save product.")
+      }
     },
     [addProduct, products, quickAdd, updateLine]
   )
@@ -194,15 +202,16 @@ export function OrderForm({ formId, order, onSubmit }: OrderFormProps) {
         <input type="hidden" name="customerName" value={customerName} required />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${formId}-invoiceNumber`}>Invoice number</Label>
-            <Input
-              id={`${formId}-invoiceNumber`}
-              name="invoiceNumber"
-              defaultValue={order.invoiceNumber}
-              placeholder="INV-1006"
-            />
-          </div>
+          <DocumentNumberField
+            id={`${formId}-invoiceNumber`}
+            name="invoiceNumber"
+            label="Invoice number"
+            value={order.invoiceNumber}
+            settings={numberSettings.sales}
+            isNew={isNew}
+            placeholder="INV-1006"
+            autoHint="Auto-generated"
+          />
           <div className="flex flex-col gap-2">
             <Label htmlFor={`${formId}-orderDate`}>Order date</Label>
             <Input

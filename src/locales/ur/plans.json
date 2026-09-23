@@ -14,6 +14,13 @@
   "dayOf": "دن {{day}} از {{total}}",
   "endsDate": "ختم {{date}}",
   "extensionPending": "توسیع کی درخواست زیر التوا ہے",
+  "banner": {
+    "label": "مفت ٹرائل",
+    "remaining": "{{count}} دن باقی",
+    "lastDay": "ٹرائل کا آخری دن",
+    "ends": "{{date}} کو ختم",
+    "viewPlans": "پلانز دیکھیں"
+  },
   "admin": {
     "title": "سپر ایڈمن",
     "trialRequests": "ٹرائل درخواستیں ({{count}} زیر التوا)",

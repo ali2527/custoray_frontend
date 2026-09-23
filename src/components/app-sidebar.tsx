@@ -40,6 +40,7 @@ import { CompanySwitcher } from "@/components/company-switcher"
 import { PlanStatusCard } from "@/components/saas/plan-status-card"
 import { Sidebar, SidebarContent, SidebarFooter, SidebarHeader, useSidebar } from "@/components/ui/sidebar";
 import { useAuth } from "@/context/auth-context"
+import { useCatalogFieldSettings } from "@/hooks/use-catalog-field-settings"
 import { cn } from "@/lib/utils"
 
 type NavKey =
@@ -57,6 +58,9 @@ type NavKey =
   | "sidebar.payments"
   | "sidebar.customerPayments"
   | "sidebar.vendorPayments"
+  | "sidebar.expenses"
+  | "sidebar.allExpenses"
+  | "sidebar.expenseTypes"
   | "sidebar.documents"
   | "sidebar.salesInvoice"
   | "sidebar.purchaseInvoice"
@@ -66,6 +70,7 @@ type NavKey =
   | "sidebar.salesHistory"
   | "sidebar.returnsHistory"
   | "sidebar.reports"
+  | "sidebar.analytics"
   | "sidebar.settings"
   | "sidebar.employees"
   | "sidebar.team"
@@ -153,6 +158,16 @@ const navMain: NavDef[] = [
     ],
   },
   {
+    id: "expenses",
+    titleKey: "sidebar.expenses",
+    url: "/expenses",
+    icon: Wallet,
+    items: [
+      { titleKey: "sidebar.allExpenses", url: "/expenses", icon: Receipt },
+      { titleKey: "sidebar.expenseTypes", url: "/expenses/types", icon: Tag },
+    ],
+  },
+  {
     id: "documents",
     titleKey: "sidebar.documents",
     url: "/documents/sales-invoice",
@@ -205,7 +220,7 @@ const navMain: NavDef[] = [
   },
   {
     id: "reports",
-    titleKey: "sidebar.reports",
+    titleKey: "sidebar.analytics",
     url: "#",
     icon: FileBarChart,
     items: [
@@ -245,6 +260,7 @@ function SidebarBrand() {
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { canAdmin } = useAuth()
   const { t } = useTranslation("nav")
+  const { settings: catalogTables } = useCatalogFieldSettings()
   const navItems = React.useMemo(
     () =>
       navMain
@@ -253,13 +269,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           title: t(item.titleKey),
           url: item.url,
           icon: item.icon,
-          items: item.items?.map((sub) => ({
-            title: t(sub.titleKey),
-            url: sub.url,
-            icon: sub.icon,
-          })),
+          items: item.items
+            ?.filter((sub) => {
+              if (sub.url === "/inventory/brands") return catalogTables.brand
+              if (sub.url === "/inventory/categories") return catalogTables.category
+              if (sub.url === "/inventory/variants") return catalogTables.variant
+              return true
+            })
+            .map((sub) => ({
+              title: t(sub.titleKey),
+              url: sub.url,
+              icon: sub.icon,
+            })),
         })),
-    [canAdmin, t]
+    [canAdmin, catalogTables, t]
   )
   const [isRtl, setIsRtl] = React.useState(false)
 

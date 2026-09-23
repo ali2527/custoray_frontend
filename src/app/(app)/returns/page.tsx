@@ -38,8 +38,20 @@ import {
   type BillItemViewMode,
 } from "@/lib/app-preferences"
 import { confirmDeleteAction } from "@/lib/confirm-action"
-import { formatDate, formatMoney, type ReturnRow } from "@/lib/returns"
+import { buildSampleCsv } from "@/lib/csv"
 import {
+  flattenReturnForExport,
+  formatDate,
+  formatMoney,
+  importReturnsFromRows,
+  RETURN_IMPORT_COLUMNS,
+  RETURN_IMPORT_SAMPLE_ROW,
+  RETURN_STATUSES,
+  RETURN_TYPES,
+  type ReturnRow,
+} from "@/lib/returns"
+import {
+  flattenReturnLineForExport,
   flattenReturnsToLines,
   type ReturnLineReportRow,
 } from "@/lib/returns-report"
@@ -55,6 +67,37 @@ function returnLineTabFilter(row: ReturnLineReportRow, tab: string) {
   if (tab === "sales" || tab === "purchase") return row.type === tab
   if (tab === "pending" || tab === "completed") return row.returnStatus === tab
   return true
+}
+
+function textFilterMeta(label: string) {
+  return { dataTableFilterVariant: "text" as const, dataTableFilterLabel: label }
+}
+
+function rangeFilterMeta(label: string) {
+  return { dataTableFilterVariant: "range" as const, dataTableFilterLabel: label }
+}
+
+function typeFilterMeta(t: TFunction<"returns">) {
+  return {
+    dataTableFilterVariant: "select" as const,
+    dataTableFilterLabel: t("columns.type"),
+    dataTableFilterSelectLabels: {
+      sales: t("type.sales"),
+      purchase: t("type.purchase"),
+    },
+  }
+}
+
+function statusFilterMeta(t: TFunction<"returns">) {
+  return {
+    dataTableFilterVariant: "select" as const,
+    dataTableFilterLabel: t("columns.status"),
+    dataTableFilterSelectLabels: {
+      pending: t("status.pending", { ns: "common" }),
+      completed: t("status.completed", { ns: "common" }),
+      cancelled: t("status.cancelled", { ns: "common" }),
+    },
+  }
 }
 
 function statusBadgeClass(status: ReturnRow["status"]) {
@@ -136,6 +179,7 @@ function getReturnBillColumns(
         </button>
       ),
       enableHiding: false,
+      meta: textFilterMeta(t("columns.returnNumber")),
     },
     {
       accessorKey: "type",
@@ -145,12 +189,14 @@ function getReturnBillColumns(
       cell: ({ row }) => (
         <span>{t(`type.${row.original.type}`)}</span>
       ),
+      meta: typeFilterMeta(t),
     },
     {
       accessorKey: "referenceNumber",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("columns.reference")} />
       ),
+      meta: textFilterMeta(t("columns.reference")),
     },
     {
       accessorKey: "partyName",
@@ -160,6 +206,7 @@ function getReturnBillColumns(
       cell: ({ row }) => (
         <span className="max-w-[10rem] truncate">{row.original.partyName}</span>
       ),
+      meta: textFilterMeta(t("columns.party")),
     },
     {
       accessorKey: "returnDate",
@@ -171,6 +218,7 @@ function getReturnBillColumns(
           {formatDate(row.original.returnDate)}
         </span>
       ),
+      meta: textFilterMeta(t("columns.date")),
     },
     {
       accessorKey: "totalAmount",
@@ -182,6 +230,7 @@ function getReturnBillColumns(
           {formatMoney(row.original.totalAmount)}
         </div>
       ),
+      meta: rangeFilterMeta(t("columns.returnAmt")),
     },
     {
       accessorKey: "refundDue",
@@ -199,6 +248,7 @@ function getReturnBillColumns(
           )}
         </div>
       ),
+      meta: rangeFilterMeta(t("columns.refundDue")),
     },
     {
       accessorKey: "balanceDue",
@@ -216,6 +266,7 @@ function getReturnBillColumns(
           )}
         </div>
       ),
+      meta: rangeFilterMeta(t("columns.balanceDue")),
     },
     {
       accessorKey: "status",
@@ -227,6 +278,7 @@ function getReturnBillColumns(
           {t(`status.${row.original.status}`, { ns: "common" })}
         </Badge>
       ),
+      meta: statusFilterMeta(t),
     },
     {
       id: "actions",
@@ -277,6 +329,7 @@ function getReturnLineColumns(
           {row.original.returnNumber}
         </button>
       ),
+      meta: textFilterMeta(t("columns.returnNumber")),
     },
     {
       accessorKey: "type",
@@ -284,12 +337,14 @@ function getReturnLineColumns(
         <DataTableColumnHeader column={column} title={t("columns.type")} />
       ),
       cell: ({ row }) => <span>{t(`type.${row.original.type}`)}</span>,
+      meta: typeFilterMeta(t),
     },
     {
       accessorKey: "referenceNumber",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("columns.reference")} />
       ),
+      meta: textFilterMeta(t("columns.reference")),
     },
     {
       accessorKey: "productName",
@@ -299,6 +354,7 @@ function getReturnLineColumns(
       cell: ({ row }) => (
         <span className="max-w-[14rem] truncate">{row.original.productName}</span>
       ),
+      meta: textFilterMeta(t("columns.item")),
     },
     {
       accessorKey: "quantity",
@@ -308,6 +364,7 @@ function getReturnLineColumns(
       cell: ({ row }) => (
         <div className="flex justify-center tabular-nums">{row.original.quantity}</div>
       ),
+      meta: rangeFilterMeta(t("columns.qty")),
     },
     {
       accessorKey: "lineTotal",
@@ -319,6 +376,7 @@ function getReturnLineColumns(
           {formatMoney(row.original.lineTotal)}
         </div>
       ),
+      meta: rangeFilterMeta(t("columns.lineTotal")),
     },
     {
       accessorKey: "refundDue",
@@ -336,6 +394,19 @@ function getReturnLineColumns(
           )}
         </div>
       ),
+      meta: rangeFilterMeta(t("columns.refundDue")),
+    },
+    {
+      accessorKey: "returnStatus",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("columns.status")} />
+      ),
+      cell: ({ row }) => (
+        <Badge variant="outline" className={statusBadgeClass(row.original.returnStatus)}>
+          {t(`status.${row.original.returnStatus}`, { ns: "common" })}
+        </Badge>
+      ),
+      meta: statusFilterMeta(t),
     },
     {
       id: "actions",
@@ -369,7 +440,7 @@ function getReturnLineColumns(
 
 export default function ReturnsPage() {
   const { t } = useTranslation("returns")
-  const { returns, removeReturn } = useReturns()
+  const { returns, setReturns, removeReturn } = useReturns()
   const [viewMode, setViewMode] = useState<BillItemViewMode>("item")
   const [viewReturn, setViewReturn] = useState<ReturnRow | null>(null)
   const [viewLine, setViewLine] = useState<ReturnLineReportRow | null>(null)
@@ -410,6 +481,24 @@ export default function ReturnsPage() {
       if (row) await handleDelete(row)
     },
     [returns, handleDelete]
+  )
+
+  const handleImportReturns = useCallback(
+    (rows: Record<string, string>[]) => {
+      let added = 0
+      setReturns((prev) => {
+        const created = importReturnsFromRows(rows, prev)
+        added = created.length
+        return added > 0 ? [...prev, ...created] : prev
+      })
+      return added
+    },
+    [setReturns]
+  )
+
+  const returnImportSampleCsv = useMemo(
+    () => buildSampleCsv([...RETURN_IMPORT_COLUMNS], RETURN_IMPORT_SAMPLE_ROW),
+    []
   )
 
   const tableOptions = useMemo(
@@ -488,10 +577,20 @@ export default function ReturnsPage() {
         <DataTable
           data={returns}
           columns={billColumns}
+          settingsKey="returns-bills"
           searchPlaceholder={t("search.bills")}
           exportFilename="returns-export.csv"
           showAddButton={false}
-          showImportButton={false}
+          importSampleFilename="returns-sample.csv"
+          importSampleCsvContent={returnImportSampleCsv}
+          importColumns={[...RETURN_IMPORT_COLUMNS]}
+          importSelectColumns={{
+            type: [...RETURN_TYPES],
+            status: [...RETURN_STATUSES],
+          }}
+          importRequiredSelectColumns={[]}
+          onImportRows={handleImportReturns}
+          exportRowTransform={flattenReturnForExport}
           tableOptionsExtra={tableOptions}
           tabs={returnTabs}
           defaultTab="all"
@@ -501,10 +600,20 @@ export default function ReturnsPage() {
         <DataTable
           data={returnLines}
           columns={lineColumns}
+          settingsKey="returns-items"
           searchPlaceholder={t("search.items")}
           exportFilename="return-lines-export.csv"
           showAddButton={false}
-          showImportButton={false}
+          importSampleFilename="returns-sample.csv"
+          importSampleCsvContent={returnImportSampleCsv}
+          importColumns={[...RETURN_IMPORT_COLUMNS]}
+          importSelectColumns={{
+            type: [...RETURN_TYPES],
+            status: [...RETURN_STATUSES],
+          }}
+          importRequiredSelectColumns={[]}
+          onImportRows={handleImportReturns}
+          exportRowTransform={flattenReturnLineForExport}
           tableOptionsExtra={tableOptions}
           tabs={returnTabs}
           defaultTab="all"

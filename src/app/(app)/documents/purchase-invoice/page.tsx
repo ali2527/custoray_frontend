@@ -282,7 +282,7 @@ export default function PurchaseInvoicePage() {
       }
       toast.message(t("toasts.removedNamed", { name: purchase.purchaseNumber }))
     },
-    [removePurchase, sidebar]
+    [removePurchase, sidebar, t]
   )
 
   const handleDuplicate = useCallback(
@@ -298,7 +298,7 @@ export default function PurchaseInvoicePage() {
       const copy = duplicatePurchase(purchase.id)
       if (copy) toast.success(t("toasts.duplicatedNamed", { name: purchase.purchaseNumber }))
     },
-    [duplicatePurchase]
+    [duplicatePurchase, t]
   )
 
   const handleSubmit = useCallback(
@@ -333,7 +333,7 @@ export default function PurchaseInvoicePage() {
         closeSidebar()
       }
     },
-    [sidebar, addPurchase, updatePurchase]
+    [sidebar, addPurchase, updatePurchase, t]
   )
 
   const columns = useMemo(
@@ -415,6 +415,7 @@ export default function PurchaseInvoicePage() {
                   <PurchaseForm
                     formId={formId}
                     purchase={formPurchase}
+                    isNew={sidebar.mode === "add"}
                     onSubmit={handleSubmit}
                   />
                 ) : null}

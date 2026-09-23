@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react
 import { IconPlus, IconTrash } from "@tabler/icons-react"
 import { toast } from "sonner"
 
+import { DocumentNumberField } from "@/components/document-number-field"
 import { ProductQuickForm } from "@/components/inventory/product-quick-form"
 import { VendorQuickAddSheet } from "@/components/vendors/vendor-quick-add-sheet"
 import { Button } from "@/components/ui/button"
@@ -20,7 +21,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useProducts } from "@/context/products-context"
 import { useVendors } from "@/context/vendors-context"
+import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
 import { formatMoney } from "@/lib/customers"
+import {
+  findVendorBySelectValue,
+  vendorSelectValue,
+} from "@/lib/vendors"
 import { EMPTY_PRODUCT, nextSku, productFromFormData } from "@/lib/products"
 import {
   computeLineTotal,
@@ -32,6 +38,7 @@ import {
 type PurchaseFormProps = {
   formId: string
   purchase: PurchaseRow
+  isNew?: boolean
   onSubmit: (e: FormEvent<HTMLFormElement>) => void
 }
 
@@ -50,11 +57,14 @@ function emptyLine(id: number): PurchaseLineRow {
   }
 }
 
-function resolveVendorId(vendors: { id: number; name: string }[], name: string) {
+function resolveVendorId(
+  vendors: { id: number; apiId?: string; name: string }[],
+  name: string
+) {
   const normalized = name.trim()
   if (!normalized || normalized === "—") return ""
   const match = vendors.find((vendor) => vendor.name === normalized)
-  return match ? String(match.id) : ""
+  return match ? vendorSelectValue(match) : ""
 }
 
 function resolveProductId(products: { id: number; name: string }[], name: string) {
@@ -64,7 +74,13 @@ function resolveProductId(products: { id: number; name: string }[], name: string
   return match ? String(match.id) : ""
 }
 
-export function PurchaseForm({ formId, purchase, onSubmit }: PurchaseFormProps) {
+export function PurchaseForm({
+  formId,
+  purchase,
+  isNew = false,
+  onSubmit,
+}: PurchaseFormProps) {
+  const { settings: numberSettings } = useDocumentNumberSettings()
   const { vendors } = useVendors()
   const { products, addProduct } = useProducts()
 
@@ -85,7 +101,7 @@ export function PurchaseForm({ formId, purchase, onSubmit }: PurchaseFormProps) 
 
   const vendorName = useMemo(() => {
     if (!vendorId) return ""
-    const vendor = vendors.find((item) => String(item.id) === vendorId)
+    const vendor = findVendorBySelectValue(vendors, vendorId)
     return vendor?.name ?? ""
   }, [vendorId, vendors])
 
@@ -94,7 +110,7 @@ export function PurchaseForm({ formId, purchase, onSubmit }: PurchaseFormProps) 
   const vendorOptions = useMemo(
     () =>
       vendors.map((vendor) => ({
-        value: String(vendor.id),
+        value: vendorSelectValue(vendor),
         label: vendor.name,
         description: vendor.phone !== "—" ? vendor.phone : vendor.description,
       })),
@@ -156,13 +172,13 @@ export function PurchaseForm({ formId, purchase, onSubmit }: PurchaseFormProps) 
     [products, updateLine]
   )
 
-  const handleVendorCreated = useCallback((created: { id: number }) => {
-    setVendorId(String(created.id))
+  const handleVendorCreated = useCallback((created: { id: number; apiId?: string }) => {
+    setVendorId(vendorSelectValue(created))
     setQuickAdd(null)
   }, [])
 
   const handleAddProduct = useCallback(
-    (e: FormEvent<HTMLFormElement>) => {
+    async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault()
       if (quickAdd?.type !== "product") return
 
@@ -173,13 +189,17 @@ export function PurchaseForm({ formId, purchase, onSubmit }: PurchaseFormProps) 
         return
       }
 
-      const created = addProduct(parsed)
-      updateLine(quickAdd.lineIndex, {
-        productName: created.name,
-        unitPrice: created.costPrice,
-      })
-      setQuickAdd(null)
-      toast.success("Product added.")
+      try {
+        const created = await addProduct(parsed)
+        updateLine(quickAdd.lineIndex, {
+          productName: created.name,
+          unitPrice: created.costPrice,
+        })
+        setQuickAdd(null)
+        toast.success("Product added.")
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Could not save product.")
+      }
     },
     [addProduct, products, quickAdd, updateLine]
   )
@@ -193,15 +213,16 @@ export function PurchaseForm({ formId, purchase, onSubmit }: PurchaseFormProps) 
         <input type="hidden" name="vendorName" value={vendorName} required />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor={`${formId}-purchaseNumber`}>Purchase #</Label>
-            <Input
-              id={`${formId}-purchaseNumber`}
-              name="purchaseNumber"
-              defaultValue={purchase.purchaseNumber}
-              placeholder="PO-2006"
-            />
-          </div>
+          <DocumentNumberField
+            id={`${formId}-purchaseNumber`}
+            name="purchaseNumber"
+            label="Purchase #"
+            value={purchase.purchaseNumber}
+            settings={numberSettings.purchases}
+            isNew={isNew}
+            placeholder="PO-2006"
+            autoHint="Auto-generated"
+          />
           <div className="flex flex-col gap-2">
             <Label htmlFor={`${formId}-purchaseDate`}>Purchase date</Label>
             <Input

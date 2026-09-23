@@ -596,3 +596,73 @@ html:has([data-font='lg']) {
 html:has([data-font='xl']) {
   --app-font-size: 1.25rem;
 }
+
+.ant-tour .ant-tour-inner {
+  border-radius: 16px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18);
+  font-family: inherit;
+}
+
+.ant-tour .ant-tour-header .ant-tour-title {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.ant-tour .ant-tour-description {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--muted-foreground);
+}
+
+.ant-tour .ant-tour-buttons .ant-btn {
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+@keyframes setup-step-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.22);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes setup-bar-shine {
+  0% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(180%);
+  }
+}
+
+@keyframes setup-connector-fill {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+.setup-step-pop {
+  animation: setup-step-pop 0.55s ease;
+}
+
+.setup-bar-shine {
+  animation: setup-bar-shine 0.85s ease-out;
+}
+
+.setup-connector-run {
+  transform-origin: left;
+  animation: setup-connector-fill 0.6s ease-out forwards;
+}
+
+[dir="rtl"] .setup-connector-run {
+  transform-origin: right;
+}

@@ -8,13 +8,6 @@ import {
 
 export const AUTH_SESSION_KEY = "custoray-auth-session-v1"
 
-/** Demo business owner — replace with real auth when backend is ready. */
-export const DEMO_ADMIN = {
-  email: "admin@custoray.com",
-  password: "admin123",
-  name: "Business Admin",
-} as const
-
 export type AuthSession = {
   userId: string
   name: string
@@ -23,6 +16,7 @@ export type AuthSession = {
   employeeId: number | null
   permissions: EmployeePermissions
   designation?: string
+  tenantId?: string
 }
 
 /** Full-access demo session when no one is signed in. */
@@ -79,21 +73,6 @@ export function authenticateCredentials(
   password: string
 ): AuthSession | null {
   const normalized = email.trim().toLowerCase()
-
-  if (
-    normalized === DEMO_ADMIN.email &&
-    password === DEMO_ADMIN.password
-  ) {
-    return {
-      userId: "admin",
-      name: DEMO_ADMIN.name,
-      email: DEMO_ADMIN.email,
-      isAdmin: true,
-      employeeId: null,
-      permissions: FULL_PERMISSIONS,
-      designation: "Owner",
-    }
-  }
 
   const employees =
     parsePersistedEmployees(

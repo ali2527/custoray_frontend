@@ -50,11 +50,11 @@ export function CompanySwitcher() {
     return null
   }
 
-  const handleSwitch = async (tenantId: string) => {
-    if (tenantId === activeCompany.id) return
+  const handleSwitch = async (companyId: string) => {
+    if (companyId === activeCompany.id) return
     try {
       setPending(true)
-      await switchCompany(tenantId)
+      await switchCompany(companyId)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("companySwitcher.couldNotSwitch"))
       setPending(false)

@@ -21,6 +21,22 @@
     "email": "ای میل",
     "status": "حیثیت"
   },
+  "fields": {
+    "name": "گاہک کا نام",
+    "namePlaceholder": "کمپنی یا شخص",
+    "description": "تفصیل",
+    "descriptionPlaceholder": "نوٹس، شرائط، سیگمنٹ…",
+    "openingBalance": "ابتدائی بیلنس",
+    "phone": "فون نمبر",
+    "phonePlaceholder": "+92 300 1234567",
+    "status": "حیثیت"
+  },
+  "images": {
+    "photo": "گاہک کی تصویر",
+    "upload": "گاہک کی تصویر اپ لوڈ کریں",
+    "change": "گاہک کی تصویر تبدیل کریں",
+    "remove": "گاہک کی تصویر ہٹائیں"
+  },
   "actions": {
     "view": "دیکھیں",
     "edit": "ترمیم",
@@ -29,7 +45,9 @@
     "openMenu": "مینو کھولیں",
     "deleteSelected": "منتخب حذف کریں",
     "viewRecord": "ریکارڈ دیکھیں",
-    "viewTimeline": "ٹائم لائن دیکھیں"
+    "viewTimeline": "ٹائم لائن دیکھیں",
+    "setActive": "فعال کریں",
+    "setInactive": "غیر فعال کریں"
   },
   "record": "گاہک کا ریکارڈ",
   "timeline": {
@@ -43,22 +61,118 @@
     "balance": "بیلنس",
     "return": "واپسی",
     "returnAmount": "واپسی کی رقم",
-    "itemCount": "{{count}} آئٹمز"
+    "itemCount": "{{count}} آئٹمز",
+    "search": "بل اور واپسی تلاش کریں…",
+    "emptyFiltered": "ان فلٹرز سے کوئی ریکارڈ نہیں ملا۔",
+    "typeInvoice": "بل",
+    "typeReturn": "واپسی",
+    "filters": {
+      "allTypes": "تمام اقسام",
+      "allStatuses": "تمام حیثیتیں",
+      "allMonths": "تمام مہینے",
+      "status": "حیثیت",
+      "month": "مہینہ"
+    },
+    "summary": {
+      "total": "کل",
+      "credit": "کریڈٹ",
+      "remaining": "باقی",
+      "balance": "بیلنس"
+    },
+    "tabs": {
+      "all": "تمام",
+      "invoices": "بل",
+      "returns": "واپسیاں"
+    },
+    "columns": {
+      "date": "تاریخ",
+      "type": "قسم",
+      "document": "دستاویز",
+      "details": "تفصیلات",
+      "number": "نمبر",
+      "reference": "حوالہ",
+      "description": "تفصیل",
+      "amount": "رقم",
+      "paid": "ادا شدہ",
+      "balance": "واجب",
+      "running": "چلتا بیلنس",
+      "status": "حیثیت",
+      "month": "مہینہ",
+      "items": "آئٹمز"
+    },
+    "recordCount": "{{count}} ریکارڈز",
+    "exportRange": {
+      "label": "برآمد کی مدت",
+      "all": "تمام تاریخیں",
+      "months": "مہینے",
+      "dates": "تاریخیں",
+      "fromMonth": "مہینہ سے",
+      "toMonth": "مہینہ تک",
+      "fromDate": "تاریخ سے",
+      "toDate": "تاریخ تک",
+      "hintAll": "ہر مماثل بل اور واپسی برآمد کریں۔",
+      "hintMonths": "پہلے مہینے کی شروعات سے آخری مہینے کے آخر تک برآمد کریں۔",
+      "hintDates": "ان تاریخوں پر اور ان کے درمیان کے ریکارڈ برآمد کریں۔",
+      "preview": "{{count}} ریکارڈز · {{months}} مہینے",
+      "previewEmpty": "اس مدت میں کوئی ریکارڈ نہیں۔"
+    },
+    "export": {
+      "title": "گوشوارہ برآمد کریں",
+      "description": "مدت منتخب کریں، پھر PDF گوشوارہ، Excel ورک بک، CSV یا JSON ڈاؤن لوڈ کریں۔",
+      "xlsx": "Excel",
+      "xlsxDesc": "خلاصہ، لیجر، اور ہر مہینے کے لیے شیٹ والی ورک بک",
+      "csv": "CSV",
+      "csvDesc": "تاریخوں، رقوم اور آئٹمز کے ساتھ اسپریڈشیٹ قطاریں",
+      "json": "JSON",
+      "jsonDesc": "دیگر سسٹمز کے لیے منظم ریکارڈز",
+      "ledger": "لیجر"
+    },
+    "report": {
+      "title": "گاہک کا گوشوارہ",
+      "generated": "تیار کیا گیا",
+      "period": "مدت",
+      "customer": "بل برائے",
+      "phone": "فون",
+      "item": "آئٹم",
+      "qty": "تعداد",
+      "rate": "شرح",
+      "lineAmount": "رقم",
+      "html": "PDF",
+      "htmlDesc": "آئٹمز اور ماہانہ کل کے ساتھ تفصیلی PDF گوشوارہ",
+      "pdf": "PDF",
+      "pdfDesc": "آئٹمز اور ماہانہ کل کے ساتھ تفصیلی PDF گوشوارہ"
+    }
   },
   "sheet": {
     "add": "گاہک شامل کریں",
     "edit": "گاہک میں ترمیم",
-    "addDescription": "گاہک کی تفصیلات اور تصویر درج کریں۔ محفوظ کرنا صرف ڈیمو ہے۔",
+    "addDescription": "گاہک کی تفصیلات اور تصویر درج کریں۔",
+    "quickAddDescription": "گاہک بنائیں اور اسے اس فارم پر منتخب کریں۔",
     "create": "گاہک بنائیں",
     "save": "گاہک محفوظ کریں"
   },
+  "viewSheet": {
+    "noPhoto": "گاہک کی تصویر نہیں",
+    "account": "اکاؤنٹ",
+    "details": "تفصیلات",
+    "recent": "حالیہ سرگرمی",
+    "viewAll": "سب دیکھیں",
+    "outstanding": "واجب الادا",
+    "credit": "کریڈٹ",
+    "settled": "تصفیہ شدہ",
+    "idLabel": "آئی ڈی {{id}}"
+  },
   "toasts": {
-    "removedNamed": "{{name}} ہٹا دیا گیا (ڈیمو)۔",
-    "duplicatedNamed": "{{name}} کی نقل بن گئی (ڈیمو)۔",
+    "removedNamed": "{{name}} ہٹا دیا گیا۔",
+    "duplicatedNamed": "{{name}} کی نقل بن گئی۔",
     "nameRequired": "گاہک کا نام درکار ہے۔",
-    "created": "گاہک بن گیا (ڈیمو)۔",
-    "saved": "گاہک محفوظ ہو گیا (ڈیمو)۔",
-    "removedCount": "{{count}} گاہک ہٹا دیے گئے (ڈیمو)۔"
+    "created": "گاہک بن گیا۔",
+    "saved": "گاہک محفوظ ہو گیا۔",
+    "saveFailed": "گاہک محفوظ نہیں ہو سکا۔",
+    "removedCount": "{{count}} گاہک ہٹا دیے گئے۔",
+    "importPartial": "{{added}} درآمد ہوئے، {{failed}} درآمد نہیں ہو سکے۔",
+    "setActiveCount": "{{count}} فعال ہو گئے۔",
+    "setInactiveCount": "{{count}} غیر فعال ہو گئے۔"
   },
   "entity": {
     "customer": "گاہک"

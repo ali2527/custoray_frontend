@@ -14,6 +14,13 @@
   "dayOf": "Day {{day}} of {{total}}",
   "endsDate": "ends {{date}}",
   "extensionPending": "Extension request pending",
+  "banner": {
+    "label": "Free trial",
+    "remaining": "{{count}} days remaining",
+    "lastDay": "Last day of your trial",
+    "ends": "Ends {{date}}",
+    "viewPlans": "View plans"
+  },
   "admin": {
     "title": "Super Admin",
     "trialRequests": "Trial requests ({{count}} pending)",

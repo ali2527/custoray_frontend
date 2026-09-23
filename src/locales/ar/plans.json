@@ -14,6 +14,13 @@
   "dayOf": "اليوم {{day}} من {{total}}",
   "endsDate": "تنتهي {{date}}",
   "extensionPending": "طلب التمديد قيد الانتظار",
+  "banner": {
+    "label": "تجربة مجانية",
+    "remaining": "تبقّى {{count}} يوماً",
+    "lastDay": "اليوم الأخير من التجربة",
+    "ends": "تنتهي {{date}}",
+    "viewPlans": "عرض الباقات"
+  },
   "admin": {
     "title": "المسؤول الأعلى",
     "trialRequests": "طلبات التجربة ({{count}} معلّقة)",

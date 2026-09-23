@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useState, type FormEvent } from "react"
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import {
   IconBan,
@@ -14,8 +14,8 @@ import {
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "i18next"
-import i18n from "@/i18n"
 
+import { CatalogTablePageGuard } from "@/components/inventory/catalog-field-table-settings"
 import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTable, type DataTableTab } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { PageLoader } from "@/components/ui/page-loader"
 import {
   Sheet,
   SheetClose,
@@ -39,78 +40,23 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { confirmDeleteAction } from "@/lib/confirm-action"
+import { buildSampleCsv } from "@/lib/csv"
+import {
+  CATALOG_IMPORT_COLUMNS,
+  CATEGORY_IMPORT_SAMPLE_ROW,
+  CATALOG_STATUS_OPTIONS,
+  catalogErrorMessage,
+  catalogTabFilter,
+  catalogTabValues,
+  mapImportedCatalogWrite,
+  type CatalogRow,
+} from "@/lib/inventory-catalog-rows"
+import { useInventoryCategories } from "@/hooks/use-inventory-catalog"
 
-type CategoryRow = {
-  id: number
-  name: string
-  description: string
-  products: number
-  status: "active" | "inactive"
-}
-
-const initialCategories: CategoryRow[] = [
-  {
-    id: 1,
-    name: "Electronics",
-    description: "Devices and electronic goods",
-    products: 42,
-    status: "active",
-  },
-  {
-    id: 2,
-    name: "Accessories",
-    description: "Daily-use add-ons and attachments",
-    products: 28,
-    status: "active",
-  },
-  {
-    id: 3,
-    name: "Furniture",
-    description: "Desks, stands and office furniture",
-    products: 11,
-    status: "inactive",
-  },
-  {
-    id: 4,
-    name: "Office supplies",
-    description: "Paper, pens, and consumables",
-    products: 6,
-    status: "inactive",
-  },
-]
-
-const categoryTabValues = ["all", "active", "inactive"] as const
-
-function categoryTabFilter(row: CategoryRow, tab: string) {
-  if (tab === "all") return true
-  if (tab === "active") return row.status === "active"
-  if (tab === "inactive") return row.status === "inactive"
-  return true
-}
-
-function mapImportedCategory(
-  row: Record<string, string>,
-  existing: CategoryRow[]
-): CategoryRow | null {
-  const maxId = existing.reduce((m, x) => Math.max(m, x.id), 0)
-  const id = Number(row.id)
-  const finalId = Number.isFinite(id) && id > 0 ? id : maxId + 1
-  const name = (row.name ?? "").trim()
-  if (!name) return null
-  const statusRaw = (row.status ?? "active").toLowerCase()
-  const status = statusRaw === "inactive" ? "inactive" : "active"
-
-  return {
-    id: finalId,
-    name,
-    description: (row.description ?? "").trim() || i18n.t("noDescription", { ns: "inventory" }),
-    products: Number(row.products) || 0,
-    status,
-  }
-}
-
-const EMPTY_CATEGORY: CategoryRow = {
-  id: 0,
+const EMPTY_CATEGORY: CatalogRow = {
+  id: "",
+  srNo: 0,
   name: "",
   description: "",
   products: 0,
@@ -118,17 +64,17 @@ const EMPTY_CATEGORY: CategoryRow = {
 }
 
 type CategorySidebar =
-  | { mode: "view"; category: CategoryRow }
-  | { mode: "edit"; category: CategoryRow }
+  | { mode: "view"; category: CatalogRow }
+  | { mode: "edit"; category: CatalogRow }
   | { mode: "add" }
   | null
 
 function getCategoryColumns(
   t: TFunction<"inventory">,
-  openSidebar: (row: CategoryRow, mode: "view" | "edit") => void,
-  onDelete: (row: CategoryRow) => void,
-  onDuplicate: (row: CategoryRow) => void
-): ColumnDef<CategoryRow>[] {
+  openSidebar: (row: CatalogRow, mode: "view" | "edit") => void,
+  onDelete: (row: CatalogRow) => void,
+  onDuplicate: (row: CatalogRow) => void
+): ColumnDef<CatalogRow>[] {
   return [
     {
       id: "select",
@@ -157,13 +103,13 @@ function getCategoryColumns(
       enableHiding: false,
     },
     {
-      accessorKey: "id",
+      accessorKey: "srNo",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("columns.id")} />
       ),
       cell: ({ row }) => (
         <span className="text-muted-foreground font-mono tabular-nums">
-          {row.original.id}
+          {row.original.srNo}
         </span>
       ),
       meta: { dataTableFilter: false },
@@ -268,46 +214,91 @@ function getCategoryColumns(
 }
 
 export default function CategoriesPage() {
+  return (
+    <CatalogTablePageGuard table="category">
+      <CategoriesPageContent />
+    </CatalogTablePageGuard>
+  )
+}
+
+function CategoriesPageContent() {
   const { t } = useTranslation("inventory")
-  const [rows, setRows] = useState<CategoryRow[]>(() => [...initialCategories])
+  const {
+    rows,
+    isLoading,
+    isError,
+    error,
+    errorUpdatedAt,
+    create,
+    update,
+    removeMany,
+    setStatus,
+    bulkCreate,
+  } = useInventoryCategories()
   const [sidebar, setSidebar] = useState<CategorySidebar>(null)
   const [formKey, setFormKey] = useState(0)
 
+  useEffect(() => {
+    if (isError) {
+      toast.error(catalogErrorMessage(error, t("toasts.loadFailed")))
+    }
+  }, [error, errorUpdatedAt, isError, t])
+
   const closeSidebar = () => setSidebar(null)
 
-  const handleDelete = useCallback((category: CategoryRow) => {
-    setRows((prev) => prev.filter((r) => r.id !== category.id))
-    setSidebar((s) => (s && "category" in s && s.category.id === category.id ? null : s))
-    toast.message(t("toasts.deletedNamed", { name: category.name }))
-  }, [t])
+  const handleDelete = useCallback(
+    async (category: CatalogRow) => {
+      const ok = await confirmDeleteAction({ itemName: category.name })
+      if (!ok) return
+      try {
+        const result = await removeMany([category.id])
+        if (result.failed > 0) {
+          toast.error(t("toasts.saveFailed"))
+          return
+        }
+        setSidebar((s) =>
+          s && "category" in s && s.category.id === category.id ? null : s
+        )
+        toast.success(t("toasts.deletedNamed", { name: category.name }))
+      } catch (error) {
+        toast.error(catalogErrorMessage(error, t("toasts.saveFailed")))
+      }
+    },
+    [removeMany, t]
+  )
 
-  const handleDuplicate = useCallback((category: CategoryRow) => {
-    setRows((prev) => {
-      const maxId = prev.reduce((m, x) => Math.max(m, x.id), 0)
-      return [
-        ...prev,
-        {
-          id: maxId + 1,
+  const handleDuplicate = useCallback(
+    async (category: CatalogRow) => {
+      try {
+        await create({
           name: `${category.name} (copy)`,
           description: category.description,
-          products: 0,
           status: "active",
-        },
-      ]
-    })
-    toast.success(t("toasts.duplicatedNamed", { name: category.name }))
-  }, [t])
+        })
+        toast.success(t("toasts.duplicatedNamed", { name: category.name }))
+      } catch (error) {
+        toast.error(catalogErrorMessage(error, t("toasts.saveFailed")))
+      }
+    },
+    [create, t]
+  )
 
-  const openSidebar = useCallback((category: CategoryRow, mode: "view" | "edit") => {
+  const openSidebar = useCallback((category: CatalogRow, mode: "view" | "edit") => {
     setSidebar({ mode, category })
   }, [])
 
   const columns = useMemo(
-    () => getCategoryColumns(t, openSidebar, handleDelete, handleDuplicate),
+    () =>
+      getCategoryColumns(
+        t,
+        openSidebar,
+        (row) => void handleDelete(row),
+        (row) => void handleDuplicate(row)
+      ),
     [t, openSidebar, handleDelete, handleDuplicate]
   )
 
-  const categoryTabs: DataTableTab[] = categoryTabValues.map((value) => ({
+  const categoryTabs: DataTableTab[] = catalogTabValues.map((value) => ({
     value,
     label: t(`tabs.${value}`),
   }))
@@ -322,7 +313,7 @@ export default function CategoriesPage() {
         ? `category-edit-${sheetCategory.id}`
         : "category-edit"
 
-  const submitAdd = (e: FormEvent<HTMLFormElement>) => {
+  const submitAdd = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     const fd = new FormData(e.currentTarget)
     const name = String(fd.get("name") ?? "").trim()
@@ -330,25 +321,21 @@ export default function CategoriesPage() {
       toast.error(t("toasts.categoryNameRequired"))
       return
     }
-    setRows((prev) => {
-      const maxId = prev.reduce((m, x) => Math.max(m, x.id), 0)
-      return [
-        ...prev,
-        {
-          id: maxId + 1,
-          name,
-          description: String(fd.get("description") ?? "").trim() || t("noDescription"),
-          products: 0,
-          status: (fd.get("status") as string) === "inactive" ? "inactive" : "active",
-        },
-      ]
-    })
-    toast.success(t("toasts.categoryCreated"))
-    closeSidebar()
-    setFormKey((k) => k + 1)
+    try {
+      await create({
+        name,
+        description: String(fd.get("description") ?? "").trim(),
+        status: String(fd.get("status") ?? "active") === "inactive" ? "inactive" : "active",
+      })
+      toast.success(t("toasts.categoryCreated"))
+      closeSidebar()
+      setFormKey((k) => k + 1)
+    } catch (error) {
+      toast.error(catalogErrorMessage(error, t("toasts.saveFailed")))
+    }
   }
 
-  const submitEdit = (e: FormEvent<HTMLFormElement>) => {
+  const submitEdit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     if (!sheetCategory) return
     const fd = new FormData(e.currentTarget)
@@ -357,21 +344,39 @@ export default function CategoriesPage() {
       toast.error(t("toasts.categoryNameRequired"))
       return
     }
-    setRows((prev) =>
-      prev.map((r) =>
-        r.id === sheetCategory.id
-          ? {
-              ...r,
-              name,
-              description: String(fd.get("description") ?? "").trim() || t("noDescription"),
-              status: (fd.get("status") as string) === "inactive" ? "inactive" : "active",
-            }
-          : r
-      )
-    )
-    toast.success(t("toasts.categorySaved"))
-    closeSidebar()
+    try {
+      await update({
+        id: sheetCategory.id,
+        data: {
+          name,
+          description: String(fd.get("description") ?? "").trim(),
+          status: String(fd.get("status") ?? "active") === "inactive" ? "inactive" : "active",
+        },
+      })
+      toast.success(t("toasts.categorySaved"))
+      closeSidebar()
+    } catch (error) {
+      toast.error(catalogErrorMessage(error, t("toasts.saveFailed")))
+    }
   }
+
+  async function handleImportRows(imported: Record<string, string>[]) {
+    const payload = imported
+      .map((row) => mapImportedCatalogWrite(row, CATALOG_STATUS_OPTIONS))
+      .filter((row): row is NonNullable<typeof row> => row != null)
+      .slice(0, 100)
+    if (payload.length === 0) return 0
+    const res = await bulkCreate(payload)
+    const added = res.added ?? res.items?.length ?? 0
+    const failed =
+      imported.length - payload.length + (res.errors?.length ?? 0)
+    if (failed > 0) {
+      toast.error(t("toasts.importPartial", { added, failed }))
+    }
+    return added
+  }
+
+  if (isLoading) return <PageLoader />
 
   return (
     <>
@@ -403,7 +408,7 @@ export default function CategoriesPage() {
                         {sheetCategory.name}
                         <span className="text-muted-foreground">
                           {" "}
-                          · {t("categoryPage.idLine", { id: sheetCategory.id })}
+                          · {t("categoryPage.idLine", { id: sheetCategory.srNo })}
                         </span>
                       </>
                     ) : null}
@@ -421,7 +426,7 @@ export default function CategoriesPage() {
                   <dl className="space-y-3 text-sm">
                     <div className="grid grid-cols-[7rem_1fr] gap-2">
                       <dt className="text-muted-foreground">{t("fields.id")}</dt>
-                      <dd className="font-medium">{sheetCategory.id}</dd>
+                      <dd className="font-medium">{sheetCategory.srNo}</dd>
                     </div>
                     <div className="grid grid-cols-[7rem_1fr] gap-2">
                       <dt className="text-muted-foreground">{t("fields.category")}</dt>
@@ -516,11 +521,21 @@ export default function CategoriesPage() {
       <DataTable
         data={rows}
         columns={columns}
+        settingsKey="inventory-categories"
+        showColumnFilters={false}
         addButtonLabel={t("categoryPage.addButton")}
         searchPlaceholder={t("categoryPage.search")}
-        importRowMapper={mapImportedCategory}
         importSampleFilename="categories-sample.csv"
+        importSampleCsvContent={buildSampleCsv(
+          [...CATALOG_IMPORT_COLUMNS],
+          CATEGORY_IMPORT_SAMPLE_ROW
+        )}
+        importColumns={[...CATALOG_IMPORT_COLUMNS]}
+        importSelectColumns={{
+          status: [...CATALOG_STATUS_OPTIONS],
+        }}
         exportFilename="categories-export.csv"
+        onImportRows={handleImportRows}
         onAddClick={() => {
           setFormKey((k) => k + 1)
           setSidebar({ mode: "add" })
@@ -531,11 +546,22 @@ export default function CategoriesPage() {
             label: t("actions.setActive"),
             icon: <IconCircleCheck className="size-4" />,
             onClick: (selected) => {
-              const ids = new Set(selected.map((c) => c.id))
-              setRows((prev) =>
-                prev.map((r) => (ids.has(r.id) ? { ...r, status: "active" as const } : r))
-              )
-              toast.message(t("toasts.setActiveCount", { count: selected.length }))
+              void (async () => {
+                const result = await setStatus({
+                  ids: selected.map((row) => row.id),
+                  status: "active",
+                })
+                if (result.failed > 0) {
+                  toast.error(
+                    t("toasts.importPartial", {
+                      added: result.updated,
+                      failed: result.failed,
+                    })
+                  )
+                  return
+                }
+                toast.success(t("toasts.setActiveCount", { count: selected.length }))
+              })()
             },
           },
           {
@@ -543,11 +569,22 @@ export default function CategoriesPage() {
             label: t("actions.setInactive"),
             icon: <IconBan className="size-4" />,
             onClick: (selected) => {
-              const ids = new Set(selected.map((c) => c.id))
-              setRows((prev) =>
-                prev.map((r) => (ids.has(r.id) ? { ...r, status: "inactive" as const } : r))
-              )
-              toast.message(t("toasts.setInactiveCount", { count: selected.length }))
+              void (async () => {
+                const result = await setStatus({
+                  ids: selected.map((row) => row.id),
+                  status: "inactive",
+                })
+                if (result.failed > 0) {
+                  toast.error(
+                    t("toasts.importPartial", {
+                      added: result.updated,
+                      failed: result.failed,
+                    })
+                  )
+                  return
+                }
+                toast.success(t("toasts.setInactiveCount", { count: selected.length }))
+              })()
             },
           },
           {
@@ -556,15 +593,27 @@ export default function CategoriesPage() {
             icon: <IconTrash className="size-4" />,
             variant: "destructive",
             onClick: (selected) => {
-              const ids = new Set(selected.map((c) => c.id))
-              setRows((prev) => prev.filter((r) => !ids.has(r.id)))
-              toast.message(t("toasts.deletedCategories", { count: selected.length }))
+              void (async () => {
+                const ok = await confirmDeleteAction({ count: selected.length })
+                if (!ok) return
+                const result = await removeMany(selected.map((row) => row.id))
+                if (result.failed > 0) {
+                  toast.error(
+                    t("toasts.importPartial", {
+                      added: result.deleted,
+                      failed: result.failed,
+                    })
+                  )
+                  return
+                }
+                toast.success(t("toasts.deletedCategories", { count: selected.length }))
+              })()
             },
           },
         ]}
         tabs={categoryTabs}
         defaultTab="all"
-        tabFilter={categoryTabFilter}
+        tabFilter={catalogTabFilter}
       />
     </>
   )
