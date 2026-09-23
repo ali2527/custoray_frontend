@@ -1,5 +1,7 @@
 const GSI_SRC = "https://accounts.google.com/gsi/client"
 
+import { getGoogleClientId } from "@/lib/google-client-id"
+
 declare global {
   interface Window {
     google?: {
@@ -22,9 +24,7 @@ declare global {
   }
 }
 
-export function getGoogleClientId() {
-  return (process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "").trim()
-}
+export { getGoogleClientId }
 
 export function loadGoogleIdentityServices(): Promise<void> {
   if (typeof window === "undefined") {

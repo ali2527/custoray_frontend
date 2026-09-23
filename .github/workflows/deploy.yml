@@ -1,7 +1,6 @@
 on:
   push:
     branches:
-      - customdev
       - live
 
 name: 🚀 Deploy website on push
@@ -10,29 +9,38 @@ jobs:
   web-deploy:
     name: 🎉 Deploy
     runs-on: ubuntu-latest
-    # Uses GitHub Environment named after the branch (customdev | live)
-    # so SERVER / FTP / DEPLOYMENT_URL stay isolated per environment.
-    environment: ${{ github.ref_name }}
+    environment: live
     steps:
       - name: 🚚 Get latest code
         uses: actions/checkout@v4
 
       - name: Use Node.js 22
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v3
         with:
           node-version: "22"
-          cache: npm
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        id: cache-node-modules
+        with:
+          path: "**/node_modules"
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
 
       - name: 🔨 Install Dependencies
-        run: npm ci --legacy-peer-deps
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: |
+          npm install --legacy-peer-deps
         env:
           NODE_OPTIONS: "--max_old_space_size=8192"
+          CI: false
 
       - name: 🏗 Build Project
         run: npm run build
         env:
           NODE_OPTIONS: "--max_old_space_size=8192"
           CI: false
+          # From GitHub Environment "live" Variables
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID_PROD: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID_PROD }}
 
       - name: 📂 Sync files
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -47,7 +55,7 @@ jobs:
   health-check:
     name: Health Check
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name }}
+    environment: live
     needs: web-deploy
     steps:
       - name: Check the deployed service URLs
