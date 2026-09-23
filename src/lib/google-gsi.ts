@@ -1,9 +1,5 @@
 const GSI_SRC = "https://accounts.google.com/gsi/client"
 
-/** Public OAuth web client ID (safe in the browser). Override with NEXT_PUBLIC_GOOGLE_CLIENT_ID. */
-const DEFAULT_GOOGLE_CLIENT_ID =
-  "443586063307-al3jbtkvpr7sjinm545i5vt4jjjilbjv.apps.googleusercontent.com"
-
 declare global {
   interface Window {
     google?: {
@@ -27,7 +23,7 @@ declare global {
 }
 
 export function getGoogleClientId() {
-  return (process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || DEFAULT_GOOGLE_CLIENT_ID).trim()
+  return (process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "").trim()
 }
 
 export function loadGoogleIdentityServices(): Promise<void> {
