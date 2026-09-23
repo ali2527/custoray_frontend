@@ -1,0 +1,63 @@
+on:
+  push:
+    branches:
+      - customdev
+
+name: 🚀 Deploy website on push
+
+jobs:
+  web-deploy:
+    name: 🎉 Deploy
+    runs-on: ubuntu-latest
+    environment: customdev
+    steps:
+      - name: 🚚 Get latest code
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v3
+        with:
+          node-version: "22"
+
+      - name: Cache npm dependencies
+        uses: actions/cache@v3
+        id: cache-node-modules
+        with:
+          path: "**/node_modules"
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+
+      - name: 🔨 Install Dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: |
+          npm install --legacy-peer-deps
+        env:
+          NODE_OPTIONS: "--max_old_space_size=8192"
+          CI: false
+
+      - name: 🏗 Build Project
+        run: npm run build
+
+      - name: 📂 Sync files
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ vars.SERVER }}
+          username: ${{ vars.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ftp
+          local-dir: ./dist/
+          server-dir: /${{ vars.SERVER_DIR }}/
+
+  health-check:
+    name: Health Check
+    runs-on: ubuntu-latest
+    environment: customdev
+    needs: web-deploy
+    steps:
+        - name: Check the deployed service URLs
+          uses: jtalk/url-health-check-action@v4
+          with:
+              url: ${{ vars.DEPLOYMENT_URL }}
+              follow-redirect: false
+              max-attempts: 3
+              retry-delay: 5s
+              retry-all: false
