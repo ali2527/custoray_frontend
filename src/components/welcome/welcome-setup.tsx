@@ -397,7 +397,7 @@ export function WelcomeSetupBody({
 }
 
 export function useWelcomeCompanyDraft() {
-  const { user, companies, activeCompanyId } = useAuth()
+  const { user, activeCompany } = useAuth()
   const [companyDraft, setCompanyDraft] = useState<CompanySettings>(DEFAULT_COMPANY_SETTINGS)
   const [hydrated, setHydrated] = useState(false)
 
@@ -406,15 +406,13 @@ export function useWelcomeCompanyDraft() {
 
     async function hydrate() {
       const local = loadCompanySettings()
-      const active =
-        companies.find((company) => company.id === activeCompanyId) ?? companies[0]
       const seeded: CompanySettings = {
         ...DEFAULT_COMPANY_SETTINGS,
         ...local,
         name:
           local.name && local.name !== DEFAULT_COMPANY_SETTINGS.name
             ? local.name
-            : active?.name || local.name,
+            : activeCompany?.name || local.name,
         email:
           local.email && local.email !== DEFAULT_COMPANY_SETTINGS.email
             ? local.email
@@ -451,7 +449,7 @@ export function useWelcomeCompanyDraft() {
     return () => {
       cancelled = true
     }
-  }, [activeCompanyId, companies, user?.email])
+  }, [activeCompany?.name, user?.email])
 
   function updateCompany(patch: Partial<CompanySettings>) {
     setCompanyDraft((prev) => ({ ...prev, ...patch }))
