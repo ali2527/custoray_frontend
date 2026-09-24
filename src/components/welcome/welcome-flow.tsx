@@ -14,12 +14,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { GreenTrack } from "@/components/welcome/green-progress"
+import { MilestoneStepper } from "@/components/welcome/green-progress"
 import {
+  persistWelcomeCompany,
+  useWelcomeCompanyDraft,
   WelcomeSetupBody,
   WELCOME_SETUP_STEPS,
 } from "@/components/welcome/welcome-setup"
 import { useAuth } from "@/context/auth-context"
+import { apiPatchOnboarding } from "@/lib/api/auth"
 import { TRIAL_DAYS } from "@/lib/plans"
 import { markSetupMilestone } from "@/lib/setup-progress"
 import { formatTrialEndDate } from "@/lib/subscription-access"
@@ -42,6 +45,8 @@ export function WelcomeFlow() {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [setupStep, setSetupStep] = useState(0)
+  const [saving, setSaving] = useState(false)
+  const { companyDraft, updateCompany } = useWelcomeCompanyDraft()
 
   const isOnTrial = access?.status === "TRIAL"
   const daysLeft = access?.trialEndsAt
@@ -98,18 +103,39 @@ export function WelcomeFlow() {
     }
   }
 
-  function handleContinue() {
+  async function handleContinue() {
     if (setupStep === 0) {
       toast.success(t("welcome.milestones.welcome"))
       setSetupStep(1)
       return
     }
+
     if (setupStep === 1) {
-      toast.success(t("welcome.milestones.term"))
-      setSetupStep(2)
+      const name = companyDraft.name.trim()
+      if (name.length < 2) {
+        toast.error(t("welcome.guide.companyNameRequired"))
+        return
+      }
+      setSaving(true)
+      try {
+        await persistWelcomeCompany({ ...companyDraft, name })
+        void apiPatchOnboarding({ company: true }).catch(() => undefined)
+        toast.success(t("welcome.milestones.company"))
+        setSetupStep(2)
+      } finally {
+        setSaving(false)
+      }
       return
     }
+
+    if (setupStep === 2) {
+      toast.success(t("welcome.milestones.term"))
+      setSetupStep(3)
+      return
+    }
+
     markSetupMilestone("settings")
+    void apiPatchOnboarding({ company: true }).catch(() => undefined)
     toast.success(t("welcome.milestones.appearance"))
     finishSetup()
   }
@@ -122,28 +148,55 @@ export function WelcomeFlow() {
 
   const setupTitle =
     setupStep === 1
-      ? t("welcome.guide.termTitle")
+      ? t("welcome.guide.companyTitle")
       : setupStep === 2
-        ? t("welcome.guide.displayTitle")
-        : firstName
-          ? t("welcome.congratulationsName", { name: firstName })
-          : t("welcome.congratulations")
+        ? t("welcome.guide.termTitle")
+        : setupStep === 3
+          ? t("welcome.guide.displayTitle")
+          : firstName
+            ? t("welcome.congratulationsName", { name: firstName })
+            : t("welcome.congratulations")
 
   const setupDescription =
-    setupStep === 2
+    setupStep === 3
       ? t("welcome.guide.displayBody")
-      : setupStep === 1
+      : setupStep === 2
         ? t("welcome.guide.termLead")
-        : setupStep === 0
-          ? t("welcome.workspaceReady")
-          : null
+        : setupStep === 1
+          ? t("welcome.guide.companyLead")
+          : setupStep === 0
+            ? t("welcome.workspaceReady")
+            : null
+
+  const milestoneSteps = [
+    {
+      id: "welcome",
+      label: t("welcome.milestones.welcomeLabel"),
+      done: setupStep > 0,
+    },
+    {
+      id: "company",
+      label: t("welcome.milestones.companyLabel"),
+      done: setupStep > 1,
+    },
+    {
+      id: "term",
+      label: t("welcome.milestones.termLabel"),
+      done: setupStep > 2,
+    },
+    {
+      id: "look",
+      label: t("welcome.milestones.lookLabel"),
+      done: setupStep > 3,
+    },
+  ]
 
   return (
     <Dialog open={open}>
       <DialogContent
         showCloseButton={false}
         overlayClassName="bg-zinc-950/45"
-        className="max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl p-0 sm:max-w-[38rem] gap-0 font-sans [font-family:var(--font-poppins),ui-sans-serif,system-ui,sans-serif] [&_*]:[font-family:inherit]"
+        className="max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl p-0 sm:max-w-[40rem] gap-0 font-sans [font-family:var(--font-poppins),ui-sans-serif,system-ui,sans-serif] [&_*]:[font-family:inherit]"
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
@@ -161,16 +214,9 @@ export function WelcomeFlow() {
           </div>
         </div>
 
-        <div className="px-10 pb-9 pt-6 sm:px-12 sm:pb-10 sm:pt-7">
-          <DialogHeader className="gap-2.5 text-left sm:text-left">
-            <GreenTrack
-              completed={setupStep + 1}
-              total={WELCOME_SETUP_STEPS}
-              label={t("welcome.guide.stepOf", {
-                current: setupStep + 1,
-                total: WELCOME_SETUP_STEPS,
-              })}
-            />
+        <div className="px-8 pb-9 pt-6 sm:px-10 sm:pb-10 sm:pt-7">
+          <DialogHeader className="gap-3 text-left sm:text-left">
+            <MilestoneStepper steps={milestoneSteps} />
             <DialogTitle className="text-[1.5rem] leading-snug font-semibold tracking-tight sm:text-[1.625rem]">
               {setupTitle}
             </DialogTitle>
@@ -233,7 +279,11 @@ export function WelcomeFlow() {
 
           {setupStep >= 1 ? (
             <div className="mt-4">
-              <WelcomeSetupBody step={setupStep} />
+              <WelcomeSetupBody
+                step={setupStep}
+                companyDraft={companyDraft}
+                onCompanyChange={updateCompany}
+              />
             </div>
           ) : null}
 
@@ -244,11 +294,17 @@ export function WelcomeFlow() {
                 variant="ghost"
                 className="text-muted-foreground h-9 px-4 text-[13px]"
                 onClick={() => setSetupStep((prev) => prev - 1)}
+                disabled={saving}
               >
                 {t("welcome.back")}
               </Button>
             ) : null}
-            <Button type="button" className="h-9 px-6 text-[13px]" onClick={handleContinue}>
+            <Button
+              type="button"
+              className="h-9 px-6 text-[13px]"
+              onClick={() => void handleContinue()}
+              disabled={saving}
+            >
               {setupStep === 0
                 ? t("welcome.letsGetStarted")
                 : isLastStep
@@ -260,6 +316,7 @@ export function WelcomeFlow() {
               variant="ghost"
               className="text-muted-foreground h-9 px-4 text-[13px]"
               onClick={handleSkip}
+              disabled={saving}
             >
               {t("welcome.skipForNow")}
             </Button>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 
-import { CalendarRange, Check, Monitor, Moon, Sun } from "lucide-react"
+import { Building2, CalendarRange, Check, Monitor, Moon, Sun } from "lucide-react"
 import { useTheme } from "next-themes"
 
 import { Input } from "@/components/ui/input"
@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAppearance } from "@/components/theme/appearance-provider"
+import { useAuth } from "@/context/auth-context"
 import { useFiscalTerms } from "@/context/fiscal-term-context"
 import {
   ACCENT_PRESETS,
@@ -23,10 +24,21 @@ import {
   type AppLanguage,
   type FontSizeKey,
 } from "@/lib/appearance-prefs"
+import {
+  apiGetCompanySettings,
+  apiPatchCompanySettings,
+} from "@/lib/api/auth"
+import {
+  DEFAULT_COMPANY_SETTINGS,
+  loadCompanySettings,
+  saveCompanySettings,
+  type CompanySettings,
+} from "@/lib/company-settings"
 import { addMonthsIso, formatShortDate } from "@/lib/fiscal-terms"
 import { cn } from "@/lib/utils"
 
-export const WELCOME_SETUP_STEPS = 3
+/** Welcome → Business → Term → Look */
+export const WELCOME_SETUP_STEPS = 4
 
 const TENURE_OPTIONS = [6, 12, 24] as const
 const FONT_OPTIONS: FontSizeKey[] = ["sm", "base", "lg", "xl"]
@@ -46,7 +58,46 @@ function toDateInputValue(iso: string): string {
   }
 }
 
-export function WelcomeSetupBody({ step }: { step: number }) {
+function splitAddress(address: string): { line1: string; line2: string } {
+  const parts = address
+    .split(/\n|,/)
+    .map((part) => part.trim())
+    .filter(Boolean)
+  return {
+    line1: parts[0] ?? "",
+    line2: parts.slice(1).join(", "),
+  }
+}
+
+export async function persistWelcomeCompany(settings: CompanySettings) {
+  saveCompanySettings(settings)
+  const address = [settings.addressLine1, settings.addressLine2]
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .join(", ")
+  try {
+    await apiPatchCompanySettings({
+      name: settings.name.trim(),
+      tagline: settings.tagline.trim(),
+      phone: settings.phone.trim(),
+      email: settings.email.trim(),
+      address,
+      logoUrl: settings.logoUrl.trim() || undefined,
+    })
+  } catch {
+    /* local save still applies */
+  }
+}
+
+export function WelcomeSetupBody({
+  step,
+  companyDraft,
+  onCompanyChange,
+}: {
+  step: number
+  companyDraft: CompanySettings
+  onCompanyChange: (patch: Partial<CompanySettings>) => void
+}) {
   const { t } = useTranslation("common")
   const { t: tSettings } = useTranslation("settings")
   const { state, updateActiveTenure, updateActiveStart } = useFiscalTerms()
@@ -75,6 +126,87 @@ export function WelcomeSetupBody({ step }: { step: number }) {
   }
 
   if (step === 1) {
+    return (
+      <div className="space-y-5">
+        <div className="bg-primary/8 border-primary/20 flex items-start gap-3 rounded-xl border px-3.5 py-3">
+          <Building2 className="text-primary mt-0.5 size-4 shrink-0" />
+          <p className="text-muted-foreground text-[12.5px] leading-relaxed">
+            {t("welcome.guide.companyBody")}
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="welcome-company-name" className="text-[12.5px]">
+              {t("welcome.guide.companyName")}
+            </Label>
+            <Input
+              id="welcome-company-name"
+              value={companyDraft.name}
+              onChange={(event) => onCompanyChange({ name: event.target.value })}
+              placeholder={t("welcome.guide.companyNamePlaceholder")}
+              className="h-10"
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="welcome-company-tagline" className="text-[12.5px]">
+              {t("welcome.guide.companyTagline")}
+            </Label>
+            <Input
+              id="welcome-company-tagline"
+              value={companyDraft.tagline}
+              onChange={(event) => onCompanyChange({ tagline: event.target.value })}
+              placeholder={t("welcome.guide.companyTaglinePlaceholder")}
+              className="h-10"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="welcome-company-phone" className="text-[12.5px]">
+              {t("welcome.guide.companyPhone")}
+            </Label>
+            <Input
+              id="welcome-company-phone"
+              value={companyDraft.phone}
+              onChange={(event) => onCompanyChange({ phone: event.target.value })}
+              className="h-10"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="welcome-company-email" className="text-[12.5px]">
+              {t("welcome.guide.companyEmail")}
+            </Label>
+            <Input
+              id="welcome-company-email"
+              type="email"
+              value={companyDraft.email}
+              onChange={(event) => onCompanyChange({ email: event.target.value })}
+              className="h-10"
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <Label htmlFor="welcome-company-address" className="text-[12.5px]">
+              {t("welcome.guide.companyAddress")}
+            </Label>
+            <Input
+              id="welcome-company-address"
+              value={companyDraft.addressLine1}
+              onChange={(event) =>
+                onCompanyChange({
+                  addressLine1: event.target.value,
+                  addressLine2: "",
+                })
+              }
+              placeholder={t("welcome.guide.companyAddressPlaceholder")}
+              className="h-10"
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (step === 2) {
     return (
       <div className="space-y-5">
         <p className="text-foreground/80 text-[13px] leading-relaxed">
@@ -155,7 +287,7 @@ export function WelcomeSetupBody({ step }: { step: number }) {
     )
   }
 
-  if (step === 2) {
+  if (step === 3) {
     const mode = mounted ? (theme ?? "system") : "system"
     const themeChoices = [
       { id: "light", label: tSettings("appearance.lightMode"), icon: Sun },
@@ -262,4 +394,68 @@ export function WelcomeSetupBody({ step }: { step: number }) {
   }
 
   return null
+}
+
+export function useWelcomeCompanyDraft() {
+  const { user, companies, activeCompanyId } = useAuth()
+  const [companyDraft, setCompanyDraft] = useState<CompanySettings>(DEFAULT_COMPANY_SETTINGS)
+  const [hydrated, setHydrated] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function hydrate() {
+      const local = loadCompanySettings()
+      const active =
+        companies.find((company) => company.id === activeCompanyId) ?? companies[0]
+      const seeded: CompanySettings = {
+        ...DEFAULT_COMPANY_SETTINGS,
+        ...local,
+        name:
+          local.name && local.name !== DEFAULT_COMPANY_SETTINGS.name
+            ? local.name
+            : active?.name || local.name,
+        email:
+          local.email && local.email !== DEFAULT_COMPANY_SETTINGS.email
+            ? local.email
+            : user?.email || local.email,
+      }
+
+      try {
+        const remote = await apiGetCompanySettings()
+        if (!cancelled && remote) {
+          const address = splitAddress(remote.address || "")
+          setCompanyDraft({
+            name: remote.name || seeded.name,
+            tagline: remote.tagline || seeded.tagline,
+            addressLine1: address.line1 || seeded.addressLine1,
+            addressLine2: address.line2 || seeded.addressLine2,
+            phone: remote.phone || seeded.phone,
+            email: remote.email || seeded.email,
+            logoUrl: remote.logoUrl || seeded.logoUrl,
+          })
+          setHydrated(true)
+          return
+        }
+      } catch {
+        /* use seeded */
+      }
+
+      if (!cancelled) {
+        setCompanyDraft(seeded)
+        setHydrated(true)
+      }
+    }
+
+    void hydrate()
+    return () => {
+      cancelled = true
+    }
+  }, [activeCompanyId, companies, user?.email])
+
+  function updateCompany(patch: Partial<CompanySettings>) {
+    setCompanyDraft((prev) => ({ ...prev, ...patch }))
+  }
+
+  return { companyDraft, updateCompany, hydrated }
 }

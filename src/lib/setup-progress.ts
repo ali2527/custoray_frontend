@@ -1,4 +1,4 @@
-const SETUP_STORAGE_KEY = "custoray-setup-progress-v1"
+const SETUP_STORAGE_KEY = "custoray-setup-progress-v2"
 
 export type SetupMilestoneId = "settings" | "product" | "customer" | "invoice"
 
@@ -9,6 +9,13 @@ const EMPTY_PROGRESS: SetupProgress = {
   product: false,
   customer: false,
   invoice: false,
+}
+
+export const SETUP_PROGRESS_EVENT = "custoray-setup-progress"
+
+export type SetupProgressEventDetail = {
+  id?: SetupMilestoneId
+  newlyCompleted?: boolean
 }
 
 export function loadSetupProgress(): SetupProgress {
@@ -37,11 +44,18 @@ export function saveSetupProgress(progress: SetupProgress) {
   }
 }
 
-export const SETUP_PROGRESS_EVENT = "custoray-setup-progress"
-
-export type SetupProgressEventDetail = {
-  id?: SetupMilestoneId
-  newlyCompleted?: boolean
+export function resetSetupProgress() {
+  if (typeof window === "undefined") return
+  try {
+    window.localStorage.removeItem(SETUP_STORAGE_KEY)
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(
+    new CustomEvent<SetupProgressEventDetail>(SETUP_PROGRESS_EVENT, {
+      detail: {},
+    })
+  )
 }
 
 export function markSetupMilestone(id: SetupMilestoneId) {

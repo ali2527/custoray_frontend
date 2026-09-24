@@ -1,4 +1,4 @@
-const WELCOME_STORAGE_KEY = "custoray-welcome-v12"
+const WELCOME_STORAGE_KEY = "custoray-welcome-v13"
 export const WELCOME_OPEN_EVENT = "custoray-welcome-open"
 
 export function queueWelcomeFlow() {
@@ -44,6 +44,15 @@ export function completeWelcomeFlow() {
 export function dismissWelcomeFlow() {
   try {
     localStorage.setItem(WELCOME_STORAGE_KEY, "dismissed")
+  } catch {
+    /* ignore */
+  }
+}
+
+/** Clear welcome state so the setup wizard can run again. */
+export function resetWelcomeFlow() {
+  try {
+    localStorage.removeItem(WELCOME_STORAGE_KEY)
   } catch {
     /* ignore */
   }
