@@ -2,7 +2,6 @@ on:
   push:
     branches:
       - customdev
-      - live
 
 name: 🚀 Deploy website on push
 
@@ -10,9 +9,7 @@ jobs:
   web-deploy:
     name: 🎉 Deploy
     runs-on: ubuntu-latest
-    # Uses GitHub Environment named after the branch (customdev | live)
-    # so SERVER / FTP / DEPLOYMENT_URL stay isolated per environment.
-    environment: ${{ github.ref_name }}
+    environment: customdev
     steps:
       - name: 🚚 Get latest code
         uses: actions/checkout@v4
@@ -33,9 +30,8 @@ jobs:
         env:
           NODE_OPTIONS: "--max_old_space_size=8192"
           CI: false
-          # From GitHub Environment Variables (customdev → DEV, live → PROD)
+          # From GitHub Environment "customdev" Variables
           NEXT_PUBLIC_GOOGLE_CLIENT_ID_DEV: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID_DEV }}
-          NEXT_PUBLIC_GOOGLE_CLIENT_ID_PROD: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID_PROD }}
 
       - name: 📂 Sync files
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
@@ -50,7 +46,7 @@ jobs:
   health-check:
     name: Health Check
     runs-on: ubuntu-latest
-    environment: ${{ github.ref_name }}
+    environment: customdev
     needs: web-deploy
     steps:
       - name: Check the deployed service URLs
