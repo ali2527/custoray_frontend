@@ -220,6 +220,35 @@ export async function apiPatchOnboarding(steps: Record<string, boolean>) {
   );
 }
 
+export type CompanySettingsPayload = {
+  name?: string;
+  tagline?: string;
+  address?: string;
+  phone?: string;
+  email?: string;
+  logoUrl?: string;
+  currency?: string;
+};
+
+export async function apiGetCompanySettings() {
+  return apiFetch<{
+    name: string;
+    tagline: string;
+    address: string;
+    phone: string;
+    email: string;
+    logoUrl: string;
+    currency: string;
+  } | null>("/settings/company");
+}
+
+export async function apiPatchCompanySettings(data: CompanySettingsPayload) {
+  return apiFetch("/settings/company", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
 export async function apiBillingSummary() {
   return apiFetch<{
     plan: SessionPayload["plan"];
