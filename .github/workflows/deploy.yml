@@ -33,6 +33,9 @@ jobs:
         env:
           NODE_OPTIONS: "--max_old_space_size=8192"
           CI: false
+          # From GitHub Environment Variables (customdev | live)
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID_PROD: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID_PROD }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID_DEV: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID_DEV }}
 
       - name: 📂 Sync files
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5

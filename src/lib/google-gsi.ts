@@ -1,5 +1,7 @@
 const GSI_SRC = "https://accounts.google.com/gsi/client"
 
+import { getGoogleClientId } from "@/lib/google-client-id"
+
 declare global {
   interface Window {
     google?: {
@@ -22,26 +24,7 @@ declare global {
   }
 }
 
-/**
- * Resolve Google OAuth web client ID by host.
- * app.custoray.com → PROD; localhost / 127.0.0.1 / dev-app → DEV.
- * Optional override: NEXT_PUBLIC_GOOGLE_CLIENT_ID.
- */
-export function getGoogleClientId() {
-  const explicit = (process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "").trim()
-  if (explicit) return explicit
-
-  const prod = (process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID_PROD ?? "").trim()
-  const dev = (process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID_DEV ?? "").trim()
-
-  if (typeof window === "undefined") {
-    return dev || prod
-  }
-
-  const host = window.location.hostname
-  if (host === "app.custoray.com") return prod
-  return dev || prod
-}
+export { getGoogleClientId }
 
 export function loadGoogleIdentityServices(): Promise<void> {
   if (typeof window === "undefined") {
