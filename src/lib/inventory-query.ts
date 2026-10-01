@@ -21,3 +21,26 @@ export function invalidateInventory(
   void queryClient.invalidateQueries({ queryKey: inventoryKeys.root(tenantId) })
   emitProductsChanged()
 }
+
+type CatalogCacheRow = { id: string; srNo: number }
+
+/** Drop deleted catalog rows immediately, then invalidate every inventory query. */
+export async function applyCatalogDelete<T extends CatalogCacheRow>(
+  queryClient: QueryClient,
+  kind: CatalogKind,
+  tenantId: string | undefined,
+  deletedIds: string[]
+) {
+  if (deletedIds.length === 0) return
+  const catalogKey = inventoryKeys.catalog(kind, tenantId)
+  await queryClient.cancelQueries({ queryKey: catalogKey })
+  queryClient.setQueryData<T[] | undefined>(catalogKey, (current) => {
+    if (!current) return current
+    const removed = new Set(deletedIds)
+    return current
+      .filter((row) => row.id && !removed.has(row.id))
+      .map((row, index) => ({ ...row, srNo: index + 1 }))
+  })
+  await queryClient.invalidateQueries({ queryKey: inventoryKeys.root(tenantId) })
+  emitProductsChanged()
+}

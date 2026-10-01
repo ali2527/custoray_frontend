@@ -40,6 +40,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { reportImportFailure, toastFailure } from "@/lib/action-toast"
+import { uniqueErrorMessages } from "@/lib/api/client"
 import { confirmDeleteAction } from "@/lib/confirm-action"
 import { buildSampleCsv } from "@/lib/csv"
 import {
@@ -261,9 +263,12 @@ function BrandsPageContent() {
     const added = res.added ?? res.items?.length ?? 0
     const failed =
       imported.length - payload.length + (res.errors?.length ?? 0)
-    if (failed > 0) {
-      toast.error(t("toasts.importPartial", { added, failed }))
-    }
+    reportImportFailure(
+      added,
+      failed,
+      t("toasts.importPartial", { added, failed }),
+      uniqueErrorMessages(res.errors)
+    )
     return added
   }
 
@@ -277,11 +282,12 @@ function BrandsPageContent() {
       status,
     })
     if (result.failed > 0) {
-      toast.error(
-        t("toasts.importPartial", {
-          added: result.updated,
+      toastFailure(
+        t("toasts.updatePartial", {
+          updated: result.updated,
           failed: result.failed,
-        })
+        }),
+        result.message
       )
       return
     }
@@ -358,13 +364,16 @@ function BrandsPageContent() {
               void (async () => {
                 const ok = await confirmDeleteAction({ count: selected.length })
                 if (!ok) return
-                const result = await removeMany(selected.map((row) => row.id))
-                if (result.failed > 0) {
-                  toast.error(
-                    t("toasts.importPartial", {
-                      added: result.deleted,
-                      failed: result.failed,
-                    })
+                const ids = selected.map((row) => row.id).filter(Boolean)
+                const result = await removeMany(ids)
+                const failed = result.failed + (selected.length - ids.length)
+                if (failed > 0) {
+                  toastFailure(
+                    t("toasts.deletePartial", {
+                      deleted: result.deleted,
+                      failed,
+                    }),
+                    result.message
                   )
                   return
                 }

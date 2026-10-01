@@ -1022,7 +1022,9 @@ export function DataTable<TData>({
   /** Custom controls rendered at the top of the table options popover. */
   tableOptionsExtra?: React.ReactNode
   /** Custom CSV import handler; return number of rows added. */
-  onImportRows?: (rows: Record<string, string>[]) => number | Promise<number>
+  onImportRows?: (
+    rows: Record<string, string>[]
+  ) => number | null | Promise<number | null>
   /** Override import sample CSV content (e.g. when table rows differ from import shape). */
   importSampleCsvContent?: string
   /** Keep only these columns from uploaded CSVs (ignores extra fields). */
@@ -1202,6 +1204,7 @@ export function DataTable<TData>({
       }
       if (onImportRows) {
         void Promise.resolve(onImportRows(rows)).then((added) => {
+          if (added == null) return
           if (added > 0) {
             setPagination((prev) => ({ ...prev, pageIndex: 0 }))
             if (tabProp === undefined && tabs?.length) {

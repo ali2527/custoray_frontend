@@ -170,6 +170,8 @@
     "saveFailed": "Could not save vendor.",
     "removedCount": "Removed {{count}} vendor(s).",
     "importPartial": "{{added}} imported, {{failed}} could not be imported.",
+    "deletePartial": "{{deleted}} deleted, {{failed}} could not be deleted.",
+    "updatePartial": "{{updated}} updated, {{failed}} could not be updated.",
     "setActiveCount": "Set {{count}} to active.",
     "setInactiveCount": "Set {{count}} to inactive."
   },

@@ -65,7 +65,8 @@
     "saved": "Payment saved.",
     "removedCount": "Removed {{count}} payment(s).",
     "saveFailed": "Could not save payment.",
-    "importPartial": "{{added}} imported, {{failed}} could not be imported."
+    "importPartial": "{{added}} imported, {{failed}} could not be imported.",
+    "deletePartial": "{{deleted}} deleted, {{failed}} could not be deleted."
   },
   "form": {
     "type": "Payment type",

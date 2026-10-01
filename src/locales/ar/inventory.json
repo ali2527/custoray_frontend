@@ -134,6 +134,8 @@
     "saveFailed": "تعذر حفظ المنتج.",
     "loadFailed": "تعذر تحميل المنتجات.",
     "importPartial": "تم استيراد {{added}}، وتعذر استيراد {{failed}}.",
+    "deletePartial": "تم حذف {{deleted}}، وتعذر حذف {{failed}}.",
+    "updatePartial": "تم تحديث {{updated}}، وتعذر تحديث {{failed}}.",
     "importUnmatchedCatalog": "أسماء العلامة أو الفئة أو المتغير غير الموجودة في قائمتك تُركت فارغة: {{names}}",
     "categoryCreated": "تم إنشاء الفئة.",
     "categorySaved": "تم حفظ الفئة.",

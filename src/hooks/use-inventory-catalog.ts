@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useAuth } from "@/context/auth-context"
+import { settledErrorMessage } from "@/lib/api/client"
 import {
   apiBulkCreateBrands,
   apiBulkCreateCategories,
@@ -26,6 +27,7 @@ import {
 } from "@/lib/inventory-catalog-rows"
 import {
   type CatalogKind,
+  applyCatalogDelete,
   inventoryKeys,
   invalidateInventory,
 } from "@/lib/inventory-query"
@@ -108,13 +110,18 @@ export function useInventoryCatalog(kind: CatalogKind) {
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       const results = await Promise.allSettled(ids.map((id) => api.remove(id)))
+      const deletedIds = ids.filter(
+        (_, index) => results[index]?.status === "fulfilled"
+      )
       return {
-        deleted: results.filter((result) => result.status === "fulfilled").length,
-        failed: results.filter((result) => result.status === "rejected").length,
+        deleted: deletedIds.length,
+        deletedIds,
+        failed: results.length - deletedIds.length,
+        message: settledErrorMessage(results),
       }
     },
-    onSuccess: ({ deleted }) => {
-      if (deleted > 0) invalidateInventory(queryClient, tenantId)
+    onSuccess: ({ deletedIds }) => {
+      void applyCatalogDelete(queryClient, kind, tenantId, deletedIds)
     },
   })
 
@@ -132,6 +139,7 @@ export function useInventoryCatalog(kind: CatalogKind) {
       return {
         updated: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
+        message: settledErrorMessage(results),
       }
     },
     onSuccess: ({ updated }) => {

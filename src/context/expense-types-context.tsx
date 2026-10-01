@@ -18,11 +18,11 @@ type ExpenseTypesContextValue = {
   ) => Promise<ExpenseTypeRow>
   updateExpenseType: (id: number, patch: Partial<ExpenseTypeRow>) => Promise<void>
   removeExpenseType: (id: number) => Promise<void>
-  removeMany: (ids: string[]) => Promise<{ deleted: number; failed: number }>
+  removeMany: (ids: string[]) => Promise<{ deleted: number; failed: number; message?: string }>
   setStatus: (
     ids: string[],
     status: ExpenseTypeRow["status"]
-  ) => Promise<{ updated: number; failed: number }>
+  ) => Promise<{ updated: number; failed: number; message?: string }>
   bulkCreate: ReturnType<typeof useExpenseTypesQuery>["bulkCreate"]
 }
 

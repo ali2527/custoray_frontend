@@ -55,7 +55,8 @@
     "saved": "تم حفظ المصروف.",
     "removedCount": "تم حذف {{count}} مصروف.",
     "saveFailed": "تعذر حفظ المصروف.",
-    "importPartial": "تم استيراد {{added}}، وتعذر استيراد {{failed}}."
+    "importPartial": "تم استيراد {{added}}، وتعذر استيراد {{failed}}.",
+    "deletePartial": "تم حذف {{deleted}}، وتعذر حذف {{failed}}."
   },
   "form": {
     "selectType": "اختر النوع…",
@@ -116,6 +117,8 @@
       "saved": "تم حفظ نوع المصروف.",
       "saveFailed": "تعذر حفظ نوع المصروف.",
       "importPartial": "تم استيراد {{added}}، وتعذر استيراد {{failed}}.",
+      "deletePartial": "تم حذف {{deleted}}، وتعذر حذف {{failed}}.",
+      "updatePartial": "تم تحديث {{updated}}، وتعذر تحديث {{failed}}.",
       "setActiveCount": "تم تفعيل {{count}} نوع.",
       "setInactiveCount": "تم تعطيل {{count}} نوع.",
       "removedCount": "تم حذف {{count}} نوع."

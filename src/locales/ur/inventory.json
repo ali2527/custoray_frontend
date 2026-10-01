@@ -134,6 +134,8 @@
     "saveFailed": "مصنوعات محفوظ نہیں ہو سکیں۔",
     "loadFailed": "مصنوعات لوڈ نہیں ہو سکیں۔",
     "importPartial": "{{added}} درآمد ہو گئیں، {{failed}} درآمد نہیں ہو سکیں۔",
+    "deletePartial": "{{deleted}} حذف ہو گئے، {{failed}} حذف نہیں ہو سکے۔",
+    "updatePartial": "{{updated}} اپ ڈیٹ ہو گئے، {{failed}} اپ ڈیٹ نہیں ہو سکے۔",
     "importUnmatchedCatalog": "برانڈ، کیٹگری یا ویریئنٹ کے وہ نام جو آپ کی فہرست میں نہیں تھے خالی چھوڑ دیے گئے: {{names}}",
     "categoryCreated": "کیٹگری بن گئی۔",
     "categorySaved": "کیٹگری محفوظ ہو گئی۔",

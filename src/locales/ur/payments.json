@@ -65,7 +65,8 @@
     "saved": "ادائیگی محفوظ ہو گئی۔",
     "removedCount": "{{count}} ادائیگی(اں) ہٹا دی گئیں۔",
     "saveFailed": "ادائیگی محفوظ نہیں ہو سکی۔",
-    "importPartial": "{{added}} درآمد ہوئیں، {{failed}} درآمد نہیں ہو سکیں۔"
+    "importPartial": "{{added}} درآمد ہوئیں، {{failed}} درآمد نہیں ہو سکیں۔",
+    "deletePartial": "{{deleted}} حذف ہو گئیں، {{failed}} حذف نہیں ہو سکیں۔"
   },
   "form": {
     "type": "ادائیگی کی قسم",
