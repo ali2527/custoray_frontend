@@ -78,7 +78,10 @@ export function WelcomeFlow() {
     if (open) return
     if (typeof window !== "undefined") {
       const fromUrl = new URLSearchParams(window.location.search).get("welcome") === "1"
-      if (fromUrl) queueWelcomeFlow()
+      // Don't re-queue after skip — otherwise ?welcome=1 immediately reopens the wizard.
+      if (fromUrl && !isWelcomeFlowDismissed()) {
+        queueWelcomeFlow()
+      }
     }
     if (isWelcomeFlowPending() || (isOnTrial && !isWelcomeFlowDismissed())) {
       setOpen(true)
@@ -86,18 +89,20 @@ export function WelcomeFlow() {
     }
   }, [hydrated, isAuthenticated, access?.status, open, isOnTrial])
 
+  function clearWelcomeQuery() {
+    if (typeof window === "undefined") return
+    const url = new URL(window.location.href)
+    if (!url.searchParams.has("welcome")) return
+    url.searchParams.delete("welcome")
+    const next = `${url.pathname}${url.search}${url.hash}`
+    router.replace(next)
+  }
+
   function finishSetup() {
     completeWelcomeFlow()
     setOpen(false)
     setSetupStep(0)
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href)
-      if (url.searchParams.has("welcome")) {
-        url.searchParams.delete("welcome")
-        const next = `${url.pathname}${url.search}${url.hash}`
-        router.replace(next)
-      }
-    }
+    clearWelcomeQuery()
     if (!pathMatches(pathname, "/home")) {
       router.push(toAppPath("/home"))
     }
@@ -142,8 +147,10 @@ export function WelcomeFlow() {
 
   function handleSkip() {
     dismissWelcomeFlow()
+    clearWelcomeQuery()
     setOpen(false)
     setSetupStep(0)
+    toast.message(t("welcome.skipResumeHint"))
   }
 
   const setupTitle =
