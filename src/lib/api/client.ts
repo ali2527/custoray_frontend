@@ -13,6 +13,13 @@ export class ApiClientError extends Error {
   }
 }
 
+export function isNotFoundError(error: unknown) {
+  return (
+    error instanceof ApiClientError &&
+    (error.status === 404 || error.code === "NOT_FOUND")
+  )
+}
+
 export function settledErrorMessage(
   results: PromiseSettledResult<unknown>[]
 ): string | undefined {
