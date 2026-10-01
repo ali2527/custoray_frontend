@@ -255,7 +255,13 @@ function CategoriesPageContent() {
       try {
         const result = await removeMany([category.id])
         if (result.failed > 0) {
-          toast.error(t("toasts.saveFailed"))
+          toastFailure(
+            t("toasts.deletePartial", {
+              deleted: result.deleted,
+              failed: result.failed,
+            }),
+            result.message
+          )
           return
         }
         setSidebar((s) =>
