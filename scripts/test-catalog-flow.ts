@@ -1,5 +1,7 @@
 import assert from "node:assert/strict"
 
+import { QueryClient } from "@tanstack/react-query"
+
 import {
   BRAND_STATUS_OPTIONS,
   CATALOG_STATUS_OPTIONS,
@@ -9,21 +11,36 @@ import {
   type CatalogRow,
 } from "../src/lib/inventory-catalog-rows"
 import { parseCatalogFieldSettings } from "../src/lib/catalog-field-settings"
-import { inventoryKeys } from "../src/lib/inventory-query"
+import {
+  applyCatalogDelete,
+  inventoryKeys,
+} from "../src/lib/inventory-query"
 
 let passed = 0
 let failed = 0
+const pending: Promise<void>[] = []
 
-function test(name: string, fn: () => void) {
-  try {
-    fn()
-    passed += 1
-    console.log(`  ok  ${name}`)
-  } catch (error) {
+function test(name: string, fn: () => void | Promise<void>) {
+  const finish = (error?: unknown) => {
+    if (!error) {
+      passed += 1
+      console.log(`  ok  ${name}`)
+      return
+    }
     failed += 1
     const message = error instanceof Error ? error.message : String(error)
     console.error(`  FAIL  ${name}`)
     console.error(`        ${message}`)
+  }
+  try {
+    const result = fn()
+    if (result instanceof Promise) {
+      pending.push(result.then(() => finish(), finish))
+      return
+    }
+    finish()
+  } catch (error) {
+    finish(error)
   }
 }
 
@@ -148,5 +165,68 @@ test("different tenants do not share query keys", () => {
   )
 })
 
-console.log(`\n${passed} passed, ${failed} failed`)
-if (failed > 0) process.exit(1)
+console.log("\nVariant delete cache")
+test("deleting a variant drops it from the cache and invalidates inventory queries", async () => {
+  const tenantId = "tenant-1"
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  const variantKey = inventoryKeys.catalog("variants", tenantId)
+  const brandKey = inventoryKeys.catalog("brands", tenantId)
+  queryClient.setQueryData(variantKey, [
+    { id: "v1", srNo: 1, name: "Genuine", description: "", products: 0, status: "active" },
+    { id: "v2", srNo: 2, name: "Copy", description: "", products: 1, status: "active" },
+    { id: "v3", srNo: 3, name: "Spare", description: "", products: 0, status: "inactive" },
+  ])
+  queryClient.setQueryData(brandKey, [
+    { id: "b1", srNo: 1, name: "Acme", description: "", products: 0, status: "active" },
+  ])
+
+  await applyCatalogDelete(queryClient, "variants", tenantId, ["v2"])
+
+  const variants = queryClient.getQueryData<Array<{ id: string; srNo: number }>>(
+    variantKey
+  )
+  assert.deepEqual(
+    variants?.map((row) => ({ id: row.id, srNo: row.srNo })),
+    [
+      { id: "v1", srNo: 1 },
+      { id: "v3", srNo: 2 },
+    ]
+  )
+  const variantQuery = queryClient.getQueryCache().find({ queryKey: variantKey })
+  const brandQuery = queryClient.getQueryCache().find({ queryKey: brandKey })
+  assert.equal(variantQuery?.state.isInvalidated, true)
+  assert.equal(brandQuery?.state.isInvalidated, true)
+  assert.equal(
+    queryClient.getQueryData<Array<{ id: string }>>(brandKey)?.[0]?.id,
+    "b1"
+  )
+})
+
+test("a failed variant delete does not invalidate or change the cache", async () => {
+  const tenantId = "tenant-1"
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+  const variantKey = inventoryKeys.catalog("variants", tenantId)
+  queryClient.setQueryData(variantKey, [
+    { id: "v1", srNo: 1, name: "Genuine" },
+  ])
+
+  await applyCatalogDelete(queryClient, "variants", tenantId, [])
+
+  assert.equal(
+    queryClient.getQueryCache().find({ queryKey: variantKey })?.state.isInvalidated,
+    false
+  )
+  assert.equal(
+    queryClient.getQueryData<Array<{ id: string }>>(variantKey)?.[0]?.id,
+    "v1"
+  )
+})
+
+void Promise.all(pending).then(() => {
+  console.log(`\n${passed} passed, ${failed} failed`)
+  if (failed > 0) process.exit(1)
+})
