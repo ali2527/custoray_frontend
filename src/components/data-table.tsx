@@ -1022,7 +1022,9 @@ export function DataTable<TData>({
   /** Custom controls rendered at the top of the table options popover. */
   tableOptionsExtra?: React.ReactNode
   /** Custom CSV import handler; return number of rows added. */
-  onImportRows?: (rows: Record<string, string>[]) => number | Promise<number>
+  onImportRows?: (
+    rows: Record<string, string>[]
+  ) => number | null | Promise<number | null>
   /** Override import sample CSV content (e.g. when table rows differ from import shape). */
   importSampleCsvContent?: string
   /** Keep only these columns from uploaded CSVs (ignores extra fields). */
@@ -1202,7 +1204,13 @@ export function DataTable<TData>({
       }
       if (onImportRows) {
         void Promise.resolve(onImportRows(rows)).then((added) => {
+          if (added == null) return
           if (added > 0) {
+            setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+            if (tabProp === undefined && tabs?.length) {
+              setUncontrolledTab(defaultTab ?? tabs[0]?.value ?? "all")
+            }
+            setGlobalFilter("")
             onRowsImported?.(added)
             toast.success(t("toast.importedRows", { count: added }))
           } else {
@@ -1226,6 +1234,7 @@ export function DataTable<TData>({
         const added = acc.length - prev.length
         queueMicrotask(() => {
           if (added > 0) {
+            setPagination((prev) => ({ ...prev, pageIndex: 0 }))
             onRowsImported?.(added)
             toast.success(t("toast.importedRows", { count: added }))
           } else {
@@ -1237,7 +1246,16 @@ export function DataTable<TData>({
         return acc
       })
     },
-    [importRowMapper, onImportRows, onRowsImported, updateData, t]
+    [
+      importRowMapper,
+      onImportRows,
+      onRowsImported,
+      updateData,
+      t,
+      tabProp,
+      tabs,
+      defaultTab,
+    ]
   )
 
   const selectedRowCount = table.getFilteredSelectedRowModel().rows.length

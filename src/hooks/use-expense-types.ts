@@ -10,6 +10,7 @@ import {
   apiListAllExpenseTypes,
   apiUpdateExpenseType,
 } from "@/lib/api/business"
+import { settledErrorMessage } from "@/lib/api/client"
 import { expenseTypeKeys, invalidateExpenseTypes } from "@/lib/expense-types-query"
 import {
   cacheExpenseTypes,
@@ -84,6 +85,7 @@ export function useExpenseTypesQuery() {
       return {
         deleted: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
+        message: settledErrorMessage(results),
       }
     },
     onSuccess: ({ deleted }, ids) => {
@@ -109,6 +111,7 @@ export function useExpenseTypesQuery() {
       return {
         updated: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
+        message: settledErrorMessage(results),
       }
     },
     onSuccess: ({ updated }) => {

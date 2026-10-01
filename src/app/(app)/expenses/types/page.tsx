@@ -38,6 +38,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { useExpenseTypes } from "@/context/expense-types-context"
+import { reportImportFailure, toastFailure } from "@/lib/action-toast"
+import { uniqueErrorMessages } from "@/lib/api/client"
 import { confirmDeleteAction } from "@/lib/confirm-action"
 import { buildSampleCsv } from "@/lib/csv"
 import {
@@ -278,9 +280,12 @@ export default function ExpenseTypesPage() {
       const res = await bulkCreate(payload)
       const added = res.added ?? res.items?.length ?? 0
       const failed = imported.length - payload.length + (res.errors?.length ?? 0)
-      if (failed > 0) {
-        toast.error(t("types.toasts.importPartial", { added, failed }))
-      }
+      reportImportFailure(
+        added,
+        failed,
+        t("types.toasts.importPartial", { added, failed }),
+        uniqueErrorMessages(res.errors)
+      )
       return added
     },
     [bulkCreate, t]
@@ -416,11 +421,12 @@ export default function ExpenseTypesPage() {
               const ids = selected.map((row) => row.apiId).filter(Boolean)
               const result = await setStatus(ids, "active")
               if (result.failed > 0) {
-                toast.error(
-                  t("types.toasts.importPartial", {
-                    added: result.updated,
+                toastFailure(
+                  t("types.toasts.updatePartial", {
+                    updated: result.updated,
                     failed: result.failed,
-                  })
+                  }),
+                  result.message
                 )
                 return
               }
@@ -435,11 +441,12 @@ export default function ExpenseTypesPage() {
               const ids = selected.map((row) => row.apiId).filter(Boolean)
               const result = await setStatus(ids, "inactive")
               if (result.failed > 0) {
-                toast.error(
-                  t("types.toasts.importPartial", {
-                    added: result.updated,
+                toastFailure(
+                  t("types.toasts.updatePartial", {
+                    updated: result.updated,
                     failed: result.failed,
-                  })
+                  }),
+                  result.message
                 )
                 return
               }
@@ -464,12 +471,14 @@ export default function ExpenseTypesPage() {
               }
               const ids = selected.map((row) => row.apiId).filter(Boolean)
               const result = await removeMany(ids)
-              if (result.failed > 0) {
-                toast.error(
-                  t("types.toasts.importPartial", {
-                    added: result.deleted,
-                    failed: result.failed,
-                  })
+              const failed = result.failed + (selected.length - ids.length)
+              if (failed > 0) {
+                toastFailure(
+                  t("types.toasts.deletePartial", {
+                    deleted: result.deleted,
+                    failed,
+                  }),
+                  result.message
                 )
                 return
               }

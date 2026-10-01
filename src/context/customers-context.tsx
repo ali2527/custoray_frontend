@@ -17,10 +17,11 @@ type CustomersContextValue = {
   updateCustomer: (id: number, patch: Partial<CustomerRow>) => Promise<void>
   removeCustomer: (id: number) => Promise<void>
   duplicateCustomer: (id: number) => Promise<CustomerRow | null>
-  removeMany: (ids: string[]) => Promise<{ deleted: number; failed: number }>
+  removeMany: (ids: string[]) => Promise<{ deleted: number; failed: number; message?: string }>
   setStatus: (ids: string[], status: CustomerRow["status"]) => Promise<{
     updated: number
     failed: number
+    message?: string
   }>
   bulkCreate: ReturnType<typeof useCustomersQuery>["bulkCreate"]
 }

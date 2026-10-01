@@ -17,10 +17,11 @@ type VendorsContextValue = {
   updateVendor: (id: number, patch: Partial<VendorRow>) => Promise<void>
   removeVendor: (id: number) => Promise<void>
   duplicateVendor: (id: number) => Promise<VendorRow | null>
-  removeMany: (ids: string[]) => Promise<{ deleted: number; failed: number }>
+  removeMany: (ids: string[]) => Promise<{ deleted: number; failed: number; message?: string }>
   setStatus: (ids: string[], status: VendorRow["status"]) => Promise<{
     updated: number
     failed: number
+    message?: string
   }>
   bulkCreate: ReturnType<typeof useVendorsQuery>["bulkCreate"]
 }

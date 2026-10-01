@@ -55,7 +55,8 @@
     "saved": "اخراج محفوظ ہو گیا۔",
     "removedCount": "{{count}} اخراج حذف ہوئے۔",
     "saveFailed": "اخراج محفوظ نہیں ہو سکا۔",
-    "importPartial": "{{added}} درآمد ہوئے، {{failed}} ناکام۔"
+    "importPartial": "{{added}} درآمد ہوئے، {{failed}} ناکام۔",
+    "deletePartial": "{{deleted}} حذف ہو گئے، {{failed}} حذف نہیں ہو سکے۔"
   },
   "form": {
     "selectType": "قسم منتخب کریں…",
@@ -116,6 +117,8 @@
       "saved": "اخراج کی قسم محفوظ ہو گئی۔",
       "saveFailed": "اخراج کی قسم محفوظ نہیں ہو سکی۔",
       "importPartial": "{{added}} درآمد ہوئے، {{failed}} ناکام۔",
+      "deletePartial": "{{deleted}} حذف ہو گئے، {{failed}} حذف نہیں ہو سکے۔",
+      "updatePartial": "{{updated}} اپ ڈیٹ ہو گئے، {{failed}} اپ ڈیٹ نہیں ہو سکے۔",
       "setActiveCount": "{{count}} قسم فعال ہوئیں۔",
       "setInactiveCount": "{{count}} قسم غیر فعال ہوئیں۔",
       "removedCount": "{{count}} قسم حذف ہوئیں۔"

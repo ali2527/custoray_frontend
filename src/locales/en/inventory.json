@@ -134,6 +134,8 @@
     "saveFailed": "Could not save product.",
     "loadFailed": "Could not load products.",
     "importPartial": "{{added}} imported, {{failed}} could not be imported.",
+    "deletePartial": "{{deleted}} deleted, {{failed}} could not be deleted.",
+    "updatePartial": "{{updated}} updated, {{failed}} could not be updated.",
     "importUnmatchedCatalog": "These brand, category, or variant names were not in your catalog, so those products were imported without them: {{names}}",
     "categoryCreated": "Category created.",
     "categorySaved": "Category saved.",

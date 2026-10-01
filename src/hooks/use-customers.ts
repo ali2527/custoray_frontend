@@ -10,6 +10,7 @@ import {
   apiListAllBuyers,
   apiUpdateBuyer,
 } from "@/lib/api/business"
+import { settledErrorMessage } from "@/lib/api/client"
 import { customerKeys, invalidateCustomers } from "@/lib/customers-query"
 import {
   cacheCustomers,
@@ -81,6 +82,7 @@ export function useCustomersQuery() {
       return {
         deleted: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
+        message: settledErrorMessage(results),
       }
     },
     onSuccess: ({ deleted }, ids) => {
@@ -106,6 +108,7 @@ export function useCustomersQuery() {
       return {
         updated: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
+        message: settledErrorMessage(results),
       }
     },
     onSuccess: ({ updated }) => {

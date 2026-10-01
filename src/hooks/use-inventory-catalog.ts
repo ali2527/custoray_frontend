@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useAuth } from "@/context/auth-context"
+import { settledErrorMessage } from "@/lib/api/client"
 import {
   apiBulkCreateBrands,
   apiBulkCreateCategories,
@@ -26,6 +27,7 @@ import {
 } from "@/lib/inventory-catalog-rows"
 import {
   type CatalogKind,
+  applyCatalogDelete,
   inventoryKeys,
   invalidateInventory,
 } from "@/lib/inventory-query"
@@ -63,9 +65,10 @@ export function useInventoryCatalog(kind: CatalogKind) {
   const queryClient = useQueryClient()
   const enabled = authHydrated && Boolean(tenantId)
   const api = catalogApi[kind]
+  const catalogKey = inventoryKeys.catalog(kind, tenantId)
 
   const query = useQuery({
-    queryKey: inventoryKeys.catalog(kind, tenantId),
+    queryKey: catalogKey,
     enabled,
     queryFn: async () => {
       const items = await api.list()
@@ -73,9 +76,29 @@ export function useInventoryCatalog(kind: CatalogKind) {
     },
   })
 
+  function mergeCatalogRows(created: ReturnType<typeof mapApiCatalogToRow>[]) {
+    if (created.length === 0) return
+    queryClient.setQueryData<ReturnType<typeof mapApiCatalogToRow>[]>(
+      catalogKey,
+      (old) => {
+        const existing = old ?? []
+        const existingIds = new Set(existing.map((row) => row.id))
+        const fresh = created.filter((row) => row.id && !existingIds.has(row.id))
+        if (fresh.length === 0) return existing
+        return [...fresh, ...existing].map((row, index) => ({
+          ...row,
+          srNo: index + 1,
+        }))
+      }
+    )
+    invalidateInventory(queryClient, tenantId)
+  }
+
   const createMutation = useMutation({
     mutationFn: (data: CatalogWrite) => api.create(data),
-    onSuccess: () => invalidateInventory(queryClient, tenantId),
+    onSuccess: (item) => {
+      mergeCatalogRows([mapApiCatalogToRow(item, 0)])
+    },
   })
 
   const updateMutation = useMutation({
@@ -87,13 +110,18 @@ export function useInventoryCatalog(kind: CatalogKind) {
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       const results = await Promise.allSettled(ids.map((id) => api.remove(id)))
+      const deletedIds = ids.filter(
+        (_, index) => results[index]?.status === "fulfilled"
+      )
       return {
-        deleted: results.filter((result) => result.status === "fulfilled").length,
-        failed: results.filter((result) => result.status === "rejected").length,
+        deleted: deletedIds.length,
+        deletedIds,
+        failed: results.length - deletedIds.length,
+        message: settledErrorMessage(results),
       }
     },
-    onSuccess: ({ deleted }) => {
-      if (deleted > 0) invalidateInventory(queryClient, tenantId)
+    onSuccess: ({ deletedIds }) => {
+      void applyCatalogDelete(queryClient, kind, tenantId, deletedIds)
     },
   })
 
@@ -111,6 +139,7 @@ export function useInventoryCatalog(kind: CatalogKind) {
       return {
         updated: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
+        message: settledErrorMessage(results),
       }
     },
     onSuccess: ({ updated }) => {
@@ -121,9 +150,8 @@ export function useInventoryCatalog(kind: CatalogKind) {
   const bulkCreateMutation = useMutation({
     mutationFn: (items: CatalogWrite[]) => api.bulk(items),
     onSuccess: (res) => {
-      if ((res.added ?? res.items?.length ?? 0) > 0) {
-        invalidateInventory(queryClient, tenantId)
-      }
+      const created = (res.items ?? []).map(mapApiCatalogToRow)
+      mergeCatalogRows(created)
     },
   })
 

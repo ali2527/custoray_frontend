@@ -10,6 +10,7 @@ import {
   apiListAllPayments,
   apiUpdatePayment,
 } from "@/lib/api/business"
+import { settledErrorMessage } from "@/lib/api/client"
 import { invalidatePayments, paymentKeys } from "@/lib/payments-query"
 import {
   cachePayments,
@@ -83,6 +84,7 @@ export function usePaymentsQuery() {
       return {
         deleted: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
+        message: settledErrorMessage(results),
       }
     },
     onSuccess: ({ deleted }, ids) => {

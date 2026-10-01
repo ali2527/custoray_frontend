@@ -15,6 +15,7 @@ import {
   apiUpdateProduct,
   type ApiProductWrite,
 } from "@/lib/api/business"
+import { settledErrorMessage } from "@/lib/api/client"
 import { inventoryKeys, invalidateInventory } from "@/lib/inventory-query"
 import {
   PRODUCT_VARIANTS,
@@ -124,6 +125,7 @@ export function useInventoryProducts() {
       return {
         deletedIds: ids.filter((_, index) => results[index]?.status === "fulfilled"),
         failed: results.filter((result) => result.status === "rejected").length,
+        message: settledErrorMessage(results),
       }
     },
     onSuccess: ({ deletedIds }) => {
@@ -151,6 +153,7 @@ export function useInventoryProducts() {
       return {
         updatedIds: ids.filter((_, index) => results[index]?.status === "fulfilled"),
         failed: results.filter((result) => result.status === "rejected").length,
+        message: settledErrorMessage(results),
         lifecycle,
       }
     },

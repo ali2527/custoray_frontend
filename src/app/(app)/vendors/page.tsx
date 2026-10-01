@@ -41,6 +41,8 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet"
 import { useVendors } from "@/context/vendors-context"
+import { reportImportFailure, toastFailure } from "@/lib/action-toast"
+import { uniqueErrorMessages } from "@/lib/api/client"
 import {
   confirmDeleteAction,
   confirmDuplicateAction,
@@ -374,9 +376,12 @@ export default function VendorsPage() {
       const res = await bulkCreate(payload)
       const added = res.added ?? res.items?.length ?? 0
       const failed = imported.length - payload.length + (res.errors?.length ?? 0)
-      if (failed > 0) {
-        toast.error(t("toasts.importPartial", { added, failed }))
-      }
+      reportImportFailure(
+        added,
+        failed,
+        t("toasts.importPartial", { added, failed }),
+        uniqueErrorMessages(res.errors)
+      )
       return added
     },
     [bulkCreate, t]
@@ -388,11 +393,12 @@ export default function VendorsPage() {
       if (ids.length === 0) return
       const result = await setStatus(ids, status)
       if (result.failed > 0) {
-        toast.error(
-          t("toasts.importPartial", {
-            added: result.updated,
+        toastFailure(
+          t("toasts.updatePartial", {
+            updated: result.updated,
             failed: result.failed,
-          })
+          }),
+          result.message
         )
         return
       }
@@ -603,12 +609,14 @@ export default function VendorsPage() {
               }
               const ids = selected.map((row) => row.apiId).filter(Boolean)
               const result = await removeMany(ids)
-              if (result.failed > 0) {
-                toast.error(
-                  t("toasts.importPartial", {
-                    added: result.deleted,
-                    failed: result.failed,
-                  })
+              const failed = result.failed + (selected.length - ids.length)
+              if (failed > 0) {
+                toastFailure(
+                  t("toasts.deletePartial", {
+                    deleted: result.deleted,
+                    failed,
+                  }),
+                  result.message
                 )
                 return
               }

@@ -171,6 +171,8 @@
     "saveFailed": "گاہک محفوظ نہیں ہو سکا۔",
     "removedCount": "{{count}} گاہک ہٹا دیے گئے۔",
     "importPartial": "{{added}} درآمد ہوئے، {{failed}} درآمد نہیں ہو سکے۔",
+    "deletePartial": "{{deleted}} حذف ہو گئے، {{failed}} حذف نہیں ہو سکے۔",
+    "updatePartial": "{{updated}} اپ ڈیٹ ہو گئے، {{failed}} اپ ڈیٹ نہیں ہو سکے۔",
     "setActiveCount": "{{count}} فعال ہو گئے۔",
     "setInactiveCount": "{{count}} غیر فعال ہو گئے۔"
   },
