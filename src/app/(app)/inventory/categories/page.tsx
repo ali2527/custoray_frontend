@@ -534,6 +534,7 @@ function CategoriesPageContent() {
         importSelectColumns={{
           status: [...CATALOG_STATUS_OPTIONS],
         }}
+        importRequiredSelectColumns={[]}
         exportFilename="categories-export.csv"
         onImportRows={handleImportRows}
         onAddClick={() => {

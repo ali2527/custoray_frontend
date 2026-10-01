@@ -308,6 +308,7 @@ function BrandsPageContent() {
         importSelectColumns={{
           status: [...BRAND_STATUS_OPTIONS],
         }}
+        importRequiredSelectColumns={[]}
         exportFilename="brands-export.csv"
         onAddClick={() => setLookupOpen(true)}
         onImportRows={handleImportRows}
