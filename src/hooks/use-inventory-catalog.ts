@@ -63,9 +63,10 @@ export function useInventoryCatalog(kind: CatalogKind) {
   const queryClient = useQueryClient()
   const enabled = authHydrated && Boolean(tenantId)
   const api = catalogApi[kind]
+  const catalogKey = inventoryKeys.catalog(kind, tenantId)
 
   const query = useQuery({
-    queryKey: inventoryKeys.catalog(kind, tenantId),
+    queryKey: catalogKey,
     enabled,
     queryFn: async () => {
       const items = await api.list()
@@ -73,9 +74,29 @@ export function useInventoryCatalog(kind: CatalogKind) {
     },
   })
 
+  function mergeCatalogRows(created: ReturnType<typeof mapApiCatalogToRow>[]) {
+    if (created.length === 0) return
+    queryClient.setQueryData<ReturnType<typeof mapApiCatalogToRow>[]>(
+      catalogKey,
+      (old) => {
+        const existing = old ?? []
+        const existingIds = new Set(existing.map((row) => row.id))
+        const fresh = created.filter((row) => row.id && !existingIds.has(row.id))
+        if (fresh.length === 0) return existing
+        return [...fresh, ...existing].map((row, index) => ({
+          ...row,
+          srNo: index + 1,
+        }))
+      }
+    )
+    invalidateInventory(queryClient, tenantId)
+  }
+
   const createMutation = useMutation({
     mutationFn: (data: CatalogWrite) => api.create(data),
-    onSuccess: () => invalidateInventory(queryClient, tenantId),
+    onSuccess: (item) => {
+      mergeCatalogRows([mapApiCatalogToRow(item, 0)])
+    },
   })
 
   const updateMutation = useMutation({
@@ -121,9 +142,8 @@ export function useInventoryCatalog(kind: CatalogKind) {
   const bulkCreateMutation = useMutation({
     mutationFn: (items: CatalogWrite[]) => api.bulk(items),
     onSuccess: (res) => {
-      if ((res.added ?? res.items?.length ?? 0) > 0) {
-        invalidateInventory(queryClient, tenantId)
-      }
+      const created = (res.items ?? []).map(mapApiCatalogToRow)
+      mergeCatalogRows(created)
     },
   })
 

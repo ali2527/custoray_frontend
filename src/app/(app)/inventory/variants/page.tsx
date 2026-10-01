@@ -451,6 +451,7 @@ function VariantsPageContent() {
         importSelectColumns={{
           status: [...CATALOG_STATUS_OPTIONS],
         }}
+        importRequiredSelectColumns={[]}
         exportFilename="variants-export.csv"
         onAddClick={() => setLookupOpen(true)}
         onImportRows={handleImportRows}
