@@ -65,7 +65,8 @@
     "saved": "تم حفظ الدفعة.",
     "removedCount": "تم حذف {{count}} دفعة.",
     "saveFailed": "تعذّر حفظ الدفعة.",
-    "importPartial": "تم استيراد {{added}} وتعذّر استيراد {{failed}}."
+    "importPartial": "تم استيراد {{added}} وتعذّر استيراد {{failed}}.",
+    "deletePartial": "تم حذف {{deleted}}، وتعذر حذف {{failed}}."
   },
   "form": {
     "type": "نوع الدفعة",

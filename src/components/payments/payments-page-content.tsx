@@ -42,6 +42,8 @@ import {
 } from "@/components/ui/sheet"
 import { useCustomers } from "@/context/customers-context"
 import { usePayments } from "@/context/payments-context"
+import { toastFailure } from "@/lib/action-toast"
+import { uniqueErrorMessages } from "@/lib/api/client"
 import { useVendors } from "@/context/vendors-context"
 import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
 import {
@@ -536,7 +538,11 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
         const added = res.added ?? res.items?.length ?? 0
         const failed = rows.length - payload.length + (res.errors?.length ?? 0)
         if (failed > 0) {
-          toast.error(t("toasts.importPartial", { added, failed }))
+          toastFailure(
+            t("toasts.importPartial", { added, failed }),
+            uniqueErrorMessages(res.errors)
+          )
+          return added > 0 ? added : null
         }
         return added
       } catch (error) {
@@ -558,15 +564,22 @@ export function PaymentsPageContent({ paymentType }: PaymentsPageContentProps) {
         return
       }
       const ids = selected.map((row) => row.apiId).filter(Boolean)
-      if (ids.length === 0) return
+      if (ids.length === 0) {
+        toastFailure(
+          t("toasts.deletePartial", { deleted: 0, failed: selected.length })
+        )
+        return
+      }
       try {
         const result = await removeMany(ids)
-        if (result.failed > 0) {
-          toast.error(
-            t("toasts.importPartial", {
-              added: result.deleted,
-              failed: result.failed,
-            })
+        const failed = result.failed + (selected.length - ids.length)
+        if (failed > 0) {
+          toastFailure(
+            t("toasts.deletePartial", {
+              deleted: result.deleted,
+              failed,
+            }),
+            result.message
           )
           return
         }

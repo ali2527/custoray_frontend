@@ -17,7 +17,7 @@ type PaymentsContextValue = {
   updatePayment: (id: number, patch: Partial<PaymentRow>) => Promise<void>
   removePayment: (id: number) => Promise<void>
   duplicatePayment: (id: number) => Promise<PaymentRow | null>
-  removeMany: (ids: string[]) => Promise<{ deleted: number; failed: number }>
+  removeMany: (ids: string[]) => Promise<{ deleted: number; failed: number; message?: string }>
   bulkCreate: ReturnType<typeof usePaymentsQuery>["bulkCreate"]
 }
 

@@ -22,6 +22,7 @@ import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 import type { TFunction } from "i18next"
 
+import { toastFailure } from "@/lib/action-toast"
 import { confirmDeleteAction } from "@/lib/confirm-action"
 import {
   EMPTY_PRODUCT,
@@ -1031,11 +1032,12 @@ export default function ProductsPage() {
       const result = await removeMany(ids)
       closeSidebarIfProductRemoved(new Set(selected.map((row) => row.srNo)))
       if (result.failed > 0) {
-        toast.error(
-          t("toasts.importPartial", {
-            added: result.deletedIds.length,
+        toastFailure(
+          t("toasts.deletePartial", {
+            deleted: result.deletedIds.length,
             failed: result.failed,
-          })
+          }),
+          result.message
         )
         return
       }
@@ -1057,11 +1059,12 @@ export default function ProductsPage() {
     try {
       const result = await setLifecycle({ ids, lifecycle })
       if (result.failed > 0) {
-        toast.error(
-          t("toasts.importPartial", {
-            added: result.updatedIds.length,
+        toastFailure(
+          t("toasts.updatePartial", {
+            updated: result.updatedIds.length,
             failed: result.failed,
-          })
+          }),
+          result.message
         )
         return
       }

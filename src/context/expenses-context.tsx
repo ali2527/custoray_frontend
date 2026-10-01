@@ -17,7 +17,7 @@ type ExpensesContextValue = {
   updateExpense: (id: number, patch: Partial<ExpenseRow>) => Promise<void>
   removeExpense: (id: number) => Promise<void>
   duplicateExpense: (id: number) => Promise<ExpenseRow | null>
-  removeMany: (ids: string[]) => Promise<{ deleted: number; failed: number }>
+  removeMany: (ids: string[]) => Promise<{ deleted: number; failed: number; message?: string }>
   bulkCreate: ReturnType<typeof useExpensesQuery>["bulkCreate"]
 }
 

@@ -170,6 +170,8 @@
     "saveFailed": "سپلائر محفوظ نہیں ہو سکا۔",
     "removedCount": "{{count}} سپلائر ہٹا دیے گئے۔",
     "importPartial": "{{added}} درآمد ہوئے، {{failed}} درآمد نہیں ہو سکے۔",
+    "deletePartial": "{{deleted}} حذف ہو گئے، {{failed}} حذف نہیں ہو سکے۔",
+    "updatePartial": "{{updated}} اپ ڈیٹ ہو گئے، {{failed}} اپ ڈیٹ نہیں ہو سکے۔",
     "setActiveCount": "{{count}} کو فعال کر دیا گیا۔",
     "setInactiveCount": "{{count}} کو غیر فعال کر دیا گیا۔"
   },

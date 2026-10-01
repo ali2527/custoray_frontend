@@ -170,6 +170,8 @@
     "saveFailed": "تعذّر حفظ المورّد.",
     "removedCount": "تم حذف {{count}} مورّد.",
     "importPartial": "تم استيراد {{added}} وتعذّر استيراد {{failed}}.",
+    "deletePartial": "تم حذف {{deleted}}، وتعذر حذف {{failed}}.",
+    "updatePartial": "تم تحديث {{updated}}، وتعذر تحديث {{failed}}.",
     "setActiveCount": "تم تعيين {{count}} كنشط.",
     "setInactiveCount": "تم تعيين {{count}} كغير نشط."
   },

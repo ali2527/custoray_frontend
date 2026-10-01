@@ -13,6 +13,30 @@ export class ApiClientError extends Error {
   }
 }
 
+export function settledErrorMessage(
+  results: PromiseSettledResult<unknown>[]
+): string | undefined {
+  for (const result of results) {
+    if (result.status !== "rejected") continue
+    const reason = result.reason
+    if (reason instanceof ApiClientError && reason.message.trim()) return reason.message
+    if (reason instanceof Error && reason.message.trim()) return reason.message
+  }
+  return undefined
+}
+
+export function uniqueErrorMessages(
+  errors: { message?: string }[] | undefined,
+  limit = 3
+): string | undefined {
+  if (!errors?.length) return undefined
+  const unique = [
+    ...new Set(errors.map((error) => error.message?.trim()).filter(Boolean)),
+  ] as string[]
+  if (unique.length === 0) return undefined
+  return unique.slice(0, limit).join(" ")
+}
+
 type ApiEnvelope<T> = {
   success: boolean
   code?: string

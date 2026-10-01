@@ -52,7 +52,8 @@
     "saved": "Expense saved.",
     "removedCount": "Removed {{count}} expense(s).",
     "saveFailed": "Could not save expense.",
-    "importPartial": "{{added}} imported, {{failed}} could not be imported."
+    "importPartial": "{{added}} imported, {{failed}} could not be imported.",
+    "deletePartial": "{{deleted}} deleted, {{failed}} could not be deleted."
   },
   "form": {
     "selectType": "Select type…",
@@ -110,6 +111,8 @@
       "saved": "Expense type saved.",
       "saveFailed": "Could not save expense type.",
       "importPartial": "{{added}} imported, {{failed}} could not be imported.",
+      "deletePartial": "{{deleted}} deleted, {{failed}} could not be deleted.",
+      "updatePartial": "{{updated}} updated, {{failed}} could not be updated.",
       "setActiveCount": "Set {{count}} type(s) active.",
       "setInactiveCount": "Set {{count}} type(s) inactive.",
       "removedCount": "Removed {{count}} type(s)."

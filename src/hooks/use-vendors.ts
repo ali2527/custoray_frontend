@@ -10,6 +10,7 @@ import {
   apiListAllVendors,
   apiUpdateVendor,
 } from "@/lib/api/business"
+import { settledErrorMessage } from "@/lib/api/client"
 import { invalidateVendors, vendorKeys } from "@/lib/vendors-query"
 import {
   cacheVendors,
@@ -83,6 +84,7 @@ export function useVendorsQuery() {
       return {
         deleted: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
+        message: settledErrorMessage(results),
       }
     },
     onSuccess: ({ deleted }, ids) => {
@@ -112,6 +114,7 @@ export function useVendorsQuery() {
       return {
         updated: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
+        message: settledErrorMessage(results),
       }
     },
     onSuccess: ({ updated }) => {

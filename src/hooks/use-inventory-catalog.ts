@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useAuth } from "@/context/auth-context"
+import { settledErrorMessage } from "@/lib/api/client"
 import {
   apiBulkCreateBrands,
   apiBulkCreateCategories,
@@ -111,6 +112,7 @@ export function useInventoryCatalog(kind: CatalogKind) {
       return {
         deleted: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
+        message: settledErrorMessage(results),
       }
     },
     onSuccess: ({ deleted }) => {
@@ -132,6 +134,7 @@ export function useInventoryCatalog(kind: CatalogKind) {
       return {
         updated: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
+        message: settledErrorMessage(results),
       }
     },
     onSuccess: ({ updated }) => {
