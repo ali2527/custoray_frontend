@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowRight, Building2, ChevronLeft, Mail, Phone, User } from "lucide-react"
+import { ArrowRight, Building2, ChevronLeft, Loader2, Mail, Phone, User } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -19,7 +19,6 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { PasswordInput } from "@/components/ui/password-input"
 import {
   Select,
@@ -100,7 +99,9 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
   const { signup, session, hydrated, access } = useAuth()
   const plan = planFromUrl(planCode)
   const stayOnSignup = useRef(false)
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [step, setStep] = useState<1 | 2>(1)
+  const [advancing, setAdvancing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -124,6 +125,12 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
     const id = step === 1 ? "ownerName" : "businessName"
     window.setTimeout(() => document.getElementById(id)?.focus(), 0)
   }, [step])
+
+  useEffect(() => {
+    return () => {
+      if (advanceTimer.current) clearTimeout(advanceTimer.current)
+    }
+  }, [])
 
   function update<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues((prev) => ({ ...prev, [key]: value }))
@@ -170,8 +177,12 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
     }
     if (values.password.length < 8) next.password = t("signup.errors.password")
     setErrors(next)
-    if (Object.keys(next).length) return
-    setStep(2)
+    if (Object.keys(next).length || advancing) return
+    setAdvancing(true)
+    advanceTimer.current = setTimeout(() => {
+      setStep(2)
+      setAdvancing(false)
+    }, 320)
   }
 
   async function createAccount(event: FormEvent<HTMLFormElement>) {
@@ -298,9 +309,13 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
               />
               <FieldError message={errors.password} />
             </div>
-            <Button type="submit" className={AUTH_BUTTON}>
+            <Button type="submit" className={AUTH_BUTTON} disabled={advancing} aria-busy={advancing}>
               {t("signup.continue")}
-              <ArrowRight className="size-3.5" />
+              {advancing ? (
+                <Loader2 className="size-3.5 animate-spin" aria-hidden />
+              ) : (
+                <ArrowRight className="size-3.5" aria-hidden />
+              )}
             </Button>
             <AuthSocialButtons
               onNavigate={() => {
@@ -456,15 +471,9 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
               </label>
               <FieldError message={errors.terms} />
             </div>
-            <Button type="submit" className={AUTH_BUTTON} disabled={loading}>
-              {loading ? (
-                <span className="flex items-center justify-center gap-2">
-                  <LoadingSpinner size="sm" />
-                  {t("signup.creating")}
-                </span>
-              ) : (
-                t("signup.createAccount")
-              )}
+            <Button type="submit" className={AUTH_BUTTON} disabled={loading} aria-busy={loading}>
+              {loading ? t("signup.creating") : t("signup.createAccount")}
+              {loading ? <Loader2 className="size-3.5 animate-spin" aria-hidden /> : null}
             </Button>
             <button
               type="button"
