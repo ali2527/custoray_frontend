@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useAuth } from "@/context/auth-context"
-import { settledErrorMessage } from "@/lib/api/client"
+import { isNotFoundError, settledErrorMessage } from "@/lib/api/client"
 import {
   apiBulkCreateBrands,
   apiBulkCreateCategories,
@@ -109,15 +109,23 @@ export function useInventoryCatalog(kind: CatalogKind) {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const results = await Promise.allSettled(ids.map((id) => api.remove(id)))
-      const deletedIds = ids.filter(
+      const results = await Promise.allSettled(
+        ids.filter(Boolean).map((id) => api.remove(id))
+      )
+      const attempted = ids.filter(Boolean)
+      const deletedIds = attempted.filter(
         (_, index) => results[index]?.status === "fulfilled"
       )
+      const missingIds = attempted.filter((_, index) => {
+        const result = results[index]
+        return result?.status === "rejected" && isNotFoundError(result.reason)
+      })
+      const failedResults = results.filter((result) => result.status === "rejected")
       return {
         deleted: deletedIds.length,
-        deletedIds,
-        failed: results.length - deletedIds.length,
-        message: settledErrorMessage(results),
+        deletedIds: [...deletedIds, ...missingIds],
+        failed: failedResults.length + (ids.length - attempted.length),
+        message: settledErrorMessage(failedResults),
       }
     },
     onSuccess: ({ deletedIds }) => {

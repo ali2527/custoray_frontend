@@ -229,7 +229,13 @@ function BrandsPageContent() {
       try {
         const result = await removeMany([brand.id])
         if (result.failed > 0) {
-          toast.error(t("toasts.saveFailed"))
+          toastFailure(
+            t("toasts.deletePartial", {
+              deleted: result.deleted,
+              failed: result.failed,
+            }),
+            result.message
+          )
           return
         }
         toast.success(t("toasts.deletedNamed", { name: brand.name }))
