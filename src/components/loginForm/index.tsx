@@ -150,6 +150,7 @@ export function LoginForm({
           )}
         </Button>
         <AuthSocialButtons
+          mode="login"
           onNavigate={() => {
             stayOnAuth.current = true
           }}

@@ -39,8 +39,10 @@ function GoogleIcon() {
 }
 
 export function AuthSocialButtons({
+  mode,
   onNavigate,
 }: {
+  mode: "login" | "signup"
   onNavigate?: () => void
 }) {
   const { t } = useTranslation("auth")
@@ -60,7 +62,7 @@ export function AuthSocialButtons({
     try {
       await loadGoogleIdentityServices()
       const code = await requestGoogleAuthCode(clientId)
-      const result = await loginWithGoogle({ code })
+      const result = await loginWithGoogle({ intent: mode, code })
 
       if (!result.ok) {
         toast.error(result.error)
@@ -69,11 +71,6 @@ export function AuthSocialButtons({
 
       if (result.requiresTwoFactor) {
         router.replace("/2fa")
-        return
-      }
-
-      if (result.needsOrganization) {
-        router.replace("/signup")
         return
       }
 
