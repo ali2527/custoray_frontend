@@ -892,12 +892,19 @@ function DataTableGridSkeleton() {
 function DataTableEmptyState({
   title,
   description,
+  className,
 }: {
   title: string
   description?: string
+  className?: string
 }) {
   return (
-    <div className="flex min-h-[16rem] flex-col items-center justify-center gap-2 px-6 py-10 text-center">
+    <div
+      className={cn(
+        "flex min-h-[16rem] flex-col items-center justify-center gap-2 px-6 py-10 text-center",
+        className
+      )}
+    >
       <div className="bg-muted text-muted-foreground mb-1 flex size-10 items-center justify-center rounded-full">
         <IconLayoutList className="size-5" aria-hidden />
       </div>
@@ -1420,8 +1427,16 @@ export function DataTable<TData>({
   const tableContent = (
     <div className="relative flex flex-col gap-4 overflow-auto">
         {layoutView === "list" || !enableLayoutToggle ? (
-          <div className="overflow-x-auto rounded-md border">
-            <Table className={tableClassName}>
+          <div className="relative w-full overflow-x-auto rounded-md border">
+            <Table className={cn("w-full", tableClassName)}>
+              <colgroup>
+                {table.getVisibleLeafColumns().map((column) => (
+                  <col
+                    key={column.id}
+                    className={getColumnMeta(column)?.headerClassName}
+                  />
+                ))}
+              </colgroup>
               <TableHeader className="bg-muted sticky top-0 z-10">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
@@ -1488,25 +1503,37 @@ export function DataTable<TData>({
                     )
                   })
                 ) : (
-                  <TableRow>
-                    <TableCell colSpan={columnsProp.length} className="p-0">
-                      <DataTableEmptyState
-                        title={
-                          data.length === 0 && !globalFilter.trim() && emptyTitle
-                            ? emptyTitle
-                            : t("empty.noResultsTitle")
-                        }
-                        description={
-                          data.length === 0 && !globalFilter.trim() && emptyDescription
-                            ? emptyDescription
-                            : t("empty.noResultsHint")
-                        }
+                  <TableRow className="hover:bg-transparent">
+                    {table.getVisibleLeafColumns().map((column) => (
+                      <TableCell
+                        key={column.id}
+                        className={cn(
+                          "h-64 border-0 p-0",
+                          getColumnMeta(column)?.cellClassName
+                        )}
                       />
-                    </TableCell>
+                    ))}
                   </TableRow>
                 )}
               </TableBody>
             </Table>
+            {!isLoading && !table.getRowModel().rows?.length ? (
+              <div className="pointer-events-none absolute inset-x-0 top-10 bottom-0 flex items-center justify-center">
+                <DataTableEmptyState
+                  className="min-h-0 py-8"
+                  title={
+                    data.length === 0 && !globalFilter.trim() && emptyTitle
+                      ? emptyTitle
+                      : t("empty.noResultsTitle")
+                  }
+                  description={
+                    data.length === 0 && !globalFilter.trim() && emptyDescription
+                      ? emptyDescription
+                      : t("empty.noResultsHint")
+                  }
+                />
+              </div>
+            ) : null}
           </div>
         ) : (
           <DataTableGridView
