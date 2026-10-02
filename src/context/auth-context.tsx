@@ -13,6 +13,7 @@ import {
   type AuthUser,
 } from "@/lib/auth-session"
 import {
+  apiCompleteGoogleSignup,
   apiCreateCompany,
   apiGoogle,
   apiLogin,
@@ -34,6 +35,7 @@ import {
   loadLocalCompanies,
   saveActiveCompanyId,
 } from "@/lib/company-memberships"
+import { savePendingGoogleSignup } from "@/lib/google-signup"
 import { accessFromSession, type AccessInfo } from "@/lib/subscription-access"
 import {
   canAdmin,
@@ -48,9 +50,18 @@ type LoginResult =
   | { ok: false; error: string }
 
 type GoogleLoginResult =
-  | { ok: true; accessAllowed: boolean; isNewUser: boolean; requiresTwoFactor?: false }
+  | { ok: true; accessAllowed: boolean; isNewUser: boolean; needsOrganization?: false; requiresTwoFactor?: false }
+  | { ok: true; accessAllowed: false; isNewUser: true; needsOrganization: true; requiresTwoFactor?: false }
   | { ok: true; accessAllowed: false; isNewUser: false; requiresTwoFactor: true }
   | { ok: false; error: string }
+
+type GoogleSignupInput = {
+  signupToken: string
+  businessName: string
+  phone: string
+  country: string
+  industry: string
+}
 
 type SignupInput = {
   businessName: string
@@ -74,6 +85,7 @@ type AuthContextValue = {
   access: AccessInfo | null
   login: (email: string, password: string) => Promise<LoginResult>
   signup: (input: SignupInput) => Promise<LoginResult>
+  completeGoogleSignup: (input: GoogleSignupInput) => Promise<LoginResult>
   loginWithGoogle: (input: { code?: string; idToken?: string }) => Promise<GoogleLoginResult>
   completeTwoFactor: (code: string) => Promise<LoginResult>
   logout: (redirectTo?: string) => void
@@ -274,6 +286,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (input: { code?: string; idToken?: string }): Promise<GoogleLoginResult> => {
       try {
         const data = await apiGoogle(input)
+        if (data.needsOrganization && data.signupToken && data.profile) {
+          savePendingGoogleSignup({
+            signupToken: data.signupToken,
+            email: data.profile.email,
+            name: data.profile.name,
+          })
+          return {
+            ok: true,
+            accessAllowed: false,
+            isNewUser: true,
+            needsOrganization: true,
+          }
+        }
         if (data.requiresTwoFactor) {
           if (!data.challengeToken) {
             return { ok: false, error: "Authenticator challenge missing. Try again." }
@@ -300,6 +325,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {
           ok: false,
           error: err instanceof Error ? err.message : "Google sign-in failed",
+        }
+      }
+    },
+    [applyRemoteSession]
+  )
+
+  const completeGoogleSignup = React.useCallback(
+    async (input: GoogleSignupInput): Promise<LoginResult> => {
+      try {
+        await apiCompleteGoogleSignup(input)
+        const me = await apiMe()
+        const nextAccess = applyRemoteSession(me)
+        return { ok: true, accessAllowed: nextAccess.allowed }
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : "Signup failed",
         }
       }
     },
@@ -378,6 +420,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       access,
       login,
       signup,
+      completeGoogleSignup,
       loginWithGoogle,
       completeTwoFactor,
       logout,
@@ -399,6 +442,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       access,
       login,
       signup,
+      completeGoogleSignup,
       loginWithGoogle,
       completeTwoFactor,
       logout,
