@@ -1,12 +1,6 @@
 "use client"
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-} from "react"
+import { useCallback, useMemo, useState, type FormEvent } from "react"
 import {
   Calendar,
   dateFnsLocalizer,
@@ -102,7 +96,6 @@ export function EmployeeAttendanceCalendar() {
   const { t: tc } = useTranslation("common")
   const { employees } = useEmployees()
   const [records, setRecords] = useState<AttendanceRecord[]>([])
-  const [hydrated, setHydrated] = useState(false)
   const [view, setView] = useState<"calendar" | "table">("calendar")
   const [employeeSearch, setEmployeeSearch] = useState("")
   const [employeeFilter, setEmployeeFilter] = useState("all")
@@ -114,10 +107,6 @@ export function EmployeeAttendanceCalendar() {
   const [dayStatuses, setDayStatuses] = useState<
     Record<number, AttendanceStatus>
   >({})
-
-  useEffect(() => {
-    setHydrated(true)
-  }, [])
 
   const employeeName = useCallback(
     (employeeId: number) =>
