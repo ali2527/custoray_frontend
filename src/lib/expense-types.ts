@@ -51,17 +51,6 @@ export function expenseTypesStorageKey(tenantId?: string | null) {
   return `${EXPENSE_TYPES_STORAGE_KEY}:${tenantId}`
 }
 
-function parsePersistedExpenseTypes(raw: string | null): ExpenseTypeRow[] | null {
-  if (!raw) return null
-  try {
-    const parsed = JSON.parse(raw) as unknown
-    const result = z.array(expenseTypeSchema).safeParse(parsed)
-    return result.success ? result.data : null
-  } catch {
-    return null
-  }
-}
-
 export function loadCachedExpenseTypes(_tenantId?: string | null): ExpenseTypeRow[] {
   return []
 }

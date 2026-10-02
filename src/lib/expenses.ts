@@ -78,17 +78,6 @@ export function expensesStorageKey(tenantId?: string | null) {
   return `${EXPENSES_STORAGE_KEY}:${tenantId}`
 }
 
-function parsePersistedExpenses(raw: string | null): ExpenseRow[] | null {
-  if (!raw) return null
-  try {
-    const parsed = JSON.parse(raw) as unknown
-    const result = z.array(expenseSchema).safeParse(parsed)
-    return result.success ? result.data : null
-  } catch {
-    return null
-  }
-}
-
 export function loadCachedExpenses(_tenantId?: string | null): ExpenseRow[] {
   return []
 }

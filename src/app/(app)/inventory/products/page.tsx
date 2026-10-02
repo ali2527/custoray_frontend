@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { ColumnDef } from "@tanstack/react-table"
 import {
   IconAlertTriangleFilled,
@@ -980,12 +980,12 @@ export default function ProductsPage() {
     tables: catalogTables,
   }
 
-  function closeSidebarIfProductRemoved(srNos: Set<number>) {
+  const closeSidebarIfProductRemoved = useCallback((srNos: Set<number>) => {
     setSidebar((current) => {
       if (!current || current.mode === "add") return current
       return srNos.has(current.product.srNo) ? null : current
     })
-  }
+  }, [])
 
   const handleSaveProduct = async (next: ProductRow) => {
     const isNew = sidebar?.mode === "add" || !next.id
@@ -999,7 +999,7 @@ export default function ProductsPage() {
     }
   }
 
-  async function handleDeleteProduct(product: ProductRow) {
+  const handleDeleteProduct = useCallback(async (product: ProductRow) => {
     if (
       !(await confirmDeleteAction({
         itemName: product.name,
@@ -1026,7 +1026,7 @@ export default function ProductsPage() {
     } finally {
       setDeletingId(null)
     }
-  }
+  }, [closeSidebarIfProductRemoved, removeMany, t])
 
   async function handleDeleteProducts(selected: ProductRow[]) {
     if (selected.length === 0) return
@@ -1088,14 +1088,14 @@ export default function ProductsPage() {
     }
   }
 
-  async function handleDuplicateProduct(row: ProductRow) {
+  const handleDuplicateProduct = useCallback(async (row: ProductRow) => {
     try {
       await duplicate({ source: row, skuSettings })
       toast.success(t("toasts.created"))
     } catch (error) {
       toast.error(apiErrorMessage(error, t("toasts.saveFailed")))
     }
-  }
+  }, [duplicate, skuSettings, t])
 
   async function handleImportRows(rows: Record<string, string>[]) {
     setIsMutating(true)
@@ -1163,7 +1163,7 @@ export default function ProductsPage() {
       if (key === "variant") return catalogTables.variant
       return true
     })
-  }, [catalogTables, t])
+  }, [catalogTables, handleDeleteProduct, handleDuplicateProduct, t])
 
   useEffect(() => {
     const syncSkuSettings = () => setSkuSettings(loadProductSkuSettings())

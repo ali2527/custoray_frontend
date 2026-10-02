@@ -68,6 +68,7 @@ let refreshInFlight: Promise<boolean> | null = null
 function shouldRefresh(path: string, status: number, code: string) {
   if (status !== 401) return false
   if (code === "TRIAL_EXPIRED" || code === "PLAN_EXPIRED") return false
+  if (code === "SESSION_ENDED" || code === "ACCOUNT_BLOCKED") return false
   return !SKIP_REFRESH_PATHS.some((p) => path === p || path.startsWith(`${p}/`))
 }
 
@@ -129,7 +130,9 @@ export async function apiFetch<T>(
       window.dispatchEvent(new CustomEvent("custoray:access-blocked", { detail: code }))
     }
 
-    if (!isRetry && shouldRefresh(path, res.status, code)) {
+    if (code === "SESSION_ENDED" || code === "ACCOUNT_BLOCKED") {
+      emitSessionExpired()
+    } else if (!isRetry && shouldRefresh(path, res.status, code)) {
       const refreshed = await refreshAccessCookie()
       if (refreshed) {
         return apiFetch<T>(path, options, true)
