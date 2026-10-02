@@ -1038,10 +1038,17 @@ export function DataTable<TData>({
   const resolvedAddLabel = addButtonLabel ?? t("table.add")
   const resolvedSearchPlaceholder = searchPlaceholder ?? t("search.placeholder")
   const [data, setData] = React.useState(() => initialData)
-
-  React.useEffect(() => {
+  const incomingSignature = initialData
+    .map((row) => {
+      const record = row as { id?: string | number; srNo?: string | number; name?: string }
+      return `${record.id ?? ""}:${record.srNo ?? ""}:${record.name ?? ""}`
+    })
+    .join("|")
+  const [seenSignature, setSeenSignature] = React.useState(incomingSignature)
+  if (seenSignature !== incomingSignature) {
+    setSeenSignature(incomingSignature)
     setData(initialData)
-  }, [initialData])
+  }
 
   const updateData = React.useCallback(
     (updater: React.SetStateAction<TData[]>) => {

@@ -5,11 +5,7 @@ import {
   applyReturnToOrder,
   applyReturnToPurchase,
   type ReturnRow,
-  RETURNS_STORAGE_KEY,
-  initialReturns,
   nextReturnNumber,
-  parsePersistedReturns,
-  isPosReturn,
 } from "@/lib/returns"
 import type { OrderRow } from "@/lib/orders"
 import type { PurchaseRow } from "@/lib/purchases"
@@ -38,27 +34,6 @@ type ReturnsContextValue = {
 
 const ReturnsContext = React.createContext<ReturnsContextValue | null>(null)
 
-function returnsStorageKey(tenantId?: string | null) {
-  if (!tenantId) return RETURNS_STORAGE_KEY
-  return `${RETURNS_STORAGE_KEY}:${tenantId}`
-}
-
-function mergeReturns(local: ReturnRow[], apiRows: ReturnRow[]): ReturnRow[] {
-  const byApiId = new Map(
-    apiRows.filter((row) => row.apiId).map((row) => [row.apiId!, row])
-  )
-  const keptLocal = local.filter((row) => {
-    if (row.apiId && byApiId.has(row.apiId)) return false
-    if (isPosReturn(row) && !row.apiId) return false
-    return true
-  })
-  return [...keptLocal, ...apiRows].sort((a, b) => {
-    const dateCompare = b.returnDate.localeCompare(a.returnDate)
-    if (dateCompare !== 0) return dateCompare
-    return b.id - a.id
-  })
-}
-
 export function ReturnsProvider({ children }: { children: React.ReactNode }) {
   const { session, hydrated: authHydrated } = useAuth()
   const tenantId = session?.tenantId
@@ -72,8 +47,7 @@ export function ReturnsProvider({ children }: { children: React.ReactNode }) {
     if (!tenantIdRef.current) return
     try {
       const items = await apiListAllReturns()
-      const apiRows = items.map((item) => mapApiReturnToRow(item))
-      setReturns((prev) => mergeReturns(prev, apiRows))
+      setReturns(items.map((item) => mapApiReturnToRow(item)))
     } catch {
       /* keep local cache when API is unavailable */
     } finally {
@@ -83,17 +57,7 @@ export function ReturnsProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (!authHydrated) return
-    const key = returnsStorageKey(tenantId)
-    const saved = parsePersistedReturns(
-      typeof window !== "undefined" ? window.localStorage.getItem(key) : null
-    )
-    if (saved?.length) {
-      setReturns(saved)
-    } else if (!tenantId) {
-      setReturns([...initialReturns])
-    } else {
-      setReturns([])
-    }
+    setReturns([])
     setHydrated(true)
     if (tenantId) {
       void refreshReturns()
@@ -101,14 +65,6 @@ export function ReturnsProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     }
   }, [authHydrated, tenantId, refreshReturns])
-
-  React.useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return
-    window.localStorage.setItem(
-      returnsStorageKey(tenantId),
-      JSON.stringify(returns)
-    )
-  }, [returns, hydrated, tenantId])
 
   const getReturn = React.useCallback(
     (id: number) => returns.find((row) => row.id === id),

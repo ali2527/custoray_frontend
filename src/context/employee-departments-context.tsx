@@ -1,12 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {
-  type DepartmentRow,
-  DEPARTMENTS_STORAGE_KEY,
-  initialDepartments,
-  parsePersistedDepartments,
-} from "@/lib/employee-departments"
+import { type DepartmentRow } from "@/lib/employee-departments"
 import { nextUniqueNumericId } from "@/lib/utils"
 
 type DepartmentsContextValue = {
@@ -20,28 +15,7 @@ type DepartmentsContextValue = {
 const DepartmentsContext = React.createContext<DepartmentsContextValue | null>(null)
 
 export function DepartmentsProvider({ children }: { children: React.ReactNode }) {
-  const [departments, setDepartments] = React.useState<DepartmentRow[]>(() => [
-    ...initialDepartments,
-  ])
-  const [hydrated, setHydrated] = React.useState(false)
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return
-    const saved =
-      parsePersistedDepartments(
-        window.localStorage.getItem(DEPARTMENTS_STORAGE_KEY)
-      ) ??
-      parsePersistedDepartments(
-        window.localStorage.getItem("custoray-departments-v1")
-      )
-    if (saved) setDepartments(saved)
-    setHydrated(true)
-  }, [])
-
-  React.useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return
-    window.localStorage.setItem(DEPARTMENTS_STORAGE_KEY, JSON.stringify(departments))
-  }, [departments, hydrated])
+  const [departments, setDepartments] = React.useState<DepartmentRow[]>([])
 
   const addDepartment = React.useCallback((row: Omit<DepartmentRow, "id">) => {
     let created = { ...row, id: 0 } as DepartmentRow

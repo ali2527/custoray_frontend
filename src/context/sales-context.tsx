@@ -3,10 +3,7 @@
 import * as React from "react"
 import {
   type SaleRow,
-  SALES_STORAGE_KEY,
-  initialSales,
   nextSaleNumber,
-  parsePersistedSales,
 } from "@/lib/sales"
 
 type SalesContextValue = {
@@ -22,23 +19,7 @@ type SalesContextValue = {
 const SalesContext = React.createContext<SalesContextValue | null>(null)
 
 export function SalesProvider({ children }: { children: React.ReactNode }) {
-  const [sales, setSales] = React.useState<SaleRow[]>(() => [...initialSales])
-  const [hydrated, setHydrated] = React.useState(false)
-
-  React.useEffect(() => {
-    const saved = parsePersistedSales(
-      typeof window !== "undefined"
-        ? window.localStorage.getItem(SALES_STORAGE_KEY)
-        : null
-    )
-    if (saved) setSales(saved)
-    setHydrated(true)
-  }, [])
-
-  React.useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return
-    window.localStorage.setItem(SALES_STORAGE_KEY, JSON.stringify(sales))
-  }, [sales, hydrated])
+  const [sales, setSales] = React.useState<SaleRow[]>([])
 
   const getSale = React.useCallback(
     (id: number) => sales.find((s) => s.id === id),

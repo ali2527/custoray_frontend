@@ -42,8 +42,8 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { downloadRowsAsXls } from "@/lib/excel-export"
+import { usePayments } from "@/context/payments-context"
 import {
-  buildPaymentReportDemoPayments,
   computePaymentAging,
   computePaymentCashFlow,
   computePaymentReportSummary,
@@ -277,8 +277,7 @@ function withPresetDates(
 
 export function PaymentReports() {
   const { t } = useTranslation("reports")
-  // Relative-date demo seed so month / custom filters show a full cash-flow curve.
-  const payments = React.useMemo(() => buildPaymentReportDemoPayments(), [])
+  const { payments } = usePayments()
   const [filter, setFilter] = React.useState<PaymentReportFilter>(() =>
     createDefaultPaymentReportFilter()
   )

@@ -3,10 +3,7 @@
 import * as React from "react"
 import {
   type PurchaseRow,
-  PURCHASES_STORAGE_KEY,
-  initialPurchases,
   nextPurchaseNumber,
-  parsePersistedPurchases,
 } from "@/lib/purchases"
 
 type PurchasesContextValue = {
@@ -23,25 +20,8 @@ type PurchasesContextValue = {
 const PurchasesContext = React.createContext<PurchasesContextValue | null>(null)
 
 export function PurchasesProvider({ children }: { children: React.ReactNode }) {
-  const [purchases, setPurchases] = React.useState<PurchaseRow[]>(() => [
-    ...initialPurchases,
-  ])
-  const [hydrated, setHydrated] = React.useState(false)
-
-  React.useEffect(() => {
-    const saved = parsePersistedPurchases(
-      typeof window !== "undefined"
-        ? window.localStorage.getItem(PURCHASES_STORAGE_KEY)
-        : null
-    )
-    if (saved) setPurchases(saved)
-    setHydrated(true)
-  }, [])
-
-  React.useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return
-    window.localStorage.setItem(PURCHASES_STORAGE_KEY, JSON.stringify(purchases))
-  }, [purchases, hydrated])
+  const [purchases, setPurchases] = React.useState<PurchaseRow[]>([])
+  const [hydrated] = React.useState(true)
 
   const getPurchase = React.useCallback(
     (id: number) => purchases.find((p) => p.id === id),

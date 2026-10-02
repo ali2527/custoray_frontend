@@ -1,12 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {
-  type LeaveRecord,
-  LEAVES_STORAGE_KEY,
-  initialLeaveRecords,
-  parsePersistedLeaves,
-} from "@/lib/employee-leaves"
+import { type LeaveRecord } from "@/lib/employee-leaves"
 import { nextUniqueNumericId } from "@/lib/utils"
 
 type LeavesContextValue = {
@@ -21,25 +16,7 @@ type LeavesContextValue = {
 const LeavesContext = React.createContext<LeavesContextValue | null>(null)
 
 export function LeavesProvider({ children }: { children: React.ReactNode }) {
-  const [records, setRecords] = React.useState<LeaveRecord[]>(() => [
-    ...initialLeaveRecords,
-  ])
-  const [hydrated, setHydrated] = React.useState(false)
-
-  React.useEffect(() => {
-    const saved = parsePersistedLeaves(
-      typeof window !== "undefined"
-        ? window.localStorage.getItem(LEAVES_STORAGE_KEY)
-        : null
-    )
-    if (saved) setRecords(saved)
-    setHydrated(true)
-  }, [])
-
-  React.useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return
-    window.localStorage.setItem(LEAVES_STORAGE_KEY, JSON.stringify(records))
-  }, [records, hydrated])
+  const [records, setRecords] = React.useState<LeaveRecord[]>([])
 
   const addRecord = React.useCallback((row: Omit<LeaveRecord, "id">) => {
     let created = { ...row, id: 0 } as LeaveRecord

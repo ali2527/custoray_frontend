@@ -14,11 +14,23 @@ export const inventoryKeys = {
     ["inventory", tenantId, kind] as const,
 }
 
+function isCatalogListKey(queryKey: readonly unknown[]) {
+  const kind = queryKey[2]
+  return kind === "brands" || kind === "categories" || kind === "variants"
+}
+
 export function invalidateInventory(
   queryClient: QueryClient,
-  tenantId: string | undefined
+  tenantId: string | undefined,
+  options?: { refetchCatalog?: boolean }
 ) {
-  void queryClient.invalidateQueries({ queryKey: inventoryKeys.root(tenantId) })
+  void queryClient.invalidateQueries({
+    queryKey: inventoryKeys.root(tenantId),
+    predicate: (query) =>
+      options?.refetchCatalog === false
+        ? !isCatalogListKey(query.queryKey)
+        : true,
+  })
   emitProductsChanged()
 }
 
@@ -41,6 +53,5 @@ export async function applyCatalogDelete<T extends CatalogCacheRow>(
       .filter((row) => row.id && !removed.has(row.id))
       .map((row, index) => ({ ...row, srNo: index + 1 }))
   })
-  await queryClient.invalidateQueries({ queryKey: inventoryKeys.root(tenantId) })
-  emitProductsChanged()
+  invalidateInventory(queryClient, tenantId, { refetchCatalog: false })
 }

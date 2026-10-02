@@ -38,21 +38,10 @@ function historyKey(sku: string): string {
 }
 
 function loadStore(): HistoryStore {
-  if (typeof window === "undefined") return {}
-  try {
-    const raw = window.localStorage.getItem(PRODUCT_PRICE_HISTORY_STORAGE_KEY)
-    if (!raw) return {}
-    const parsed = historyStoreSchema.safeParse(JSON.parse(raw))
-    return parsed.success ? parsed.data : {}
-  } catch {
-    return {}
-  }
+  return {}
 }
 
-function saveStore(store: HistoryStore) {
-  if (typeof window === "undefined") return
-  window.localStorage.setItem(PRODUCT_PRICE_HISTORY_STORAGE_KEY, JSON.stringify(store))
-}
+function saveStore(_store: HistoryStore) {}
 
 export function loadProductPriceHistory(sku: string): ProductPriceEvent[] {
   const events = loadStore()[historyKey(sku)] ?? []

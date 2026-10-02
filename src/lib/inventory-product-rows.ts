@@ -321,34 +321,14 @@ export function inventoryProductsStorageKey(tenantId?: string | null) {
 }
 
 export function cacheInventoryProducts(
-  rows: ProductRow[],
-  tenantId?: string | null
-) {
-  if (typeof window === "undefined") return
-  const key = inventoryProductsStorageKey(tenantId)
-  if (!key) return
-  try {
-    window.localStorage.removeItem(INVENTORY_PRODUCTS_STORAGE_KEY)
-    window.localStorage.setItem(key, JSON.stringify(rows))
-  } catch {
-    /* ignore quota */
-  }
-}
+  _rows: ProductRow[],
+  _tenantId?: string | null
+) {}
 
 export function loadCachedInventoryProducts(
-  tenantId?: string | null
+  _tenantId?: string | null
 ): ProductRow[] | null {
-  if (typeof window === "undefined") return null
-  const key = inventoryProductsStorageKey(tenantId)
-  if (!key) return null
-  try {
-    const raw = window.localStorage.getItem(key)
-    if (!raw) return null
-    const parsed = productSchema.array().safeParse(JSON.parse(raw))
-    return parsed.success ? parsed.data : null
-  } catch {
-    return null
-  }
+  return null
 }
 
 export function applyImportedProductRows(

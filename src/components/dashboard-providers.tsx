@@ -2,8 +2,6 @@
 
 import * as React from "react"
 
-import { CustomerTimelineSeeder } from "@/components/customers/customer-timeline-seeder"
-import { VendorTimelineSeeder } from "@/components/vendors/vendor-timeline-seeder"
 import { CustomersProvider } from "@/context/customers-context"
 import { DepartmentsProvider } from "@/context/employee-departments-context"
 import { LeavesProvider } from "@/context/employee-leaves-context"
@@ -36,8 +34,6 @@ export function DashboardProviders({ children }: { children: React.ReactNode }) 
                       <PosSettingsProvider>
                         <PurchasesProvider>
                           <ReturnsProvider>
-                            <CustomerTimelineSeeder />
-                            <VendorTimelineSeeder />
                             <PaymentsProvider>
                               <ExpenseTypesProvider>
                                 <ExpensesProvider>

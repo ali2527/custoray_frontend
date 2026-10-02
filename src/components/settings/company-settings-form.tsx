@@ -9,10 +9,9 @@ import { SettingsSection } from "@/components/settings/settings-section"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { apiGetCompanySettings, apiPatchCompanySettings } from "@/lib/api/auth"
 import {
   DEFAULT_COMPANY_SETTINGS,
-  loadCompanySettings,
-  saveCompanySettings,
   type CompanySettings,
 } from "@/lib/company-settings"
 
@@ -21,7 +20,27 @@ export function CompanySettingsForm() {
   const [settings, setSettings] = useState<CompanySettings>(DEFAULT_COMPANY_SETTINGS)
 
   useEffect(() => {
-    setSettings(loadCompanySettings())
+    let cancelled = false
+    apiGetCompanySettings()
+      .then((remote) => {
+        if (cancelled || !remote) return
+        const [addressLine1, ...rest] = (remote.address || "").split(", ")
+        setSettings({
+          name: remote.name || "",
+          tagline: remote.tagline || "",
+          addressLine1: addressLine1 || "",
+          addressLine2: rest.join(", "),
+          phone: remote.phone || "",
+          email: remote.email || "",
+          logoUrl: remote.logoUrl || "",
+        })
+      })
+      .catch(() => {
+        if (!cancelled) setSettings(DEFAULT_COMPANY_SETTINGS)
+      })
+    return () => {
+      cancelled = true
+    }
   }, [])
 
   const update = (patch: Partial<CompanySettings>) => {
@@ -36,8 +55,22 @@ export function CompanySettingsForm() {
   }
 
   const handleSave = () => {
-    saveCompanySettings(settings)
-    toast.success(t("company.toastSaved"))
+    const address = [settings.addressLine1, settings.addressLine2]
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .join(", ")
+    void apiPatchCompanySettings({
+      name: settings.name.trim(),
+      tagline: settings.tagline.trim(),
+      phone: settings.phone.trim(),
+      email: settings.email.trim(),
+      address,
+      logoUrl: settings.logoUrl.trim() || undefined,
+    })
+      .then(() => toast.success(t("company.toastSaved")))
+      .catch((error: unknown) => {
+        toast.error(error instanceof Error ? error.message : "Could not save company settings")
+      })
   }
 
   const logoPreview = settings.logoUrl.trim() || "/assets/logo-2.png"

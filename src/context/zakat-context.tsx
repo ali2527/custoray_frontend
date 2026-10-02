@@ -3,19 +3,17 @@
 import * as React from "react"
 
 import { useCustomers } from "@/context/customers-context"
+import { useProducts } from "@/context/products-context"
 import { useVendors } from "@/context/vendors-context"
-import { initialProducts } from "@/lib/products"
 import {
   computeBusinessZakat,
   createHistoryRecord,
   DEFAULT_ZAKAT_SETTINGS,
   type FinalizeZakatInput,
-  parseZakatHistory,
   parseZakatSettings,
   type ZakatCalculation,
   type ZakatHistoryRecord,
   type ZakatSettings,
-  ZAKAT_HISTORY_STORAGE_KEY,
   ZAKAT_SETTINGS_STORAGE_KEY,
 } from "@/lib/zakat"
 
@@ -33,6 +31,7 @@ const ZakatContext = React.createContext<ZakatContextValue | null>(null)
 
 export function ZakatProvider({ children }: { children: React.ReactNode }) {
   const { customers } = useCustomers()
+  const { products } = useProducts()
   const { vendors } = useVendors()
   const [settings, setSettings] = React.useState<ZakatSettings>(
     DEFAULT_ZAKAT_SETTINGS
@@ -47,11 +46,7 @@ export function ZakatProvider({ children }: { children: React.ReactNode }) {
     const savedSettings = parseZakatSettings(
       window.localStorage.getItem(ZAKAT_SETTINGS_STORAGE_KEY)
     )
-    const savedHistory = parseZakatHistory(
-      window.localStorage.getItem(ZAKAT_HISTORY_STORAGE_KEY)
-    )
     if (savedSettings) setSettings(savedSettings)
-    if (savedHistory) setHistory(savedHistory)
     setHydrated(true)
   }, [])
 
@@ -63,24 +58,16 @@ export function ZakatProvider({ children }: { children: React.ReactNode }) {
     )
   }, [hydrated, settings])
 
-  React.useEffect(() => {
-    if (!hydrated) return
-    window.localStorage.setItem(
-      ZAKAT_HISTORY_STORAGE_KEY,
-      JSON.stringify(history)
-    )
-  }, [history, hydrated])
-
   const calculation = React.useMemo(
     () =>
       computeBusinessZakat({
-        products: initialProducts,
+        products,
         customers,
         vendors,
         settings,
         calculatedAt,
       }),
-    [calculatedAt, customers, settings, vendors]
+    [calculatedAt, customers, products, settings, vendors]
   )
 
   const updateSettings = React.useCallback(

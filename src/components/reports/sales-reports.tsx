@@ -50,9 +50,9 @@ import {
   type OrderRow,
 } from "@/lib/orders"
 import { isPosOrder } from "@/lib/pos"
+import { useOrders } from "@/context/orders-context"
+import { useReturns } from "@/context/returns-context"
 import {
-  buildSalesReportDemoOrders,
-  buildSalesReportDemoReturns,
   computeSalesDailyTotals,
   computeSalesReportSummary,
   computeSalesReportTrends,
@@ -285,12 +285,11 @@ function withPresetDates(
 
 export function SalesReports() {
   const { t } = useTranslation("reports")
-  // Relative-date demo seed so month / custom filters show full weekday patterns.
-  // Relative-date demo seed so month / custom filters show full weekday patterns.
-  const orders = React.useMemo(() => buildSalesReportDemoOrders(), [])
+  const { orders } = useOrders()
+  const { returns: allReturns } = useReturns()
   const returns = React.useMemo(
-    () => buildSalesReportDemoReturns(orders),
-    [orders]
+    () => allReturns.filter((row) => row.type === "sales"),
+    [allReturns]
   )
   const [filter, setFilter] = React.useState<SalesReportFilter>(() =>
     createDefaultSalesReportFilter()
