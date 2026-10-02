@@ -4,6 +4,8 @@
   "addButton": "New Vendor",
   "search": "Search vendors…",
   "empty": "No vendors found.",
+  "emptyTitle": "No vendors yet",
+  "emptyDescription": "Add a vendor or import a CSV. New vendors show up in this table.",
   "tabs": {
     "all": "All",
     "active": "Active",

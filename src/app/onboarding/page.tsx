@@ -4,7 +4,12 @@ import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
 import { useAuth } from "@/context/auth-context"
-import { isWelcomeFlowPending, queueWelcomeFlow } from "@/lib/welcome-flow"
+import {
+  isWelcomeFlowCompleted,
+  isWelcomeFlowDismissed,
+  isWelcomeFlowPending,
+  queueWelcomeFlow,
+} from "@/lib/welcome-flow"
 
 export default function OnboardingPage() {
   const router = useRouter()
@@ -20,10 +25,16 @@ export default function OnboardingPage() {
       router.replace("/trial-ended")
       return
     }
-    if (isWelcomeFlowPending()) {
+    if (
+      isWelcomeFlowPending() &&
+      !isWelcomeFlowCompleted() &&
+      !isWelcomeFlowDismissed()
+    ) {
       queueWelcomeFlow()
+      router.replace("/home/?welcome=1")
+      return
     }
-    router.replace("/home/?welcome=1")
+    router.replace("/home/")
   }, [hydrated, isAuthenticated, access, router])
 
   return null
