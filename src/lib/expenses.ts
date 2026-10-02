@@ -89,27 +89,11 @@ function parsePersistedExpenses(raw: string | null): ExpenseRow[] | null {
   }
 }
 
-export function loadCachedExpenses(tenantId?: string | null): ExpenseRow[] {
-  if (typeof window === "undefined") return []
-  const key = expensesStorageKey(tenantId)
-  if (!key) return []
-  try {
-    return parsePersistedExpenses(window.localStorage.getItem(key)) ?? []
-  } catch {
-    return []
-  }
+export function loadCachedExpenses(_tenantId?: string | null): ExpenseRow[] {
+  return []
 }
 
-export function cacheExpenses(rows: ExpenseRow[], tenantId?: string | null) {
-  if (typeof window === "undefined") return
-  const key = expensesStorageKey(tenantId)
-  if (!key) return
-  try {
-    window.localStorage.setItem(key, JSON.stringify(rows))
-  } catch {
-    /* ignore */
-  }
-}
+export function cacheExpenses(_rows: ExpenseRow[], _tenantId?: string | null) {}
 
 function toUiDate(value: string) {
   const trimmed = value.trim()

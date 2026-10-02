@@ -9,12 +9,6 @@ import { LoadingSpinner } from "@/components/ui/loading-spinner"
 
 import { Button } from "@/components/ui/button"
 import { loadCompanySettings } from "@/lib/company-settings"
-import {
-  computeBalance as computeCustomerBalance,
-  CUSTOMERS_STORAGE_KEY,
-  parsePersistedCustomers,
-  type CustomerRow,
-} from "@/lib/customers"
 import { loadDocumentDisplaySettings } from "@/lib/document-display-settings"
 import { resolveActiveTemplateForPdf } from "@/lib/invoice-templates"
 import { buildInvoicePdfHtml, resolveLogoSrc } from "@/lib/invoice-pdf-html"
@@ -31,27 +25,11 @@ type InvoicePdfButtonProps = {
   showIcon?: boolean
 }
 
-function lookupCustomerBalance(customerName: string): string | undefined {
-  if (typeof window === "undefined") return undefined
-  const customers: CustomerRow[] = []
-  for (let i = 0; i < window.localStorage.length; i += 1) {
-    const key = window.localStorage.key(i)
-    if (!key?.startsWith(CUSTOMERS_STORAGE_KEY)) continue
-    const parsed = parsePersistedCustomers(window.localStorage.getItem(key))
-    if (parsed?.length) customers.push(...parsed)
-  }
-  const match = customers.find(
-    (customer) =>
-      customer.name.trim().toLowerCase() === customerName.trim().toLowerCase()
-  )
-  return match ? computeCustomerBalance(match) : undefined
-}
-
 export async function downloadInvoicePdf(order: OrderRow) {
   const company = loadCompanySettings()
   const { templateId, colors, builder } = resolveActiveTemplateForPdf()
   const display = loadDocumentDisplaySettings().invoice
-  const customerBalance = lookupCustomerBalance(order.customerName)
+  const customerBalance = undefined
   const html = buildInvoicePdfHtml(
     order,
     company,

@@ -62,27 +62,11 @@ function parsePersistedExpenseTypes(raw: string | null): ExpenseTypeRow[] | null
   }
 }
 
-export function loadCachedExpenseTypes(tenantId?: string | null): ExpenseTypeRow[] {
-  if (typeof window === "undefined") return []
-  const key = expenseTypesStorageKey(tenantId)
-  if (!key) return []
-  try {
-    return parsePersistedExpenseTypes(window.localStorage.getItem(key)) ?? []
-  } catch {
-    return []
-  }
+export function loadCachedExpenseTypes(_tenantId?: string | null): ExpenseTypeRow[] {
+  return []
 }
 
-export function cacheExpenseTypes(rows: ExpenseTypeRow[], tenantId?: string | null) {
-  if (typeof window === "undefined") return
-  const key = expenseTypesStorageKey(tenantId)
-  if (!key) return
-  try {
-    window.localStorage.setItem(key, JSON.stringify(rows))
-  } catch {
-    /* ignore */
-  }
-}
+export function cacheExpenseTypes(_rows: ExpenseTypeRow[], _tenantId?: string | null) {}
 
 function parseExpenseTypeStatus(raw: string): ExpenseTypeStatus {
   const normalized = raw.trim().toLowerCase()

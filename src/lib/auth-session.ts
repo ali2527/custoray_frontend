@@ -47,14 +47,15 @@ export function loadSession(): AuthSession | null {
   }
 }
 
-export function saveSession(session: AuthSession): void {
+export function saveSession(_session: AuthSession): void {
   if (typeof window === "undefined") return
-  window.localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session))
+  window.localStorage.removeItem(AUTH_SESSION_KEY)
 }
 
 export function clearSession(): void {
   if (typeof window === "undefined") return
   window.localStorage.removeItem(AUTH_SESSION_KEY)
+  window.sessionStorage.removeItem("custoray.accessToken")
 }
 
 export function sessionToNavUser(session: AuthSession): AuthUser {

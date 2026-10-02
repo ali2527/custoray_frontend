@@ -3,7 +3,6 @@
 import * as React from "react"
 import {
   type ProductRow,
-  PRODUCTS_STORAGE_KEY,
   nextSku,
 } from "@/lib/products"
 import { recordProductPriceChanges } from "@/lib/product-price-history"
@@ -63,37 +62,6 @@ function toWrite(product: Omit<ProductRow, "id" | "srNo">): ApiProductWrite {
   }
 }
 
-function posProductsStorageKey(tenantId?: string | null) {
-  if (!tenantId) return null
-  return `${PRODUCTS_STORAGE_KEY}:${tenantId}`
-}
-
-function loadCachedPosProducts(tenantId?: string | null): ProductRow[] {
-  if (typeof window === "undefined") return []
-  const key = posProductsStorageKey(tenantId)
-  if (!key) return []
-  try {
-    const raw = window.localStorage.getItem(key)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as ProductRow[]
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
-  }
-}
-
-function cachePosProducts(rows: ProductRow[], tenantId?: string | null) {
-  if (typeof window === "undefined") return
-  const key = posProductsStorageKey(tenantId)
-  if (!key) return
-  try {
-    window.localStorage.removeItem(PRODUCTS_STORAGE_KEY)
-    window.localStorage.setItem(key, JSON.stringify(rows))
-  } catch {
-    /* ignore quota */
-  }
-}
-
 type ProductsContextValue = {
   products: ProductRow[]
   setProducts: React.Dispatch<React.SetStateAction<ProductRow[]>>
@@ -116,8 +84,6 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   const apiIdBySrNo = React.useRef(new Map<number, string>())
   const productsRef = React.useRef(products)
   productsRef.current = products
-  const tenantIdRef = React.useRef(tenantId)
-  tenantIdRef.current = tenantId
 
   const rememberApiId = (product: ApiProduct) => {
     apiIdBySrNo.current.set(product.srNo, product.id)
@@ -128,13 +94,9 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
     try {
       const items = await apiListAllProducts()
       apiIdBySrNo.current = new Map(items.map((item) => [item.srNo, item.id]))
-      const mapped = items.map(mapApiProduct)
-      setProducts(mapped)
-      cachePosProducts(mapped, tenantIdRef.current)
+      setProducts(items.map(mapApiProduct))
     } catch {
-      if (!opts?.silent) {
-        setProducts(loadCachedPosProducts(tenantIdRef.current))
-      }
+      if (!opts?.silent) setProducts([])
     } finally {
       setLoading(false)
     }
@@ -143,8 +105,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   React.useEffect(() => {
     if (!hydrated) return
     apiIdBySrNo.current.clear()
-    const cached = loadCachedPosProducts(tenantId)
-    setProducts(cached)
+    setProducts([])
     void loadFromApi()
   }, [hydrated, tenantId, loadFromApi])
 
@@ -190,10 +151,6 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
       recordProductPriceChanges(current, next)
     }
     setProducts((prev) => prev.map((p) => (p.id === id ? next : p)))
-    cachePosProducts(
-      productsRef.current.map((p) => (p.id === id ? next : p)),
-      tenantIdRef.current
-    )
 
     const apiId = apiIdBySrNo.current.get(current.srNo)
     if (!apiId) return

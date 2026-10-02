@@ -67,7 +67,6 @@ const localizer = dateFnsLocalizer({
   locales: { "en-US": enUS },
 })
 
-const ATTENDANCE_STORAGE_KEY = "custoray-attendance-v1"
 const ATTENDANCE_STATUSES = ["present", "late", "absent", "half-day"] as const
 type AttendanceStatus = (typeof ATTENDANCE_STATUSES)[number]
 
@@ -98,46 +97,11 @@ function statusLabel(status: AttendanceStatus) {
   return i18n.t(`status.${status}`, { ns: "employees" })
 }
 
-function initialAttendance(): AttendanceRecord[] {
-  const today = new Date()
-  const day = dateValue(today)
-  return [
-    {
-      id: 1,
-      employeeId: 1,
-      date: day,
-      status: "present",
-      checkIn: "09:00",
-      checkOut: "17:00",
-      notes: "",
-    },
-    {
-      id: 2,
-      employeeId: 2,
-      date: day,
-      status: "late",
-      checkIn: "09:35",
-      checkOut: "17:15",
-      notes: "Traffic delay",
-    },
-  ]
-}
-
-function parseStoredAttendance(raw: string | null): AttendanceRecord[] | null {
-  if (!raw) return null
-  try {
-    const rows = JSON.parse(raw) as AttendanceRecord[]
-    return Array.isArray(rows) ? rows : null
-  } catch {
-    return null
-  }
-}
-
 export function EmployeeAttendanceCalendar() {
   const { t } = useTranslation("employees")
   const { t: tc } = useTranslation("common")
   const { employees } = useEmployees()
-  const [records, setRecords] = useState<AttendanceRecord[]>(initialAttendance)
+  const [records, setRecords] = useState<AttendanceRecord[]>([])
   const [hydrated, setHydrated] = useState(false)
   const [view, setView] = useState<"calendar" | "table">("calendar")
   const [employeeSearch, setEmployeeSearch] = useState("")
@@ -152,20 +116,8 @@ export function EmployeeAttendanceCalendar() {
   >({})
 
   useEffect(() => {
-    const stored = parseStoredAttendance(
-      window.localStorage.getItem(ATTENDANCE_STORAGE_KEY)
-    )
-    if (stored) setRecords(stored)
     setHydrated(true)
   }, [])
-
-  useEffect(() => {
-    if (!hydrated) return
-    window.localStorage.setItem(
-      ATTENDANCE_STORAGE_KEY,
-      JSON.stringify(records)
-    )
-  }, [records, hydrated])
 
   const employeeName = useCallback(
     (employeeId: number) =>

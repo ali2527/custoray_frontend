@@ -187,29 +187,11 @@ export function paymentsStorageKey(tenantId?: string | null) {
   return `${PAYMENTS_STORAGE_KEY}:${tenantId}`
 }
 
-export function loadCachedPayments(tenantId?: string | null): PaymentRow[] {
-  if (typeof window === "undefined") return []
-  const key = paymentsStorageKey(tenantId)
-  if (!key) return []
-  try {
-    const parsed = parsePersistedPayments(window.localStorage.getItem(key))
-    return parsed ?? []
-  } catch {
-    return []
-  }
+export function loadCachedPayments(_tenantId?: string | null): PaymentRow[] {
+  return []
 }
 
-export function cachePayments(rows: PaymentRow[], tenantId?: string | null) {
-  if (typeof window === "undefined") return
-  const key = paymentsStorageKey(tenantId)
-  if (!key) return
-  try {
-    window.localStorage.removeItem("custoray-payments-v1")
-    window.localStorage.setItem(key, JSON.stringify(rows))
-  } catch {
-    /* ignore quota */
-  }
-}
+export function cachePayments(_rows: PaymentRow[], _tenantId?: string | null) {}
 
 function toUiDate(value: string) {
   const trimmed = value.trim()
