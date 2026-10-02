@@ -46,6 +46,9 @@ export type AuthLoginResponse = {
   requiresTwoFactor?: boolean;
   challengeToken?: string;
   isNewUser?: boolean;
+  needsOrganization?: boolean;
+  signupToken?: string;
+  profile?: { email: string; name: string };
 };
 
 export type TotpStatus = {
@@ -90,6 +93,23 @@ export async function apiGoogle(input: { code?: string; idToken?: string }) {
   return apiFetch<AuthLoginResponse>("/auth/google", {
     method: "POST",
     body: JSON.stringify(input),
+  });
+}
+
+export async function apiCompleteGoogleSignup(input: {
+  signupToken: string;
+  businessName: string;
+  phone: string;
+  country: string;
+  industry: string;
+}) {
+  return apiFetch<{ accessToken: string }>("/auth/google/complete", {
+    method: "POST",
+    body: JSON.stringify({
+      ...input,
+      termsVersion: "2026-01-01",
+      privacyVersion: "2026-01-01",
+    }),
   });
 }
 

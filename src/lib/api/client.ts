@@ -56,6 +56,7 @@ const SKIP_REFRESH_PATHS = [
   "/auth/tenant/login",
   "/auth/tenant/signup",
   "/auth/google",
+  "/auth/google/complete",
   "/auth/2fa/verify",
   "/auth/refresh",
   "/auth/logout",

@@ -72,6 +72,11 @@ export function AuthSocialButtons({
         return
       }
 
+      if (result.needsOrganization) {
+        router.replace("/signup")
+        return
+      }
+
       if (result.isNewUser) {
         queueWelcomeFlow()
         router.replace(result.accessAllowed ? "/home/?welcome=1" : "/trial-ended")
