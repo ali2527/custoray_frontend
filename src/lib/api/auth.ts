@@ -42,7 +42,6 @@ export type SessionPayload = {
 };
 
 export type AuthLoginResponse = {
-  accessToken?: string;
   requiresTwoFactor?: boolean;
   challengeToken?: string;
   isNewUser?: boolean;
@@ -69,7 +68,7 @@ export async function apiSignup(input: {
   password: string;
   planCode?: string;
 }) {
-  return apiFetch<{ accessToken: string }>("/auth/tenant/signup", {
+  return apiFetch<null>("/auth/tenant/signup", {
     method: "POST",
     body: JSON.stringify({
       ...input,
@@ -106,7 +105,7 @@ export async function apiGoogle(input: {
 }
 
 export async function apiVerifyTwoFactor(challengeToken: string, code: string) {
-  return apiFetch<{ accessToken: string }>("/auth/2fa/verify", {
+  return apiFetch<null>("/auth/2fa/verify", {
     method: "POST",
     body: JSON.stringify({ challengeToken, code }),
   });
