@@ -74,20 +74,18 @@ export function WelcomeFlow() {
   }, [])
 
   useEffect(() => {
-    if (!hydrated || !isAuthenticated || isWelcomeFlowCompleted()) return
+    if (!hydrated || !isAuthenticated) return
+    if (isWelcomeFlowCompleted() || isWelcomeFlowDismissed()) return
     if (open) return
     if (typeof window !== "undefined") {
       const fromUrl = new URLSearchParams(window.location.search).get("welcome") === "1"
-      // Don't re-queue after skip — otherwise ?welcome=1 immediately reopens the wizard.
-      if (fromUrl && !isWelcomeFlowDismissed()) {
-        queueWelcomeFlow()
-      }
+      if (fromUrl) queueWelcomeFlow()
     }
-    if (isWelcomeFlowPending() || (isOnTrial && !isWelcomeFlowDismissed())) {
+    if (isWelcomeFlowPending()) {
       setOpen(true)
       setSetupStep(0)
     }
-  }, [hydrated, isAuthenticated, access?.status, open, isOnTrial])
+  }, [hydrated, isAuthenticated, open])
 
   function clearWelcomeQuery() {
     if (typeof window === "undefined") return

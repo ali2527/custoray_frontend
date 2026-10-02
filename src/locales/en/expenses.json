@@ -87,6 +87,8 @@
     "save": "Save type",
     "search": "Search expense types…",
     "addDescription": "Create a reusable expense category.",
+    "emptyTitle": "No expense types yet",
+    "emptyDescription": "Add a type or import a CSV. New types show up in this table.",
     "columns": {
       "srNo": "Sr No",
       "name": "Name",

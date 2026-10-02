@@ -18,7 +18,6 @@ import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTable, type DataTableTab } from "@/components/data-table"
 import { LookupFormSheet } from "@/components/inventory/lookup-form-sheet"
 import { CatalogTablePageGuard } from "@/components/inventory/catalog-field-table-settings"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -30,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PageLoader } from "@/components/ui/page-loader"
+import { cn } from "@/lib/utils"
 import {
   Sheet,
   SheetClose,
@@ -87,27 +86,28 @@ function getBrandColumns(
       ),
       enableSorting: false,
       enableHiding: false,
+      meta: { headerClassName: "w-8 px-2", cellClassName: "w-8 px-2" },
     },
     {
       accessorKey: "srNo",
       header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.id")} />,
       cell: ({ row }) => (
-        <div className="flex h-9 min-w-14 items-center text-left tabular-nums">
-          {row.original.srNo}
-        </div>
+        <span className="text-muted-foreground text-xs tabular-nums">{row.original.srNo}</span>
       ),
-      meta: { dataTableFilter: false },
+      meta: { dataTableFilter: false, headerClassName: "w-20", cellClassName: "w-20" },
     },
     {
       accessorKey: "name",
       header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.brand")} />,
       cell: ({ row }) => (
-        <div className="flex h-9 min-w-32 items-center">
-          <span className="text-foreground font-medium">{row.original.name}</span>
-        </div>
+        <span className="block truncate font-medium">{row.original.name}</span>
       ),
       enableHiding: false,
-      meta: { dataTableFilter: false },
+      meta: {
+        dataTableFilter: false,
+        headerClassName: "w-[22%]",
+        cellClassName: "w-[22%] max-w-[22%] overflow-hidden",
+      },
     },
     {
       accessorKey: "description",
@@ -115,13 +115,20 @@ function getBrandColumns(
         <DataTableColumnHeader column={column} title={t("columns.description")} />
       ),
       cell: ({ row }) => (
-        <div className="flex h-9 min-w-52 items-center">
-          <span className="text-muted-foreground truncate">
-            {row.original.description || t("noDescription")}
-          </span>
-        </div>
+        <span
+          className={cn(
+            "block truncate text-sm",
+            row.original.description ? "text-muted-foreground" : "text-muted-foreground/60"
+          )}
+        >
+          {row.original.description || t("noDescription")}
+        </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: {
+        dataTableFilter: false,
+        headerClassName: "w-[38%]",
+        cellClassName: "w-[38%] overflow-hidden",
+      },
     },
     {
       accessorKey: "products",
@@ -129,36 +136,47 @@ function getBrandColumns(
         <DataTableColumnHeader column={column} title={t("columns.products")} />
       ),
       cell: ({ row }) => (
-        <div className="flex h-9 min-w-20 items-center">
-          <span className="block tabular-nums">{row.original.products}</span>
-        </div>
+        <span className="bg-muted inline-flex min-w-8 justify-center rounded-md px-2 py-0.5 text-xs font-medium tabular-nums">
+          {row.original.products}
+        </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: { dataTableFilter: false, headerClassName: "w-28", cellClassName: "w-28" },
     },
     {
       accessorKey: "status",
       header: ({ column }) => <DataTableColumnHeader column={column} title={t("columns.status")} />,
-      cell: ({ row }) => (
-        <div className="flex h-9 min-w-24 items-center">
-          <Badge
-            variant="outline"
-            className={
-              row.original.status === "active"
-                ? "border-emerald-500/30 px-1.5 text-emerald-700 dark:text-emerald-400"
-                : row.original.status === "archived"
-                  ? "border-border px-1.5 text-muted-foreground"
-                  : "border-amber-500/30 px-1.5 text-amber-700 dark:text-amber-400"
-            }
+      cell: ({ row }) => {
+        const status = row.original.status
+        const active = status === "active"
+        const archived = status === "archived"
+        return (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
+              active
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : archived
+                  ? "bg-muted text-muted-foreground"
+                  : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+            )}
           >
-            {t(`tabs.${row.original.status}`)}
-          </Badge>
-        </div>
-      ),
-      meta: { dataTableFilter: false },
+            <span
+              className={cn(
+                "size-1.5 rounded-full",
+                active ? "bg-emerald-500" : archived ? "bg-muted-foreground/45" : "bg-amber-500"
+              )}
+              aria-hidden
+            />
+            {t(`tabs.${status}`)}
+          </span>
+        )
+      },
+      meta: { dataTableFilter: false, headerClassName: "w-36", cellClassName: "w-36" },
     },
     {
       id: "actions",
       enableSorting: false,
+      meta: { headerClassName: "w-14", cellClassName: "w-14 text-end" },
       cell: ({ row }) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -215,6 +233,8 @@ function BrandsPageContent() {
   } = useInventoryBrands()
   const [lookupOpen, setLookupOpen] = useState(false)
   const [editing, setEditing] = useState<CatalogRow | null>(null)
+  const [isMutating, setIsMutating] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (isError) {
@@ -226,6 +246,7 @@ function BrandsPageContent() {
     async (brand: CatalogRow) => {
       const ok = await confirmDeleteAction({ itemName: brand.name })
       if (!ok) return
+      setDeletingId(brand.id)
       try {
         const result = await removeMany([brand.id])
         if (result.failed > 0) {
@@ -241,6 +262,8 @@ function BrandsPageContent() {
         toast.success(t("toasts.deletedNamed", { name: brand.name }))
       } catch (error) {
         toast.error(catalogErrorMessage(error, t("toasts.saveFailed")))
+      } finally {
+        setDeletingId(null)
       }
     },
     [removeMany, t]
@@ -265,17 +288,22 @@ function BrandsPageContent() {
       .filter((row): row is NonNullable<typeof row> => row != null)
       .slice(0, 100)
     if (payload.length === 0) return 0
-    const res = await bulkCreate(payload)
-    const added = res.added ?? res.items?.length ?? 0
-    const failed =
-      imported.length - payload.length + (res.errors?.length ?? 0)
-    reportImportFailure(
-      added,
-      failed,
-      t("toasts.importPartial", { added, failed }),
-      uniqueErrorMessages(res.errors)
-    )
-    return added
+    setIsMutating(true)
+    try {
+      const res = await bulkCreate(payload)
+      const added = res.added ?? res.items?.length ?? 0
+      const failed =
+        imported.length - payload.length + (res.errors?.length ?? 0)
+      reportImportFailure(
+        added,
+        failed,
+        t("toasts.importPartial", { added, failed }),
+        uniqueErrorMessages(res.errors)
+      )
+      return added
+    } finally {
+      setIsMutating(false)
+    }
   }
 
   async function handleBulkStatus(
@@ -300,13 +328,12 @@ function BrandsPageContent() {
     toast.success(successMessage)
   }
 
-  if (isLoading) return <PageLoader />
-
   return (
     <div>
       <DataTable
         data={rows}
         columns={columns}
+        tableClassName="table-fixed"
         settingsKey="inventory-brands"
         showColumnFilters={false}
         addButtonLabel={t("brandPage.addButton")}
@@ -324,6 +351,10 @@ function BrandsPageContent() {
         exportFilename="brands-export.csv"
         onAddClick={() => setLookupOpen(true)}
         onImportRows={handleImportRows}
+        isLoading={isLoading || isMutating}
+        pendingRowIds={deletingId ? [deletingId] : undefined}
+        emptyTitle={t("brandPage.emptyTitle")}
+        emptyDescription={t("brandPage.emptyDescription")}
         bulkActions={[
           {
             id: "active",
@@ -371,19 +402,24 @@ function BrandsPageContent() {
                 const ok = await confirmDeleteAction({ count: selected.length })
                 if (!ok) return
                 const ids = selected.map((row) => row.id).filter(Boolean)
-                const result = await removeMany(ids)
-                const failed = result.failed + (selected.length - ids.length)
-                if (failed > 0) {
-                  toastFailure(
-                    t("toasts.deletePartial", {
-                      deleted: result.deleted,
-                      failed,
-                    }),
-                    result.message
-                  )
-                  return
+                setIsMutating(true)
+                try {
+                  const result = await removeMany(ids)
+                  const failed = result.failed + (selected.length - ids.length)
+                  if (failed > 0) {
+                    toastFailure(
+                      t("toasts.deletePartial", {
+                        deleted: result.deleted,
+                        failed,
+                      }),
+                      result.message
+                    )
+                    return
+                  }
+                  toast.success(t("toasts.deletedCount", { count: selected.length }))
+                } finally {
+                  setIsMutating(false)
                 }
-                toast.success(t("toasts.deletedCount", { count: selected.length }))
               })()
             },
           },

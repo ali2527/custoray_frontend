@@ -83,7 +83,7 @@ import {
   type ProductSkuSettings,
 } from "@/lib/product-sku-settings"
 import { ApiClientError } from "@/lib/api/client"
-import { PageLoader } from "@/components/ui/page-loader"
+import { cn } from "@/lib/utils"
 import { useInventoryProducts } from "@/hooks/use-inventory-products"
 import { useCatalogFieldSettings } from "@/hooks/use-catalog-field-settings"
 import { productCatalogImportSelect } from "@/lib/catalog-field-settings"
@@ -696,6 +696,7 @@ function getProductColumns(
     ),
     enableSorting: false,
     enableHiding: false,
+    meta: { headerClassName: "w-8 px-2", cellClassName: "w-8 px-2" },
   },
   {
     accessorKey: "sku",
@@ -713,7 +714,7 @@ function getProductColumns(
     cell: ({ row }) => (
       <button
         type="button"
-        className="text-foreground hover:text-foreground/80 font-medium text-start hover:underline"
+        className="block max-w-56 truncate text-start font-medium hover:underline"
         onClick={() => openProductSidebar(row.original, "view")}
       >
         {row.original.name}
@@ -842,24 +843,29 @@ function getProductColumns(
     ),
     meta: { dataTableFilter: false },
     cell: ({ row }) => {
-      const archived = row.original.lifecycle === "archived"
-      if (archived) {
-        return (
-          <Badge
-            variant="outline"
-            className="border-border px-1.5 text-foreground/80"
-          >
-            {t("tabs.archived")}
-          </Badge>
-        )
-      }
+      const lifecycle = row.original.lifecycle
+      const active = lifecycle === "active"
+      const archived = lifecycle === "archived"
       return (
-        <Badge
-          variant="outline"
-          className="border-emerald-500/30 px-1.5 text-emerald-700 dark:text-emerald-400"
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
+            active
+              ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+              : archived
+                ? "bg-muted text-muted-foreground"
+                : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+          )}
         >
-          {t("tabs.active")}
-        </Badge>
+          <span
+            className={cn(
+              "size-1.5 rounded-full",
+              active ? "bg-emerald-500" : archived ? "bg-muted-foreground/45" : "bg-amber-500"
+            )}
+            aria-hidden
+          />
+          {t(`tabs.${lifecycle}`)}
+        </span>
       )
     },
   },
@@ -952,6 +958,8 @@ export default function ProductsPage() {
   )
   const [sidebar, setSidebar] = useState<ProductSidebarState>(null)
   const [addFormKey, setAddFormKey] = useState(0)
+  const [isMutating, setIsMutating] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [skuSettings, setSkuSettings] = useState<ProductSkuSettings>(
     DEFAULT_PRODUCT_SKU_SETTINGS
   )
@@ -1004,6 +1012,7 @@ export default function ProductsPage() {
       toast.error(t("toasts.saveFailed"))
       return
     }
+    setDeletingId(product.id)
     try {
       const result = await removeMany([product.id])
       closeSidebarIfProductRemoved(new Set([product.srNo]))
@@ -1014,6 +1023,8 @@ export default function ProductsPage() {
       toast.success(t("toasts.deletedNamed", { name: product.name }))
     } catch (error) {
       toast.error(apiErrorMessage(error, t("toasts.saveFailed")))
+    } finally {
+      setDeletingId(null)
     }
   }
 
@@ -1028,6 +1039,7 @@ export default function ProductsPage() {
       return
     }
     const ids = selected.map((row) => row.id).filter((id): id is string => Boolean(id))
+    setIsMutating(true)
     try {
       const result = await removeMany(ids)
       closeSidebarIfProductRemoved(new Set(selected.map((row) => row.srNo)))
@@ -1044,6 +1056,8 @@ export default function ProductsPage() {
       toast.success(t("toasts.deletedCount", { count: result.deletedIds.length }))
     } catch (error) {
       toast.error(apiErrorMessage(error, t("toasts.saveFailed")))
+    } finally {
+      setIsMutating(false)
     }
   }
 
@@ -1084,29 +1098,34 @@ export default function ProductsPage() {
   }
 
   async function handleImportRows(rows: Record<string, string>[]) {
-    const result = await importRows({
-      rows,
-      skuSettings,
-      tables: catalogTables,
-    })
-    if (result.failed > 0) {
-      toast.error(
-        t("toasts.importPartial", {
-          added: result.created.length,
-          failed: result.failed,
-        })
-      )
+    setIsMutating(true)
+    try {
+      const result = await importRows({
+        rows,
+        skuSettings,
+        tables: catalogTables,
+      })
+      if (result.failed > 0) {
+        toast.error(
+          t("toasts.importPartial", {
+            added: result.created.length,
+            failed: result.failed,
+          })
+        )
+      }
+      if (result.unmatched.size > 0) {
+        const names = [...result.unmatched]
+        const shown = names.slice(0, 6).join(", ")
+        toast.warning(
+          t("toasts.importUnmatchedCatalog", {
+            names: names.length > 6 ? `${shown}…` : shown,
+          })
+        )
+      }
+      return result.created.length
+    } finally {
+      setIsMutating(false)
     }
-    if (result.unmatched.size > 0) {
-      const names = [...result.unmatched]
-      const shown = names.slice(0, 6).join(", ")
-      toast.warning(
-        t("toasts.importUnmatchedCatalog", {
-          names: names.length > 6 ? `${shown}…` : shown,
-        })
-      )
-    }
-    return result.created.length
   }
 
   async function handleCreateLookup(
@@ -1180,10 +1199,6 @@ export default function ProductsPage() {
     value,
     label: t(`tabs.${value}`),
   }))
-
-  if (isLoading) {
-    return <PageLoader message={t("actions.loading", { ns: "common" })} />
-  }
 
   return (
     <>
@@ -1345,6 +1360,10 @@ export default function ProductsPage() {
       importColumns={productImportColumns(skuSettings, catalogTables)}
       exportFilename="products-export.csv"
       onImportRows={handleImportRows}
+      isLoading={isLoading || isMutating}
+      pendingRowIds={deletingId ? [deletingId] : undefined}
+      emptyTitle={t("emptyTitle")}
+      emptyDescription={t("emptyDescription")}
       bulkActions={[
         {
           id: "active",

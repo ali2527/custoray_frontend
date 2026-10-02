@@ -4,6 +4,8 @@
   "addButton": "New Customer",
   "search": "Search customers…",
   "empty": "No customers found.",
+  "emptyTitle": "No customers yet",
+  "emptyDescription": "Add a customer or import a CSV. New customers show up in this table.",
   "tabs": {
     "all": "All",
     "active": "Active",
