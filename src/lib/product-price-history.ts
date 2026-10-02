@@ -20,8 +20,6 @@ export type ProductPriceEvent = z.infer<typeof productPriceEventSchema>
 
 export const PRODUCT_PRICE_HISTORY_STORAGE_KEY = "custoray-product-price-history-v1"
 
-const historyStoreSchema = z.record(z.string(), z.array(productPriceEventSchema))
-
 type HistoryStore = Record<string, ProductPriceEvent[]>
 
 function toPrice(value: string | number | null | undefined): string {
