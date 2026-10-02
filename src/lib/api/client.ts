@@ -78,6 +78,7 @@ async function refreshAccessCookie() {
         const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
           method: "POST",
           credentials: "include",
+          cache: "no-store",
         })
         const json = (await res.json().catch(() => ({}))) as { success?: boolean }
         return res.ok && json.success !== false
@@ -105,11 +106,11 @@ export async function apiFetch<T>(
   if (!headers.has("Content-Type") && options.body) {
     headers.set("Content-Type", "application/json")
   }
-
   const res = await fetch(`${getApiBaseUrl()}${path}`, {
     ...options,
     headers,
     credentials: "include",
+    cache: options.cache ?? "no-store",
   })
 
   const json = (await res.json().catch(() => ({}))) as ApiEnvelope<T> & {

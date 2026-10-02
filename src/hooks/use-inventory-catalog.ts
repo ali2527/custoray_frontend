@@ -91,7 +91,7 @@ export function useInventoryCatalog(kind: CatalogKind) {
         }))
       }
     )
-    invalidateInventory(queryClient, tenantId)
+    invalidateInventory(queryClient, tenantId, { refetchCatalog: false })
   }
 
   const createMutation = useMutation({
@@ -116,16 +116,18 @@ export function useInventoryCatalog(kind: CatalogKind) {
       const deletedIds = attempted.filter(
         (_, index) => results[index]?.status === "fulfilled"
       )
-      const missingIds = attempted.filter((_, index) => {
-        const result = results[index]
-        return result?.status === "rejected" && isNotFoundError(result.reason)
-      })
       const failedResults = results.filter((result) => result.status === "rejected")
       return {
         deleted: deletedIds.length,
-        deletedIds: [...deletedIds, ...missingIds],
+        deletedIds,
         failed: failedResults.length + (ids.length - attempted.length),
-        message: settledErrorMessage(failedResults),
+        message: settledErrorMessage(
+          failedResults.filter((result) => {
+            return !(
+              result.status === "rejected" && isNotFoundError(result.reason)
+            )
+          })
+        ),
       }
     },
     onSuccess: ({ deletedIds }) => {

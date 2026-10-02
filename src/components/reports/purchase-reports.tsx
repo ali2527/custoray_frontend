@@ -42,9 +42,9 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { downloadRowsAsXls } from "@/lib/excel-export"
+import { usePurchases } from "@/context/purchases-context"
+import { useReturns } from "@/context/returns-context"
 import {
-  buildPurchaseReportDemoPurchases,
-  buildPurchaseReportDemoReturns,
   computePurchaseDailyTotals,
   computePurchaseReportSummary,
   computePurchaseReportTrends,
@@ -272,11 +272,11 @@ function withPresetDates(
 
 export function PurchaseReports() {
   const { t } = useTranslation("reports")
-  // Relative-date demo seed so month / custom filters show full timeline patterns.
-  const purchases = React.useMemo(() => buildPurchaseReportDemoPurchases(), [])
+  const { purchases } = usePurchases()
+  const { returns: allReturns } = useReturns()
   const returns = React.useMemo(
-    () => buildPurchaseReportDemoReturns(purchases),
-    [purchases]
+    () => allReturns.filter((row) => row.type === "purchase"),
+    [allReturns]
   )
   const [filter, setFilter] = React.useState<PurchaseReportFilter>(() =>
     createDefaultPurchaseReportFilter()

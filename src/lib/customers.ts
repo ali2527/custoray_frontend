@@ -75,29 +75,11 @@ export function customersStorageKey(tenantId?: string | null) {
   return `${CUSTOMERS_STORAGE_KEY}:${tenantId}`
 }
 
-export function loadCachedCustomers(tenantId?: string | null): CustomerRow[] {
-  if (typeof window === "undefined") return []
-  const key = customersStorageKey(tenantId)
-  if (!key) return []
-  try {
-    const parsed = parsePersistedCustomers(window.localStorage.getItem(key))
-    return parsed ?? []
-  } catch {
-    return []
-  }
+export function loadCachedCustomers(_tenantId?: string | null): CustomerRow[] {
+  return []
 }
 
-export function cacheCustomers(rows: CustomerRow[], tenantId?: string | null) {
-  if (typeof window === "undefined") return
-  const key = customersStorageKey(tenantId)
-  if (!key) return
-  try {
-    window.localStorage.removeItem(CUSTOMERS_STORAGE_KEY)
-    window.localStorage.setItem(key, JSON.stringify(rows))
-  } catch {
-    /* ignore quota */
-  }
-}
+export function cacheCustomers(_rows: CustomerRow[], _tenantId?: string | null) {}
 
 export function computeBalance(
   customer: Pick<CustomerRow, "openingBalance" | "totalSales" | "totalPayments">

@@ -80,6 +80,14 @@ export async function apiSignup(input: {
 }
 
 export async function apiLogin(email: string, password: string) {
+  try {
+    await apiFetch<null>("/auth/logout", {
+      method: "POST",
+      credentials: "include",
+    });
+  } catch {
+    /* drop the previous cookie even when that session is already gone */
+  }
   return apiFetch<AuthLoginResponse>("/auth/tenant/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
@@ -156,7 +164,10 @@ export async function apiCreateCompany(businessName: string, planCode?: string) 
 }
 
 export async function apiLogout() {
-  return apiFetch<null>("/auth/logout", { method: "POST" });
+  return apiFetch<null>("/auth/logout", {
+    method: "POST",
+    credentials: "include",
+  });
 }
 
 export async function apiForgotPassword(email: string) {

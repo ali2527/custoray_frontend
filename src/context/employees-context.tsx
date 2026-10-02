@@ -1,13 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {
-  type EmployeeRow,
-  EMPLOYEES_STORAGE_KEY,
-  initialEmployees,
-  parsePersistedEmployees,
-} from "@/lib/employees"
-import { normalizePermissions } from "@/lib/employee-permissions"
+import { type EmployeeRow } from "@/lib/employees"
 import { nextUniqueNumericId } from "@/lib/utils"
 
 type EmployeesContextValue = {
@@ -22,29 +16,7 @@ type EmployeesContextValue = {
 const EmployeesContext = React.createContext<EmployeesContextValue | null>(null)
 
 export function EmployeesProvider({ children }: { children: React.ReactNode }) {
-  const [employees, setEmployees] = React.useState<EmployeeRow[]>(() => [
-    ...initialEmployees,
-  ])
-  const [hydrated, setHydrated] = React.useState(false)
-
-  React.useEffect(() => {
-    if (typeof window === "undefined") return
-    const saved =
-      parsePersistedEmployees(window.localStorage.getItem(EMPLOYEES_STORAGE_KEY)) ??
-      parsePersistedEmployees(window.localStorage.getItem("custoray-employees-v1"))
-    if (saved) {
-      setEmployees(saved.map((row) => ({
-        ...row,
-        permissions: normalizePermissions(row.permissions),
-      })))
-    }
-    setHydrated(true)
-  }, [])
-
-  React.useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return
-    window.localStorage.setItem(EMPLOYEES_STORAGE_KEY, JSON.stringify(employees))
-  }, [employees, hydrated])
+  const [employees, setEmployees] = React.useState<EmployeeRow[]>([])
 
   const getEmployee = React.useCallback(
     (id: number) => employees.find((employee) => employee.id === id),

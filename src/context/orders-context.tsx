@@ -3,16 +3,12 @@
 import * as React from "react"
 import {
   type OrderRow,
-  ORDERS_STORAGE_KEY,
-  initialOrders,
   nextInvoiceNumber,
-  parsePersistedOrders,
 } from "@/lib/orders"
 import { markSetupMilestone } from "@/lib/setup-progress"
 import { useAuth } from "@/context/auth-context"
 import { apiListAllOrders } from "@/lib/api/business"
 import { mapApiOrderToRow } from "@/lib/pos-api"
-import { isPosOrder } from "@/lib/pos"
 
 type OrdersContextValue = {
   orders: OrderRow[]
@@ -30,28 +26,6 @@ type OrdersContextValue = {
 
 const OrdersContext = React.createContext<OrdersContextValue | null>(null)
 
-function ordersStorageKey(tenantId?: string | null) {
-  if (!tenantId) return ORDERS_STORAGE_KEY
-  return `${ORDERS_STORAGE_KEY}:${tenantId}`
-}
-
-function mergeOrders(local: OrderRow[], apiRows: OrderRow[]): OrderRow[] {
-  const byApiId = new Map(
-    apiRows.filter((row) => row.apiId).map((row) => [row.apiId!, row])
-  )
-  const keptLocal = local.filter((row) => {
-    if (row.apiId && byApiId.has(row.apiId)) return false
-    // Drop orphan local POS rows once API sync succeeds
-    if (isPosOrder(row) && !row.apiId) return false
-    return true
-  })
-  return [...keptLocal, ...apiRows].sort((a, b) => {
-    const dateCompare = b.orderDate.localeCompare(a.orderDate)
-    if (dateCompare !== 0) return dateCompare
-    return b.id - a.id
-  })
-}
-
 export function OrdersProvider({ children }: { children: React.ReactNode }) {
   const { session, hydrated: authHydrated } = useAuth()
   const tenantId = session?.tenantId
@@ -65,8 +39,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     if (!tenantIdRef.current) return
     try {
       const items = await apiListAllOrders()
-      const apiRows = items.map(mapApiOrderToRow)
-      setOrders((prev) => mergeOrders(prev, apiRows))
+      setOrders(items.map(mapApiOrderToRow))
     } catch {
       /* keep local cache when API is unavailable */
     } finally {
@@ -76,17 +49,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (!authHydrated) return
-    const key = ordersStorageKey(tenantId)
-    const saved = parsePersistedOrders(
-      typeof window !== "undefined" ? window.localStorage.getItem(key) : null
-    )
-    if (saved?.length) {
-      setOrders(saved)
-    } else if (!tenantId) {
-      setOrders([...initialOrders])
-    } else {
-      setOrders([])
-    }
+    setOrders([])
     setHydrated(true)
     if (tenantId) {
       void refreshOrders()
@@ -94,14 +57,6 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
       setLoading(false)
     }
   }, [authHydrated, tenantId, refreshOrders])
-
-  React.useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return
-    window.localStorage.setItem(
-      ordersStorageKey(tenantId),
-      JSON.stringify(orders)
-    )
-  }, [orders, hydrated, tenantId])
 
   const getOrder = React.useCallback(
     (id: number) => orders.find((o) => o.id === id),

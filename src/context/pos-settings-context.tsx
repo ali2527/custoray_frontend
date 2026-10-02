@@ -6,7 +6,6 @@ import {
   DEFAULT_POS_SETTINGS,
   mergePosSettings,
   parsePersistedPosSettings,
-  POS_SETTINGS_STORAGE_KEY,
   type PosSettings,
 } from "@/lib/pos-settings"
 import { useAuth } from "@/context/auth-context"
@@ -27,13 +26,6 @@ type PosSettingsContextValue = {
 }
 
 const PosSettingsContext = React.createContext<PosSettingsContextValue | null>(null)
-
-function settingsStorageKey(tenantId?: string | null, storeId?: string | null) {
-  if (!tenantId) return POS_SETTINGS_STORAGE_KEY
-  return storeId
-    ? `${POS_SETTINGS_STORAGE_KEY}:${tenantId}:${storeId}`
-    : `${POS_SETTINGS_STORAGE_KEY}:${tenantId}`
-}
 
 export function PosSettingsProvider({ children }: { children: React.ReactNode }) {
   const { session, hydrated: authHydrated } = useAuth()
@@ -60,27 +52,6 @@ export function PosSettingsProvider({ children }: { children: React.ReactNode })
         resolvedStoreId = null
       }
       if (cancelled) return
-
-      const key = settingsStorageKey(tenantId, resolvedStoreId)
-      const saved =
-        parsePersistedPosSettings(
-          typeof window !== "undefined" ? window.localStorage.getItem(key) : null
-        ) ??
-        parsePersistedPosSettings(
-          typeof window !== "undefined"
-            ? window.localStorage.getItem(POS_SETTINGS_STORAGE_KEY)
-            : null
-        ) ??
-        parsePersistedPosSettings(
-          typeof window !== "undefined"
-            ? window.localStorage.getItem("custoray-pos-settings-v1")
-            : null
-        )
-
-      if (saved) {
-        skipNextPersist.current = true
-        setSettings(saved)
-      }
 
       setStoreId(resolvedStoreId)
       setHydrated(true)
@@ -119,11 +90,6 @@ export function PosSettingsProvider({ children }: { children: React.ReactNode })
       skipNextPersist.current = false
       return
     }
-    window.localStorage.setItem(
-      settingsStorageKey(tenantId, storeId),
-      JSON.stringify(settings)
-    )
-
     if (!storeId || !tenantId) return
     const handle = window.setTimeout(() => {
       setSyncing(true)

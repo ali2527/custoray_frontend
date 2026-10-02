@@ -94,29 +94,11 @@ export function vendorsStorageKey(tenantId?: string | null) {
   return `${VENDORS_STORAGE_KEY}:${tenantId}`
 }
 
-export function loadCachedVendors(tenantId?: string | null): VendorRow[] {
-  if (typeof window === "undefined") return []
-  const key = vendorsStorageKey(tenantId)
-  if (!key) return []
-  try {
-    const parsed = parsePersistedVendors(window.localStorage.getItem(key))
-    return parsed ?? []
-  } catch {
-    return []
-  }
+export function loadCachedVendors(_tenantId?: string | null): VendorRow[] {
+  return []
 }
 
-export function cacheVendors(rows: VendorRow[], tenantId?: string | null) {
-  if (typeof window === "undefined") return
-  const key = vendorsStorageKey(tenantId)
-  if (!key) return
-  try {
-    window.localStorage.removeItem("custoray-vendors-v1")
-    window.localStorage.setItem(key, JSON.stringify(rows))
-  } catch {
-    /* ignore quota */
-  }
-}
+export function cacheVendors(_rows: VendorRow[], _tenantId?: string | null) {}
 
 export function computeBalance(
   vendor: Pick<VendorRow, "openingBalance" | "totalPurchases" | "totalPayments">

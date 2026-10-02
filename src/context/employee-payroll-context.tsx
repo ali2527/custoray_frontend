@@ -1,12 +1,7 @@
 "use client"
 
 import * as React from "react"
-import {
-  type PayrollRecord,
-  PAYROLL_STORAGE_KEY,
-  initialPayrollRecords,
-  parsePersistedPayroll,
-} from "@/lib/employee-payroll"
+import { type PayrollRecord } from "@/lib/employee-payroll"
 import { nextUniqueNumericId } from "@/lib/utils"
 
 type PayrollContextValue = {
@@ -21,25 +16,7 @@ type PayrollContextValue = {
 const PayrollContext = React.createContext<PayrollContextValue | null>(null)
 
 export function PayrollProvider({ children }: { children: React.ReactNode }) {
-  const [records, setRecords] = React.useState<PayrollRecord[]>(() => [
-    ...initialPayrollRecords,
-  ])
-  const [hydrated, setHydrated] = React.useState(false)
-
-  React.useEffect(() => {
-    const saved = parsePersistedPayroll(
-      typeof window !== "undefined"
-        ? window.localStorage.getItem(PAYROLL_STORAGE_KEY)
-        : null
-    )
-    if (saved) setRecords(saved)
-    setHydrated(true)
-  }, [])
-
-  React.useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return
-    window.localStorage.setItem(PAYROLL_STORAGE_KEY, JSON.stringify(records))
-  }, [records, hydrated])
+  const [records, setRecords] = React.useState<PayrollRecord[]>([])
 
   const addRecord = React.useCallback((row: Omit<PayrollRecord, "id">) => {
     let created = { ...row, id: 0 } as PayrollRecord
