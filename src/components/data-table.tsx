@@ -57,6 +57,7 @@ import {
 import {
   confirmDuplicateAction,
 } from "@/lib/confirm-action"
+import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
 type DataTableColumnMeta = {
@@ -843,14 +844,100 @@ function getColumnTitle<TData>(column: Column<TData, unknown>): string {
   return column.id
 }
 
-function DataTableGridView<TData>({ table }: { table: TanStackTable<TData> }) {
+function DataTableSkeletonRows({ columns }: { columns: number }) {
+  return (
+    <>
+      {Array.from({ length: 8 }, (_, row) => (
+        <TableRow key={row} className="hover:bg-transparent">
+          {Array.from({ length: columns }, (_, column) => (
+            <TableCell key={column} className="px-4 py-3.5">
+              <Skeleton
+                className={cn(
+                  column === 0 && "size-4 rounded",
+                  column === columns - 1 && "ms-auto size-8 rounded-md",
+                  column !== 0 &&
+                    column !== columns - 1 &&
+                    "h-4 w-full max-w-40"
+                )}
+              />
+            </TableCell>
+          ))}
+        </TableRow>
+      ))}
+    </>
+  )
+}
+
+function DataTableGridSkeleton() {
+  return (
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+      {Array.from({ length: 6 }, (_, index) => (
+        <div key={index} className="rounded-xl border px-5 py-4">
+          <div className="flex items-center gap-3 border-b pb-4">
+            <Skeleton className="size-4 rounded" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="ms-auto size-8 rounded-md" />
+          </div>
+          <div className="space-y-3 pt-4">
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-4/5" />
+            <Skeleton className="h-3 w-2/5" />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function DataTableEmptyState({
+  title,
+  description,
+}: {
+  title: string
+  description?: string
+}) {
+  return (
+    <div className="flex min-h-[16rem] flex-col items-center justify-center gap-2 px-6 py-10 text-center">
+      <div className="bg-muted text-muted-foreground mb-1 flex size-10 items-center justify-center rounded-full">
+        <IconLayoutList className="size-5" aria-hidden />
+      </div>
+      <p className="text-foreground text-sm font-medium">{title}</p>
+      {description ? (
+        <p className="text-muted-foreground max-w-sm text-xs leading-relaxed">{description}</p>
+      ) : null}
+    </div>
+  )
+}
+
+function DataTableGridView<TData>({
+  table,
+  isLoading,
+  pendingRowIds,
+  emptyTitle,
+  emptyDescription,
+  showCatalogEmpty,
+}: {
+  table: TanStackTable<TData>
+  isLoading?: boolean
+  pendingRowIds?: ReadonlySet<string>
+  emptyTitle?: string
+  emptyDescription?: string
+  showCatalogEmpty?: boolean
+}) {
   const { t } = useTranslation()
   const rows = table.getRowModel().rows
+  if (isLoading) return <DataTableGridSkeleton />
   if (rows.length === 0) {
     return (
-      <div className="bg-muted/20 text-muted-foreground flex min-h-[14rem] flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-6 text-center text-sm">
-        <span className="text-foreground/80 font-medium">{t("empty.noResultsTitle")}</span>
-        <span className="text-xs">{t("empty.noResultsHint")}</span>
+      <div className="bg-muted/20 rounded-xl border border-dashed">
+        <DataTableEmptyState
+          title={showCatalogEmpty && emptyTitle ? emptyTitle : t("empty.noResultsTitle")}
+          description={
+            showCatalogEmpty && emptyDescription
+              ? emptyDescription
+              : t("empty.noResultsHint")
+          }
+        />
       </div>
     )
   }
@@ -863,6 +950,22 @@ function DataTableGridView<TData>({ table }: { table: TanStackTable<TData> }) {
           (c) => c.column.id !== "select" && c.column.id !== "actions"
         )
         const [primaryCell, ...restCells] = dataCells
+        if (pendingRowIds?.has(row.id)) {
+          return (
+            <div key={row.id} className="rounded-xl border px-5 py-4">
+              <div className="flex items-center gap-3 border-b pb-4">
+                <Skeleton className="size-4 rounded" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="ms-auto size-8 rounded-md" />
+              </div>
+              <div className="space-y-3 pt-4">
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-4/5" />
+                <Skeleton className="h-3 w-2/5" />
+              </div>
+            </div>
+          )
+        }
         return (
           <Card
             key={row.id}
@@ -975,6 +1078,11 @@ export function DataTable<TData>({
   toolbarActions,
   tableOptionsExtra,
   onImportRows,
+  isLoading = false,
+  pendingRowIds,
+  emptyTitle,
+  emptyDescription,
+  tableClassName,
   importSampleCsvContent,
   importSelectColumns,
   importRequiredSelectColumns,
@@ -1025,6 +1133,15 @@ export function DataTable<TData>({
   onImportRows?: (
     rows: Record<string, string>[]
   ) => number | null | Promise<number | null>
+  /** Replace rows with skeleton placeholders while data is loading or a mutation is in flight. */
+  isLoading?: boolean
+  /** Skeleton only these rows. Other rows stay visible. */
+  pendingRowIds?: string[]
+  /** Shown when the table has no rows at all. */
+  emptyTitle?: string
+  emptyDescription?: string
+  /** Extra classes on the table element, such as table-fixed. */
+  tableClassName?: string
   /** Override import sample CSV content (e.g. when table rows differ from import shape). */
   importSampleCsvContent?: string
   /** Keep only these columns from uploaded CSVs (ignores extra fields). */
@@ -1184,6 +1301,11 @@ export function DataTable<TData>({
     getFacetedUniqueValues: getFacetedUniqueValues(),
   })
 
+  const pendingRowIdSet = React.useMemo(
+    () => new Set(pendingRowIds ?? []),
+    [pendingRowIds]
+  )
+
   const showToolbarActions =
     showImportButton || showExportButton || showAddButton || Boolean(toolbarActions)
   const showToolbar =
@@ -1299,7 +1421,7 @@ export function DataTable<TData>({
     <div className="relative flex flex-col gap-4 overflow-auto">
         {layoutView === "list" || !enableLayoutToggle ? (
           <div className="overflow-x-auto rounded-md border">
-            <Table>
+            <Table className={tableClassName}>
               <TableHeader className="bg-muted sticky top-0 z-10">
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
@@ -1324,35 +1446,62 @@ export function DataTable<TData>({
                 ))}
               </TableHeader>
               <TableBody className="**:data-[slot=table-cell]:first:w-8">
-                {table.getRowModel().rows?.length ? (
-                  table.getRowModel().rows.map((row) => (
+                {isLoading ? (
+                  <DataTableSkeletonRows
+                    columns={table.getVisibleLeafColumns().length || columnsProp.length}
+                  />
+                ) : table.getRowModel().rows?.length ? (
+                  table.getRowModel().rows.map((row) => {
+                    const rowPending = pendingRowIdSet.has(row.id)
+                    return (
                     <TableRow
                       key={row.id}
                       data-state={row.getIsSelected() && "selected"}
+                      aria-busy={rowPending || undefined}
                     >
-                      {row.getVisibleCells().map((cell) => {
+                      {row.getVisibleCells().map((cell, index) => {
                         const meta = getColumnMeta(cell.column)
+                        const last = index === row.getVisibleCells().length - 1
                         return (
                           <TableCell
                             key={cell.id}
                             className={cn("px-4 py-3.5", meta?.cellClassName)}
                           >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext()
+                            {rowPending ? (
+                              <Skeleton
+                                className={cn(
+                                  index === 0 && "size-4 rounded",
+                                  last && "ms-auto size-8 rounded-md",
+                                  index !== 0 && !last && "h-4 w-full max-w-40"
+                                )}
+                              />
+                            ) : (
+                              flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext()
+                              )
                             )}
                           </TableCell>
                         )
                       })}
                     </TableRow>
-                  ))
+                    )
+                  })
                 ) : (
                   <TableRow>
-                    <TableCell
-                      colSpan={columnsProp.length}
-                      className="h-24 text-center"
-                    >
-                      {t("empty.noResults")}
+                    <TableCell colSpan={columnsProp.length} className="p-0">
+                      <DataTableEmptyState
+                        title={
+                          data.length === 0 && !globalFilter.trim() && emptyTitle
+                            ? emptyTitle
+                            : t("empty.noResultsTitle")
+                        }
+                        description={
+                          data.length === 0 && !globalFilter.trim() && emptyDescription
+                            ? emptyDescription
+                            : t("empty.noResultsHint")
+                        }
+                      />
                     </TableCell>
                   </TableRow>
                 )}
@@ -1360,7 +1509,14 @@ export function DataTable<TData>({
             </Table>
           </div>
         ) : (
-          <DataTableGridView table={table} />
+          <DataTableGridView
+            table={table}
+            isLoading={isLoading}
+            pendingRowIds={pendingRowIdSet}
+            emptyTitle={emptyTitle}
+            emptyDescription={emptyDescription}
+            showCatalogEmpty={data.length === 0 && !globalFilter.trim()}
+          />
         )}
         <div className="flex items-center justify-between">
           <div className="text-muted-foreground flex min-w-0 flex-1 text-sm">

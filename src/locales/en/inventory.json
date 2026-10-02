@@ -45,6 +45,8 @@
     "setInactive": "Set inactive"
   },
   "empty": "No products found.",
+  "emptyTitle": "No products yet",
+  "emptyDescription": "Add a product or import a CSV. New products show up in this table.",
   "stockLevel": {
     "inStock": "In Stock",
     "lowStock": "Low Stock",
@@ -101,7 +103,9 @@
     "addButton": "New Brand",
     "search": "Search brands…",
     "edit": "Edit brand",
-    "save": "Save brand"
+    "save": "Save brand",
+    "emptyTitle": "No brands yet",
+    "emptyDescription": "Add a brand or import a CSV. New brands show up in this table."
   },
   "categoryPage": {
     "addButton": "New Category",
@@ -115,7 +119,9 @@
     "namePlaceholder": "Category name",
     "descriptionPlaceholder": "Short description",
     "productCountHint": "Product count ({{count}}) updates automatically from inventory.",
-    "idLine": "ID {{id}}"
+    "idLine": "ID {{id}}",
+    "emptyTitle": "No categories yet",
+    "emptyDescription": "Add a category or import a CSV. New categories show up in this table."
   },
   "variantPage": {
     "addButton": "New Variant",
@@ -123,7 +129,9 @@
     "edit": "Edit variant",
     "details": "Variant details",
     "productsCount": "{{name}} · {{count}} products",
-    "save": "Save variant"
+    "save": "Save variant",
+    "emptyTitle": "No variants yet",
+    "emptyDescription": "Add a variant or import a CSV. New variants show up in this table."
   },
   "toasts": {
     "nameRequired": "Product name is required.",

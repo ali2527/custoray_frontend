@@ -15,12 +15,11 @@ import type { TFunction } from "i18next"
 
 import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTable, type DataTableTab } from "@/components/data-table"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PageLoader } from "@/components/ui/page-loader"
+import { cn } from "@/lib/utils"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -90,6 +89,7 @@ function getColumns(
       ),
       enableSorting: false,
       enableHiding: false,
+      meta: { headerClassName: "w-8 px-2", cellClassName: "w-8 px-2" },
     },
     {
       id: "srNo",
@@ -105,7 +105,7 @@ function getColumns(
         )
       },
       enableSorting: false,
-      meta: { dataTableFilter: false },
+      meta: { dataTableFilter: false, headerClassName: "w-20", cellClassName: "w-20" },
     },
     {
       accessorKey: "name",
@@ -115,13 +115,17 @@ function getColumns(
       cell: ({ row }) => (
         <button
           type="button"
-          className="text-foreground font-medium hover:underline"
+          className="block truncate text-start font-medium hover:underline"
           onClick={() => onEdit(row.original)}
         >
           {row.original.name}
         </button>
       ),
       enableHiding: false,
+      meta: {
+        headerClassName: "w-[28%]",
+        cellClassName: "w-[28%] max-w-[28%] overflow-hidden",
+      },
     },
     {
       accessorKey: "description",
@@ -129,10 +133,19 @@ function getColumns(
         <DataTableColumnHeader column={column} title={t("types.columns.description")} />
       ),
       cell: ({ row }) => (
-        <span className="text-muted-foreground max-w-[16rem] truncate">
+        <span
+          className={cn(
+            "block truncate text-sm",
+            row.original.description ? "text-muted-foreground" : "text-muted-foreground/60"
+          )}
+        >
           {row.original.description || "—"}
         </span>
       ),
+      meta: {
+        headerClassName: "w-[32%]",
+        cellClassName: "w-[32%] overflow-hidden",
+      },
     },
     {
       accessorKey: "expensesCount",
@@ -140,38 +153,54 @@ function getColumns(
         <DataTableColumnHeader column={column} title={t("types.columns.expenses")} />
       ),
       cell: ({ row }) => (
-        <span className="tabular-nums">{row.original.expensesCount ?? 0}</span>
+        <span className="bg-muted inline-flex min-w-8 justify-center rounded-md px-2 py-0.5 text-xs font-medium tabular-nums">
+          {row.original.expensesCount ?? 0}
+        </span>
       ),
-      meta: { dataTableFilterVariant: "range" as const },
+      meta: {
+        dataTableFilterVariant: "range" as const,
+        headerClassName: "w-28",
+        cellClassName: "w-28",
+      },
     },
     {
       accessorKey: "status",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("types.columns.status")} />
       ),
-      cell: ({ row }) => (
-        <Badge
-          variant="outline"
-          className={
-            row.original.status === "active"
-              ? "border-emerald-500/30 px-1.5 text-emerald-700 dark:text-emerald-400"
-              : "border-amber-500/30 px-1.5 text-amber-700 dark:text-amber-400"
-          }
-        >
-          {t(`types.tabs.${row.original.status}`)}
-        </Badge>
-      ),
+      cell: ({ row }) => {
+        const active = row.original.status === "active"
+        return (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
+              active
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+            )}
+          >
+            <span
+              className={cn("size-1.5 rounded-full", active ? "bg-emerald-500" : "bg-amber-500")}
+              aria-hidden
+            />
+            {t(`types.tabs.${row.original.status}`)}
+          </span>
+        )
+      },
       meta: {
         dataTableFilterVariant: "select" as const,
         dataTableFilterSelectLabels: {
           active: t("types.tabs.active"),
           inactive: t("types.tabs.inactive"),
         },
+        headerClassName: "w-36",
+        cellClassName: "w-36",
       },
     },
     {
       id: "actions",
       enableSorting: false,
+      meta: { headerClassName: "w-14", cellClassName: "w-14 text-end" },
       cell: ({ row }) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -217,6 +246,8 @@ export default function ExpenseTypesPage() {
     bulkCreate,
   } = useExpenseTypes()
   const [sidebar, setSidebar] = useState<SidebarState>(null)
+  const [isMutating, setIsMutating] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const handleDelete = useCallback(
     async (row: ExpenseTypeRow) => {
@@ -228,12 +259,15 @@ export default function ExpenseTypesPage() {
       ) {
         return
       }
+      setDeletingId(String(row.id))
       try {
         await removeExpenseType(row.id)
         toast.success(t("types.toasts.removedNamed", { name: row.name }))
         if (sidebar?.mode === "edit" && sidebar.row.id === row.id) setSidebar(null)
       } catch (error) {
         toast.error(expenseTypeErrorMessage(error, t("types.toasts.saveFailed")))
+      } finally {
+        setDeletingId(null)
       }
     },
     [removeExpenseType, sidebar, t]
@@ -277,16 +311,21 @@ export default function ExpenseTypesPage() {
         .filter((row): row is NonNullable<typeof row> => row != null)
         .slice(0, 100)
       if (payload.length === 0) return 0
-      const res = await bulkCreate(payload)
-      const added = res.added ?? res.items?.length ?? 0
-      const failed = imported.length - payload.length + (res.errors?.length ?? 0)
-      reportImportFailure(
-        added,
-        failed,
-        t("types.toasts.importPartial", { added, failed }),
-        uniqueErrorMessages(res.errors)
-      )
-      return added
+      setIsMutating(true)
+      try {
+        const res = await bulkCreate(payload)
+        const added = res.added ?? res.items?.length ?? 0
+        const failed = imported.length - payload.length + (res.errors?.length ?? 0)
+        reportImportFailure(
+          added,
+          failed,
+          t("types.toasts.importPartial", { added, failed }),
+          uniqueErrorMessages(res.errors)
+        )
+        return added
+      } finally {
+        setIsMutating(false)
+      }
     },
     [bulkCreate, t]
   )
@@ -313,8 +352,6 @@ export default function ExpenseTypesPage() {
     sidebar?.mode === "edit"
       ? `expense-type-edit-${sidebar.row.id}`
       : "expense-type-add-form"
-
-  if (loading) return <PageLoader />
 
   return (
     <>
@@ -398,6 +435,7 @@ export default function ExpenseTypesPage() {
       <DataTable
         data={expenseTypes}
         columns={columns}
+        tableClassName="table-fixed"
         settingsKey="expense-types"
         addButtonLabel={t("types.add")}
         searchPlaceholder={t("types.search")}
@@ -411,6 +449,10 @@ export default function ExpenseTypesPage() {
         importRequiredSelectColumns={[]}
         exportFilename="expense-types-export.csv"
         onImportRows={handleImportRows}
+        isLoading={loading || isMutating}
+        pendingRowIds={deletingId ? [deletingId] : undefined}
+        emptyTitle={t("types.emptyTitle")}
+        emptyDescription={t("types.emptyDescription")}
         onAddClick={() => setSidebar({ mode: "add" })}
         bulkActions={[
           {
@@ -470,19 +512,24 @@ export default function ExpenseTypesPage() {
                 return
               }
               const ids = selected.map((row) => row.apiId).filter(Boolean)
-              const result = await removeMany(ids)
-              const failed = result.failed + (selected.length - ids.length)
-              if (failed > 0) {
-                toastFailure(
-                  t("types.toasts.deletePartial", {
-                    deleted: result.deleted,
-                    failed,
-                  }),
-                  result.message
-                )
-                return
+              setIsMutating(true)
+              try {
+                const result = await removeMany(ids)
+                const failed = result.failed + (selected.length - ids.length)
+                if (failed > 0) {
+                  toastFailure(
+                    t("types.toasts.deletePartial", {
+                      deleted: result.deleted,
+                      failed,
+                    }),
+                    result.message
+                  )
+                  return
+                }
+                toast.success(t("types.toasts.removedCount", { count: result.deleted }))
+              } finally {
+                setIsMutating(false)
               }
-              toast.success(t("types.toasts.removedCount", { count: result.deleted }))
             },
           },
         ]}

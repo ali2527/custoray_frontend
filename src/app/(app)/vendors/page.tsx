@@ -30,7 +30,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { PageLoader } from "@/components/ui/page-loader"
+import { cn } from "@/lib/utils"
 import {
   Sheet,
   SheetClose,
@@ -103,6 +103,7 @@ function getVendorColumns(
       ),
       enableSorting: false,
       enableHiding: false,
+      meta: { headerClassName: "w-8 px-2", cellClassName: "w-8 px-2" },
     },
     {
       accessorKey: "id",
@@ -220,11 +221,25 @@ function getVendorColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("columns.status")} />
       ),
-      cell: ({ row }) => (
-        <span className="text-muted-foreground text-sm">
-          {t(`status.${row.original.status}`, { ns: "common" })}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const active = row.original.status === "active"
+        return (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
+              active
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "bg-amber-500/10 text-amber-700 dark:text-amber-400"
+            )}
+          >
+            <span
+              className={cn("size-1.5 rounded-full", active ? "bg-emerald-500" : "bg-amber-500")}
+              aria-hidden
+            />
+            {t(`status.${row.original.status}`, { ns: "common" })}
+          </span>
+        )
+      },
       meta: { dataTableFilter: false },
     },
     {
@@ -287,6 +302,8 @@ export default function VendorsPage() {
     bulkCreate,
   } = useVendors()
   const [sidebar, setSidebar] = useState<VendorSidebarState>(null)
+  const [isMutating, setIsMutating] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const closeSidebar = () => setSidebar(null)
 
@@ -300,6 +317,7 @@ export default function VendorsPage() {
       ) {
         return
       }
+      setDeletingId(String(vendor.id))
       try {
         await removeVendor(vendor.id)
         if (sidebar?.mode !== "add" && sidebar?.vendor.id === vendor.id) {
@@ -308,6 +326,8 @@ export default function VendorsPage() {
         toast.success(t("toasts.removedNamed", { name: vendor.name }))
       } catch (error) {
         toast.error(vendorErrorMessage(error, t("toasts.saveFailed")))
+      } finally {
+        setDeletingId(null)
       }
     },
     [removeVendor, sidebar, t]
@@ -373,16 +393,21 @@ export default function VendorsPage() {
         .filter((row): row is NonNullable<typeof row> => row != null)
         .slice(0, 100)
       if (payload.length === 0) return 0
-      const res = await bulkCreate(payload)
-      const added = res.added ?? res.items?.length ?? 0
-      const failed = imported.length - payload.length + (res.errors?.length ?? 0)
-      reportImportFailure(
-        added,
-        failed,
-        t("toasts.importPartial", { added, failed }),
-        uniqueErrorMessages(res.errors)
-      )
-      return added
+      setIsMutating(true)
+      try {
+        const res = await bulkCreate(payload)
+        const added = res.added ?? res.items?.length ?? 0
+        const failed = imported.length - payload.length + (res.errors?.length ?? 0)
+        reportImportFailure(
+          added,
+          failed,
+          t("toasts.importPartial", { added, failed }),
+          uniqueErrorMessages(res.errors)
+        )
+        return added
+      } finally {
+        setIsMutating(false)
+      }
     },
     [bulkCreate, t]
   )
@@ -437,8 +462,6 @@ export default function VendorsPage() {
       : sheetVendor
         ? `vendor-edit-${sheetVendor.id}`
         : "vendor-edit"
-
-  if (loading) return <PageLoader />
 
   return (
     <>
@@ -566,6 +589,10 @@ export default function VendorsPage() {
         importRequiredSelectColumns={[]}
         exportFilename="vendors-export.csv"
         onImportRows={handleImportRows}
+        isLoading={loading || isMutating}
+        pendingRowIds={deletingId ? [deletingId] : undefined}
+        emptyTitle={t("emptyTitle")}
+        emptyDescription={t("emptyDescription")}
         onAddClick={() => setSidebar({ mode: "add" })}
         defaultColumnVisibility={{ status: false }}
         bulkActions={[
@@ -608,19 +635,24 @@ export default function VendorsPage() {
                 return
               }
               const ids = selected.map((row) => row.apiId).filter(Boolean)
-              const result = await removeMany(ids)
-              const failed = result.failed + (selected.length - ids.length)
-              if (failed > 0) {
-                toastFailure(
-                  t("toasts.deletePartial", {
-                    deleted: result.deleted,
-                    failed,
-                  }),
-                  result.message
-                )
-                return
+              setIsMutating(true)
+              try {
+                const result = await removeMany(ids)
+                const failed = result.failed + (selected.length - ids.length)
+                if (failed > 0) {
+                  toastFailure(
+                    t("toasts.deletePartial", {
+                      deleted: result.deleted,
+                      failed,
+                    }),
+                    result.message
+                  )
+                  return
+                }
+                toast.success(t("toasts.removedCount", { count: selected.length }))
+              } finally {
+                setIsMutating(false)
               }
-              toast.success(t("toasts.removedCount", { count: selected.length }))
             },
           },
         ]}

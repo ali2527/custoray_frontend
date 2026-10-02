@@ -19,7 +19,6 @@ import { CatalogTablePageGuard } from "@/components/inventory/catalog-field-tabl
 import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTable, type DataTableTab } from "@/components/data-table"
 import { LookupFormSheet } from "@/components/inventory/lookup-form-sheet"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -31,7 +30,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PageLoader } from "@/components/ui/page-loader"
 import {
   Sheet,
   SheetClose,
@@ -56,6 +54,10 @@ import {
   type CatalogRow,
 } from "@/lib/inventory-catalog-rows"
 import { useInventoryVariants } from "@/hooks/use-inventory-catalog"
+import { cn } from "@/lib/utils"
+
+const headerClass =
+  "[&_button]:text-muted-foreground [&_button]:h-7 [&_button]:px-0 [&_button]:text-[11px] [&_button]:font-semibold [&_button]:tracking-wide [&_button]:uppercase"
 
 function getVariantColumns(
   t: TFunction<"inventory">,
@@ -89,70 +91,110 @@ function getVariantColumns(
       ),
       enableSorting: false,
       enableHiding: false,
+      meta: { headerClassName: "w-8 px-2", cellClassName: "w-8 px-2" },
     },
     {
       accessorKey: "srNo",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("columns.id")} />
+        <DataTableColumnHeader column={column} title={t("columns.id")} className={headerClass} />
       ),
       cell: ({ row }) => (
-        <span className="text-left tabular-nums">{row.original.srNo}</span>
+        <span className="text-muted-foreground text-xs tabular-nums">{row.original.srNo}</span>
       ),
+      meta: { headerClassName: "w-20", cellClassName: "w-20" },
     },
     {
       accessorKey: "name",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("columns.variant")} />
+        <DataTableColumnHeader column={column} title={t("columns.variant")} className={headerClass} />
       ),
       cell: ({ row }) => (
-        <span className="text-foreground font-medium">{row.original.name}</span>
+        <span className="block truncate font-medium">{row.original.name}</span>
       ),
-      meta: { dataTableFilter: false },
+      meta: {
+        dataTableFilter: false,
+        headerClassName: "w-[22%]",
+        cellClassName: "w-[22%] max-w-[22%] overflow-hidden",
+      },
     },
     {
       accessorKey: "description",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("columns.description")} />
+        <DataTableColumnHeader
+          column={column}
+          title={t("columns.description")}
+          className={headerClass}
+        />
       ),
       cell: ({ row }) => (
-        <span className="text-muted-foreground truncate">
+        <span
+          className={cn(
+            "block truncate text-sm",
+            row.original.description ? "text-muted-foreground" : "text-muted-foreground/60"
+          )}
+        >
           {row.original.description || t("noDescription")}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: {
+        dataTableFilter: false,
+        headerClassName: "w-[38%]",
+        cellClassName: "w-[38%] overflow-hidden",
+      },
     },
     {
       accessorKey: "products",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("columns.products")} />
+        <DataTableColumnHeader column={column} title={t("columns.products")} className={headerClass} />
       ),
       cell: ({ row }) => (
-        <span className="text-foreground tabular-nums">{row.original.products}</span>
+        <span className="bg-muted inline-flex min-w-8 justify-center rounded-md px-2 py-0.5 text-xs font-medium tabular-nums">
+          {row.original.products}
+        </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: {
+        dataTableFilter: false,
+        headerClassName: "w-28",
+        cellClassName: "w-28",
+      },
     },
     {
       accessorKey: "status",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("columns.status")} />
+        <DataTableColumnHeader column={column} title={t("columns.status")} className={headerClass} />
       ),
-      cell: ({ row }) => (
-        <Badge
-          variant="outline"
-          className={
-            row.original.status === "active"
-              ? "border-emerald-500/30 px-1.5 text-emerald-700 dark:text-emerald-400"
-              : "border-border px-1.5 text-muted-foreground"
-          }
-        >
-          {t(`tabs.${row.original.status}`)}
-        </Badge>
-      ),
-      meta: { dataTableFilter: false },
+      cell: ({ row }) => {
+        const active = row.original.status === "active"
+        return (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
+              active
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "bg-muted text-muted-foreground"
+            )}
+          >
+            <span
+              className={cn(
+                "size-1.5 rounded-full",
+                active ? "bg-emerald-500" : "bg-muted-foreground/45"
+              )}
+              aria-hidden
+            />
+            {t(`tabs.${row.original.status}`)}
+          </span>
+        )
+      },
+      meta: {
+        dataTableFilter: false,
+        headerClassName: "w-36",
+        cellClassName: "w-36",
+      },
     },
     {
       id: "actions",
       enableSorting: false,
+      meta: { headerClassName: "w-14", cellClassName: "w-14 text-end" },
       cell: ({ row }) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -216,6 +258,8 @@ function VariantsPageContent() {
     bulkCreate,
   } = useInventoryVariants()
   const [lookupOpen, setLookupOpen] = useState(false)
+  const [isMutating, setIsMutating] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
   const [sidebar, setSidebar] = useState<
     { mode: "view" | "edit"; variant: CatalogRow } | null
   >(null)
@@ -231,6 +275,7 @@ function VariantsPageContent() {
     async (variant: CatalogRow) => {
       const ok = await confirmDeleteAction({ itemName: variant.name })
       if (!ok) return
+      setDeletingId(variant.id)
       try {
         const result = await removeMany([variant.id])
         if (result.failed > 0) {
@@ -249,6 +294,8 @@ function VariantsPageContent() {
         toast.success(t("toasts.deletedNamed", { name: variant.name }))
       } catch (error) {
         toast.error(catalogErrorMessage(error, t("toasts.saveFailed")))
+      } finally {
+        setDeletingId(null)
       }
     },
     [removeMany, t]
@@ -292,20 +339,23 @@ function VariantsPageContent() {
       .filter((row): row is NonNullable<typeof row> => row != null)
       .slice(0, 100)
     if (payload.length === 0) return 0
-    const res = await bulkCreate(payload)
-    const added = res.added ?? res.items?.length ?? 0
-    const failed =
-      imported.length - payload.length + (res.errors?.length ?? 0)
-    reportImportFailure(
-      added,
-      failed,
-      t("toasts.importPartial", { added, failed }),
-      uniqueErrorMessages(res.errors)
-    )
-    return added
+    setIsMutating(true)
+    try {
+      const res = await bulkCreate(payload)
+      const added = res.added ?? res.items?.length ?? 0
+      const failed =
+        imported.length - payload.length + (res.errors?.length ?? 0)
+      reportImportFailure(
+        added,
+        failed,
+        t("toasts.importPartial", { added, failed }),
+        uniqueErrorMessages(res.errors)
+      )
+      return added
+    } finally {
+      setIsMutating(false)
+    }
   }
-
-  if (isLoading) return <PageLoader />
 
   return (
     <>
@@ -449,6 +499,7 @@ function VariantsPageContent() {
       <DataTable
         data={rows}
         columns={columns}
+        tableClassName="table-fixed"
         settingsKey="inventory-variants"
         showColumnFilters={false}
         addButtonLabel={t("variantPage.addButton")}
@@ -466,6 +517,10 @@ function VariantsPageContent() {
         exportFilename="variants-export.csv"
         onAddClick={() => setLookupOpen(true)}
         onImportRows={handleImportRows}
+        isLoading={isLoading || isMutating}
+        pendingRowIds={deletingId ? [deletingId] : undefined}
+        emptyTitle={t("variantPage.emptyTitle")}
+        emptyDescription={t("variantPage.emptyDescription")}
         tabs={variantTabs}
         defaultTab="all"
         tabFilter={catalogTabFilter}
@@ -528,19 +583,24 @@ function VariantsPageContent() {
                 const ok = await confirmDeleteAction({ count: selected.length })
                 if (!ok) return
                 const ids = selected.map((row) => row.id).filter(Boolean)
-                const result = await removeMany(ids)
-                const failed = result.failed + (selected.length - ids.length)
-                if (failed > 0) {
-                  toastFailure(
-                    t("toasts.deletePartial", {
-                      deleted: result.deleted,
-                      failed,
-                    }),
-                    result.message
-                  )
-                  return
+                setIsMutating(true)
+                try {
+                  const result = await removeMany(ids)
+                  const failed = result.failed + (selected.length - ids.length)
+                  if (failed > 0) {
+                    toastFailure(
+                      t("toasts.deletePartial", {
+                        deleted: result.deleted,
+                        failed,
+                      }),
+                      result.message
+                    )
+                    return
+                  }
+                  toast.success(t("toasts.deletedCount", { count: selected.length }))
+                } finally {
+                  setIsMutating(false)
                 }
-                toast.success(t("toasts.deletedCount", { count: selected.length }))
               })()
             },
           },

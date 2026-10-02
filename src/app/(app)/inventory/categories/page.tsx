@@ -18,7 +18,6 @@ import type { TFunction } from "i18next"
 import { CatalogTablePageGuard } from "@/components/inventory/catalog-field-table-settings"
 import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTable, type DataTableTab } from "@/components/data-table"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -30,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { PageLoader } from "@/components/ui/page-loader"
+import { cn } from "@/lib/utils"
 import {
   Sheet,
   SheetClose,
@@ -103,6 +102,7 @@ function getCategoryColumns(
       ),
       enableSorting: false,
       enableHiding: false,
+      meta: { headerClassName: "w-8 px-2", cellClassName: "w-8 px-2" },
     },
     {
       accessorKey: "srNo",
@@ -110,11 +110,9 @@ function getCategoryColumns(
         <DataTableColumnHeader column={column} title={t("columns.id")} />
       ),
       cell: ({ row }) => (
-        <span className="text-muted-foreground font-mono tabular-nums">
-          {row.original.srNo}
-        </span>
+        <span className="text-muted-foreground text-xs tabular-nums">{row.original.srNo}</span>
       ),
-      meta: { dataTableFilter: false },
+      meta: { dataTableFilter: false, headerClassName: "w-20", cellClassName: "w-20" },
     },
     {
       accessorKey: "name",
@@ -122,10 +120,14 @@ function getCategoryColumns(
         <DataTableColumnHeader column={column} title={t("columns.category")} />
       ),
       cell: ({ row }) => (
-        <span className="text-foreground font-medium">{row.original.name}</span>
+        <span className="block truncate font-medium">{row.original.name}</span>
       ),
       enableHiding: false,
-      meta: { dataTableFilter: false },
+      meta: {
+        dataTableFilter: false,
+        headerClassName: "w-[22%]",
+        cellClassName: "w-[22%] max-w-[22%] overflow-hidden",
+      },
     },
     {
       accessorKey: "description",
@@ -133,48 +135,66 @@ function getCategoryColumns(
         <DataTableColumnHeader column={column} title={t("columns.description")} />
       ),
       cell: ({ row }) => (
-        <span className="text-muted-foreground max-w-[14rem] truncate">
-          {row.original.description}
+        <span
+          className={cn(
+            "block truncate text-sm",
+            row.original.description ? "text-muted-foreground" : "text-muted-foreground/60"
+          )}
+        >
+          {row.original.description || t("noDescription")}
         </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: {
+        dataTableFilter: false,
+        headerClassName: "w-[38%]",
+        cellClassName: "w-[38%] overflow-hidden",
+      },
     },
     {
       accessorKey: "products",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("columns.products")} align="center" />
+        <DataTableColumnHeader column={column} title={t("columns.products")} />
       ),
       cell: ({ row }) => (
-        <div className="flex justify-center">
-          <span className="text-foreground tabular-nums">{row.original.products}</span>
-        </div>
+        <span className="bg-muted inline-flex min-w-8 justify-center rounded-md px-2 py-0.5 text-xs font-medium tabular-nums">
+          {row.original.products}
+        </span>
       ),
-      meta: { dataTableFilter: false },
+      meta: { dataTableFilter: false, headerClassName: "w-28", cellClassName: "w-28" },
     },
     {
       accessorKey: "status",
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("columns.status")} />
       ),
-      cell: ({ row }) => (
-        <Badge
-          variant="outline"
-          className={
-            row.original.status === "active"
-              ? "border-emerald-500/30 px-1.5 text-emerald-700 dark:text-emerald-400"
-              : "border-border px-1.5 text-muted-foreground"
-          }
-        >
-          {row.original.status === "active"
-            ? t("tabs.active")
-            : t("tabs.inactive")}
-        </Badge>
-      ),
-      meta: { dataTableFilter: false },
+      cell: ({ row }) => {
+        const active = row.original.status === "active"
+        return (
+          <span
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium",
+              active
+                ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-400"
+                : "bg-muted text-muted-foreground"
+            )}
+          >
+            <span
+              className={cn(
+                "size-1.5 rounded-full",
+                active ? "bg-emerald-500" : "bg-muted-foreground/45"
+              )}
+              aria-hidden
+            />
+            {active ? t("tabs.active") : t("tabs.inactive")}
+          </span>
+        )
+      },
+      meta: { dataTableFilter: false, headerClassName: "w-36", cellClassName: "w-36" },
     },
     {
       id: "actions",
       enableSorting: false,
+      meta: { headerClassName: "w-14", cellClassName: "w-14 text-end" },
       cell: ({ row }) => (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -239,6 +259,8 @@ function CategoriesPageContent() {
   } = useInventoryCategories()
   const [sidebar, setSidebar] = useState<CategorySidebar>(null)
   const [formKey, setFormKey] = useState(0)
+  const [isMutating, setIsMutating] = useState(false)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   useEffect(() => {
     if (isError) {
@@ -252,6 +274,7 @@ function CategoriesPageContent() {
     async (category: CatalogRow) => {
       const ok = await confirmDeleteAction({ itemName: category.name })
       if (!ok) return
+      setDeletingId(category.id)
       try {
         const result = await removeMany([category.id])
         if (result.failed > 0) {
@@ -270,6 +293,8 @@ function CategoriesPageContent() {
         toast.success(t("toasts.deletedNamed", { name: category.name }))
       } catch (error) {
         toast.error(catalogErrorMessage(error, t("toasts.saveFailed")))
+      } finally {
+        setDeletingId(null)
       }
     },
     [removeMany, t]
@@ -374,20 +399,23 @@ function CategoriesPageContent() {
       .filter((row): row is NonNullable<typeof row> => row != null)
       .slice(0, 100)
     if (payload.length === 0) return 0
-    const res = await bulkCreate(payload)
-    const added = res.added ?? res.items?.length ?? 0
-    const failed =
-      imported.length - payload.length + (res.errors?.length ?? 0)
-    reportImportFailure(
-      added,
-      failed,
-      t("toasts.importPartial", { added, failed }),
-      uniqueErrorMessages(res.errors)
-    )
-    return added
+    setIsMutating(true)
+    try {
+      const res = await bulkCreate(payload)
+      const added = res.added ?? res.items?.length ?? 0
+      const failed =
+        imported.length - payload.length + (res.errors?.length ?? 0)
+      reportImportFailure(
+        added,
+        failed,
+        t("toasts.importPartial", { added, failed }),
+        uniqueErrorMessages(res.errors)
+      )
+      return added
+    } finally {
+      setIsMutating(false)
+    }
   }
-
-  if (isLoading) return <PageLoader />
 
   return (
     <>
@@ -532,6 +560,7 @@ function CategoriesPageContent() {
       <DataTable
         data={rows}
         columns={columns}
+        tableClassName="table-fixed"
         settingsKey="inventory-categories"
         showColumnFilters={false}
         addButtonLabel={t("categoryPage.addButton")}
@@ -548,6 +577,10 @@ function CategoriesPageContent() {
         importRequiredSelectColumns={[]}
         exportFilename="categories-export.csv"
         onImportRows={handleImportRows}
+        isLoading={isLoading || isMutating}
+        pendingRowIds={deletingId ? [deletingId] : undefined}
+        emptyTitle={t("categoryPage.emptyTitle")}
+        emptyDescription={t("categoryPage.emptyDescription")}
         onAddClick={() => {
           setFormKey((k) => k + 1)
           setSidebar({ mode: "add" })
@@ -611,19 +644,24 @@ function CategoriesPageContent() {
                 const ok = await confirmDeleteAction({ count: selected.length })
                 if (!ok) return
                 const ids = selected.map((row) => row.id).filter(Boolean)
-                const result = await removeMany(ids)
-                const failed = result.failed + (selected.length - ids.length)
-                if (failed > 0) {
-                  toastFailure(
-                    t("toasts.deletePartial", {
-                      deleted: result.deleted,
-                      failed,
-                    }),
-                    result.message
-                  )
-                  return
+                setIsMutating(true)
+                try {
+                  const result = await removeMany(ids)
+                  const failed = result.failed + (selected.length - ids.length)
+                  if (failed > 0) {
+                    toastFailure(
+                      t("toasts.deletePartial", {
+                        deleted: result.deleted,
+                        failed,
+                      }),
+                      result.message
+                    )
+                    return
+                  }
+                  toast.success(t("toasts.deletedCategories", { count: selected.length }))
+                } finally {
+                  setIsMutating(false)
                 }
-                toast.success(t("toasts.deletedCategories", { count: selected.length }))
               })()
             },
           },
