@@ -38,11 +38,6 @@ import {
   phoneProfile,
   validateSignupPhone,
 } from "@/lib/phone-mask"
-import {
-  clearPendingGoogleSignup,
-  loadPendingGoogleSignup,
-  type PendingGoogleSignup,
-} from "@/lib/google-signup"
 import { queueWelcomeFlow } from "@/lib/welcome-flow"
 import { FALLBACK_PLANS } from "@/lib/subscription-access"
 import { cn } from "@/lib/utils"
@@ -101,7 +96,7 @@ function FieldError({ message }: { message?: string }) {
 export function SignupWizard({ planCode }: { planCode?: string }) {
   const { t } = useTranslation("auth")
   const router = useRouter()
-  const { signup, completeGoogleSignup, session, hydrated, access } = useAuth()
+  const { signup, session, hydrated, access } = useAuth()
   const plan = planFromUrl(planCode)
   const stayOnSignup = useRef(false)
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -110,7 +105,6 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [errors, setErrors] = useState<FieldErrors>({})
-  const [googleSignup, setGoogleSignup] = useState<PendingGoogleSignup | null>(null)
   const [values, setValues] = useState({
     ownerName: "",
     email: "",
@@ -123,21 +117,9 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
   })
 
   useEffect(() => {
-    const pending = loadPendingGoogleSignup()
-    if (!pending) return
-    setGoogleSignup(pending)
-    setStep(2)
-    setValues((prev) => ({
-      ...prev,
-      ownerName: pending.name,
-      email: pending.email,
-    }))
-  }, [])
-
-  useEffect(() => {
-    if (!hydrated || !session || stayOnSignup.current || googleSignup) return
+    if (!hydrated || !session || stayOnSignup.current) return
     router.replace(access && !access.allowed ? "/trial-ended" : "/home")
-  }, [hydrated, session, access, router, googleSignup])
+  }, [hydrated, session, access, router])
 
   useEffect(() => {
     const id = step === 1 ? "ownerName" : "businessName"
@@ -220,26 +202,16 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
     setLoading(true)
     stayOnSignup.current = true
     try {
-      const phone = formatInternationalNumber(values.phoneCountry || values.country, values.phone)
-      const result = googleSignup
-        ? await completeGoogleSignup({
-            signupToken: googleSignup.signupToken,
-            businessName: values.businessName.trim(),
-            phone,
-            country: values.country,
-            industry: values.industry,
-          })
-        : await signup({
-            ownerName: values.ownerName.trim(),
-            email: values.email.trim(),
-            phone,
-            country: values.country,
-            password: values.password,
-            businessName: values.businessName.trim(),
-            industry: values.industry,
-            planCode: plan.code,
-          })
-      if (result.ok) clearPendingGoogleSignup()
+      const result = await signup({
+        ownerName: values.ownerName.trim(),
+        email: values.email.trim(),
+        phone: formatInternationalNumber(values.phoneCountry || values.country, values.phone),
+        country: values.country,
+        password: values.password,
+        businessName: values.businessName.trim(),
+        industry: values.industry,
+        planCode: plan.code,
+      })
       if (!result.ok) {
         stayOnSignup.current = false
         toast.error(result.error)
@@ -346,6 +318,7 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
               )}
             </Button>
             <AuthSocialButtons
+              mode="signup"
               onNavigate={() => {
                 stayOnSignup.current = true
               }}
@@ -358,32 +331,19 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
           <AuthHeading
             title={t("signup.titleCompany")}
             accent="company"
-            subtitle={
-              googleSignup ? t("signup.subtitleGoogleCompany") : t("signup.subtitleCompany")
-            }
+            subtitle={t("signup.subtitleCompany")}
           />
-          <StepBar
-            step={step}
-            onBack={() => {
-              if (googleSignup) clearPendingGoogleSignup()
-              setGoogleSignup(null)
-              setStep(1)
-            }}
-          />
+          <StepBar step={step} onBack={() => setStep(1)} />
           <p className="text-muted-foreground -mt-1 mb-3 truncate text-[11px]">
             {values.email}
-            {googleSignup ? null : (
-              <>
-                {" · "}
-                <button
-                  type="button"
-                  className="text-primary font-medium hover:underline"
-                  onClick={() => setStep(1)}
-                >
-                  {t("signup.change")}
-                </button>
-              </>
-            )}
+            {" · "}
+            <button
+              type="button"
+              className="text-primary font-medium hover:underline"
+              onClick={() => setStep(1)}
+            >
+              {t("signup.change")}
+            </button>
           </p>
           <form className="space-y-3" onSubmit={(e) => void createAccount(e)}>
             <div className="grid gap-1.5">
@@ -519,11 +479,7 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
             <button
               type="button"
               className="text-muted-foreground hover:text-foreground inline-flex w-full items-center justify-center gap-1 text-xs"
-              onClick={() => {
-                if (googleSignup) clearPendingGoogleSignup()
-                setGoogleSignup(null)
-                setStep(1)
-              }}
+              onClick={() => setStep(1)}
             >
               <ChevronLeft className="size-3.5" />
               {t("signup.backToAccount")}
