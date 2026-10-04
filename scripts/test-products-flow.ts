@@ -305,18 +305,21 @@ test("parsed settings reject unknown modes", () => {
   assert.equal(parsed?.mode, "custom")
   assert.equal(parsed?.prefix, "AB")
 })
-test("auto import sample omits sku; custom sample includes it", () => {
+test("import columns include sku; auto import still ignores the sku values", () => {
   assert.deepEqual(productImportColumns(AUTO), [
+    "sku",
     "name",
     "brand",
     "category",
     "variant",
+    "stock",
     "costPrice",
     "salePrice",
     "lifecycle",
+    "imageUrls",
   ])
-  assert.equal(productImportColumns(CUSTOM)[0], "sku")
-  assert.equal("sku" in productImportSampleRow(AUTO), false)
+  assert.deepEqual(productImportColumns(CUSTOM), productImportColumns(AUTO))
+  assert.equal(productImportSampleRow(AUTO).sku, "SKU-001")
   assert.equal(productImportSampleRow(AUTO).lifecycle, "active")
   assert.equal(productImportSampleRow(CUSTOM).sku, "SKU-001")
 })
@@ -452,8 +455,8 @@ test("import lifecycle matches edit form and ignores stock status column", () =>
   )
   assert.equal(inactive?.lifecycle, "inactive")
   assert.equal(
-    mapImportedProduct({ name: "Bad", lifecycle: "paused" }, [], AUTO),
-    null
+    mapImportedProduct({ name: "Bad", lifecycle: "paused" }, [], AUTO)?.lifecycle,
+    "active"
   )
   assert.equal(parseImportedProductLifecycle("in stock"), "")
   assert.equal(parseImportedProductLifecycle("archived"), "archived")
@@ -486,7 +489,7 @@ test("empty brand category and variant stay unassigned", () => {
   assert.equal(row?.category, "")
   assert.equal(row?.variant, "")
 })
-test("matches catalog names case-insensitively and drops unknown names", () => {
+test("matches catalog names case-insensitively and keeps unknown names for create", () => {
   const unmatched: string[] = []
   const row = mapImportedProduct(
     {
@@ -505,7 +508,7 @@ test("matches catalog names case-insensitively and drops unknown names", () => {
     (name) => unmatched.push(name)
   )
   assert.equal(row?.brand, "Sony")
-  assert.equal(row?.category, "")
+  assert.equal(row?.category, "Unknown Cat")
   assert.equal(row?.variant, "Genuine")
   assert.deepEqual(unmatched, ["Unknown Cat"])
 })
@@ -581,7 +584,7 @@ test("csv escape quotes and newlines", () => {
   const parsed = parseCsv(csv.replace(/\r\n/g, "\n"))
   assert.ok(csv.includes('"Line\nBreak"') || parsed[0]?.name.includes("Line"))
 })
-test("auto sample csv has header plus one example row without sku", () => {
+test("auto sample csv includes sku column but import still auto-assigns", () => {
   const sampleCsv = buildSampleCsv(
     productImportColumns(AUTO),
     productImportSampleRow(AUTO)
@@ -589,7 +592,9 @@ test("auto sample csv has header plus one example row without sku", () => {
   const parsed = parseCsv(sampleCsv)
   assert.equal(parsed.length, 1)
   assert.equal(parsed[0]?.name, "Demo product")
-  assert.equal(parsed[0]?.sku, undefined)
+  assert.equal(parsed[0]?.sku, "SKU-001")
+  const imported = mapImportedProduct(parsed[0]!, [sample], AUTO)
+  assert.equal(imported?.sku, "SKU-002")
 })
 test("custom sample csv includes sku", () => {
   const sampleCsv = buildSampleCsv(
