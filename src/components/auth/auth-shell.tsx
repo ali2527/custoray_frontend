@@ -13,7 +13,7 @@ export const AUTH_BUTTON =
   "h-10 w-full rounded-lg text-xs font-medium shadow-none"
 
 const CARD_SIZE =
-  "gap-0 overflow-hidden rounded-2xl border border-border/70 p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_40px_rgba(15,23,42,0.08)] md:h-[42rem] md:min-h-[42rem]"
+  "gap-0 overflow-hidden rounded-2xl border border-border/70 p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_40px_rgba(15,23,42,0.08)] md:h-[38.5rem] md:min-h-[38.5rem]"
 
 export function AuthShell({
   children,
@@ -25,7 +25,7 @@ export function AuthShell({
   hero?: "signin" | "signup" | "reset_email" | "reset_code" | "reset_password" | "twofa"
 }) {
   return (
-    <div className="relative flex min-h-svh flex-col items-center justify-center bg-[#f6f7f4] p-4 sm:p-6 md:p-10 dark:bg-background">
+    <div className="relative flex min-h-svh flex-col items-center justify-center bg-[#f6f7f4] p-4 sm:p-6 md:p-8 dark:bg-background">
       <ToggleButton
         variant="ghost"
         className="text-muted-foreground size-8 rounded-full"
@@ -33,9 +33,9 @@ export function AuthShell({
       <div className="w-full max-w-md sm:max-w-2xl md:max-w-4xl lg:max-w-[58rem]">
         <Card className={CARD_SIZE}>
           <CardContent className="grid h-full min-h-0 p-0 md:grid-cols-2">
-            <div className="flex h-full min-h-0 flex-col justify-center overflow-hidden px-6 py-7 sm:px-8 md:px-10">
+            <div className="flex h-full min-h-0 flex-col justify-center overflow-hidden px-6 py-6 sm:px-8 md:px-10">
               <div className={cn("mx-auto flex w-full max-w-[22.5rem] flex-col text-xs [&_label]:text-xs", className)}>
-                <AuthBrand className="mb-6" />
+                <AuthBrand className="mb-5" />
                 {children}
               </div>
             </div>
