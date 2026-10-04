@@ -22,6 +22,8 @@ export const customerSchema = z.object({
 export type CustomerRow = z.infer<typeof customerSchema>
 export type CustomerStatus = CustomerRow["status"]
 export type CustomerWrite = {
+  /** API id — when set on import, updates that customer. */
+  id?: string
   name: string
   phone?: string
   description?: string
@@ -38,6 +40,7 @@ export function customerTimelineHref(id: string | number) {
 }
 
 export const CUSTOMER_IMPORT_COLUMNS = [
+  "id",
   "name",
   "description",
   "phone",
@@ -50,6 +53,7 @@ export const CUSTOMER_IMPORT_SAMPLE_ROW: Record<
   (typeof CUSTOMER_IMPORT_COLUMNS)[number],
   string
 > = {
+  id: "",
   name: "Acme Retail",
   description: "Wholesale buyer",
   phone: "+92 300 1234567",
@@ -184,7 +188,9 @@ export function mapImportedCustomerWrite(row: Record<string, string>): CustomerW
   if (!name) return null
   const parsedStatus = parseImportedCustomerStatus(row.status)
   if ((row.status ?? "").trim() && !parsedStatus) return null
+  const id = (row.id || row.apiId || row.api_id || "").trim()
   return {
+    ...(id ? { id } : {}),
     name,
     description: (row.description || row.desc || "").trim(),
     phone: (row.phone || row.phone_number || "").trim(),

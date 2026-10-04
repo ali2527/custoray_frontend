@@ -23,6 +23,7 @@ export function capImportRows<T>(
 
 export type BulkCreateBatchResult<TItem = unknown, TError = { message?: string }> = {
   added?: number
+  updated?: number
   items?: TItem[]
   errors?: TError[]
 }
@@ -43,6 +44,7 @@ export async function runBatchedBulkCreate<
   options?: { batchSize?: number }
 ): Promise<{
   added: number
+  updated: number
   items: TItem[]
   errors: TError[]
   batches: number
@@ -51,17 +53,24 @@ export async function runBatchedBulkCreate<
   const allItems: TItem[] = []
   const allErrors: TError[] = []
   let added = 0
+  let updated = 0
 
   for (const chunk of chunks) {
     const res = await createBatch(chunk)
     const batchItems = res.items ?? []
     allItems.push(...batchItems)
-    added += res.added ?? batchItems.length
+    added += res.added ?? 0
+    updated += res.updated ?? 0
+    // Legacy endpoints that only return items (no added count).
+    if (res.added == null && res.updated == null) {
+      added += batchItems.length
+    }
     if (res.errors?.length) allErrors.push(...res.errors)
   }
 
   return {
     added,
+    updated,
     items: allItems,
     errors: allErrors,
     batches: chunks.length,

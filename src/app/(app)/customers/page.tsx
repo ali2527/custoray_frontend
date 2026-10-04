@@ -397,20 +397,34 @@ export default function CustomersPage() {
       try {
         const res = await runBatchedBulkCreate(payload, (batch) => bulkCreate(batch))
         const added = res.added
+        const updated = res.updated
         const failed = imported.length - payload.length + res.errors.length
+        const processed = added + updated
         reportImportFailure(
-          added,
+          processed,
           failed,
-          t("toasts.importPartial", { added, failed }),
+          t("toasts.importPartial", { added, updated, failed }),
           uniqueErrorMessages(res.errors)
         )
-        return added
+        return processed
       } finally {
         setIsMutating(false)
       }
     },
     [bulkCreate, t]
   )
+
+  const flattenCustomerForExport = useCallback((row: CustomerRow) => {
+    return {
+      id: row.apiId || "",
+      name: row.name,
+      description: row.description === "—" ? "" : row.description,
+      phone: row.phone === "—" ? "" : row.phone,
+      openingBalance: row.openingBalance,
+      status: row.status,
+      imageUrl: row.imageUrl || "",
+    }
+  }, [])
 
   const handleBulkStatus = useCallback(
     async (selected: CustomerRow[], status: CustomerStatus, successMessage: string) => {
@@ -588,6 +602,7 @@ export default function CustomersPage() {
         }}
         importRequiredSelectColumns={[]}
         exportFilename="customers-export.csv"
+        exportRowTransform={flattenCustomerForExport}
         onImportRows={handleImportRows}
         isLoading={loading || isMutating}
         pendingRowIds={deletingId ? [deletingId] : undefined}
