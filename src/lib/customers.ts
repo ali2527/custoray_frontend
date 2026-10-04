@@ -42,14 +42,19 @@ export const CUSTOMER_IMPORT_COLUMNS = [
   "phone",
   "openingBalance",
   "status",
+  "imageUrl",
 ] as const
 
-export const CUSTOMER_IMPORT_SAMPLE_ROW = {
+export const CUSTOMER_IMPORT_SAMPLE_ROW: Record<
+  (typeof CUSTOMER_IMPORT_COLUMNS)[number],
+  string
+> = {
   name: "Acme Retail",
   description: "Wholesale buyer",
   phone: "+92 300 1234567",
   openingBalance: "0.00",
   status: "active",
+  imageUrl: "",
 }
 
 export const EMPTY_CUSTOMER: CustomerRow = {
@@ -185,12 +190,13 @@ export function mapImportedCustomerWrite(row: Record<string, string>): CustomerW
   if ((row.status ?? "").trim() && !parsedStatus) return null
   return {
     name,
-    description: (row.description ?? row.desc ?? "").trim(),
-    phone: (row.phone ?? row.phone_number ?? "").trim(),
+    description: (row.description || row.desc || "").trim(),
+    phone: (row.phone || row.phone_number || "").trim(),
     openingBalance: Number(
-      parseMoney(String(row.openingBalance ?? row.opening_balance ?? "0"))
+      parseMoney(String(row.openingBalance || row.opening_balance || "0"))
     ),
     status: parsedStatus || "active",
+    imageUrl: (row.imageUrl || row.image_url || row.image || "").trim(),
   }
 }
 
@@ -213,7 +219,7 @@ export function mapImportedCustomer(
     totalPayments: "0.00",
     phone: mapped.phone || "",
     status: mapped.status || "active",
-    imageUrl: (row.imageUrl ?? row.image_url ?? "").trim(),
+    imageUrl: mapped.imageUrl || "",
   }
 }
 

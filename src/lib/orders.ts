@@ -22,6 +22,8 @@ export const ORDER_IMPORT_COLUMNS = [
   "productName",
   "quantity",
   "unitPrice",
+  "lineTotal",
+  "totalAmount",
   "paidAmount",
   "paymentMethod",
   "status",
@@ -35,6 +37,8 @@ export const ORDER_IMPORT_SAMPLE_ROW: Record<(typeof ORDER_IMPORT_COLUMNS)[numbe
   productName: "Premium Basmati Rice 25kg",
   quantity: "2",
   unitPrice: "3200.00",
+  lineTotal: "6400.00",
+  totalAmount: "6400.00",
   paidAmount: "6400.00",
   paymentMethod: "Cash",
   status: "completed",
@@ -711,12 +715,19 @@ function importedOrderLine(row: Record<string, string>, id: number): OrderLineRo
   const unitPrice = parseMoney(
     String(row.unitPrice ?? row.unit_price ?? row.rate ?? "0")
   )
+  const computed = computeLineTotal(quantity, unitPrice)
+  const fileLineTotal = String(
+    row.lineTotal ?? row.line_total ?? row.amount ?? ""
+  ).trim()
   return {
     id,
     productName: productName || "Imported item",
     quantity,
     unitPrice,
-    lineTotal: computeLineTotal(quantity, unitPrice),
+    lineTotal:
+      Number(unitPrice) > 0 || !fileLineTotal
+        ? computed
+        : parseMoney(fileLineTotal),
   }
 }
 
@@ -729,7 +740,7 @@ function uniqueInvoiceNumber(desired: string, existing: OrderRow[]): string {
 export function flattenOrderForExport(order: OrderRow): Record<string, unknown>[] {
   const lines = order.lines?.length
     ? order.lines
-    : [{ productName: "", quantity: 1, unitPrice: "0.00" }]
+    : [{ productName: "", quantity: 1, unitPrice: "0.00", lineTotal: "0.00" }]
   return lines.map((line) => ({
     invoiceNumber: order.invoiceNumber,
     customerName: order.customerName,
@@ -737,6 +748,8 @@ export function flattenOrderForExport(order: OrderRow): Record<string, unknown>[
     productName: line.productName,
     quantity: line.quantity,
     unitPrice: line.unitPrice,
+    lineTotal: line.lineTotal ?? computeLineTotal(line.quantity, line.unitPrice),
+    totalAmount: order.totalAmount,
     paidAmount: order.paidAmount,
     paymentMethod: order.paymentMethod,
     status: order.status,

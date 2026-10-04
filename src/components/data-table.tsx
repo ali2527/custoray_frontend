@@ -49,6 +49,7 @@ import { DataTableExportDialog } from "@/components/data-table-export-dialog"
 import { DataTableImportDialog, type ImportSelectColumns } from "@/components/data-table-import-dialog"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { buildSampleCsv, pickObjectKeys } from "@/lib/csv"
+import { IMPORT_MAX_TOTAL, capImportRows } from "@/lib/import-batch"
 import {
   loadTableSettings,
   saveTableSettings,
@@ -1338,8 +1339,17 @@ export function DataTable<TData>({
         toast.error(t("toast.noRowsToImport"))
         return
       }
+      const { rows: cappedRows, truncated } = capImportRows(rows, IMPORT_MAX_TOTAL)
+      if (truncated > 0) {
+        toast.message(
+          t("toast.importCapped", {
+            max: IMPORT_MAX_TOTAL,
+            truncated,
+          })
+        )
+      }
       if (onImportRows) {
-        void Promise.resolve(onImportRows(rows)).then((added) => {
+        void Promise.resolve(onImportRows(cappedRows)).then((added) => {
           if (added == null) return
           if (added > 0) {
             setPagination((prev) => ({ ...prev, pageIndex: 0 }))
@@ -1361,7 +1371,7 @@ export function DataTable<TData>({
       }
       updateData((prev) => {
         let acc = [...prev]
-        for (const r of rows) {
+        for (const r of cappedRows) {
           const mapped = importRowMapper
             ? importRowMapper(r, acc)
             : ({ ...r } as unknown as TData)

@@ -43,6 +43,7 @@ import { reportImportFailure, toastFailure } from "@/lib/action-toast"
 import { uniqueErrorMessages } from "@/lib/api/client"
 import { confirmDeleteAction } from "@/lib/confirm-action"
 import { buildSampleCsv } from "@/lib/csv"
+import { runBatchedBulkCreate } from "@/lib/import-batch"
 import {
   CATALOG_IMPORT_COLUMNS,
   CATALOG_STATUS_OPTIONS,
@@ -337,14 +338,12 @@ function VariantsPageContent() {
     const payload = imported
       .map((row) => mapImportedCatalogWrite(row, CATALOG_STATUS_OPTIONS))
       .filter((row): row is NonNullable<typeof row> => row != null)
-      .slice(0, 100)
     if (payload.length === 0) return 0
     setIsMutating(true)
     try {
-      const res = await bulkCreate(payload)
-      const added = res.added ?? res.items?.length ?? 0
-      const failed =
-        imported.length - payload.length + (res.errors?.length ?? 0)
+      const res = await runBatchedBulkCreate(payload, (batch) => bulkCreate(batch))
+      const added = res.added
+      const failed = imported.length - payload.length + res.errors.length
       reportImportFailure(
         added,
         failed,
