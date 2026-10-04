@@ -28,6 +28,7 @@
     "price": "قیمت",
     "costPrice": "لاگت قیمت",
     "salePrice": "فروخت قیمت",
+    "stockValue": "اسٹاک ویلیو",
     "stock": "اسٹاک",
     "status": "حیثیت",
     "description": "تفصیل",
@@ -71,6 +72,7 @@
     "ordersPeriod": "آرڈرز (مدت)",
     "costPrice": "لاگت قیمت",
     "salePrice": "فروخت قیمت",
+    "stockValue": "اسٹاک ویلیو",
     "status": "حیثیت",
     "id": "آئی ڈی",
     "description": "تفصیل",
@@ -174,6 +176,18 @@
     "set": "سیٹ",
     "increased": "اضافہ",
     "decreased": "کمی"
+  },
+  "stockValueTimeline": {
+    "title": "اسٹاک ویلیو کی ٹائم لائن",
+    "empty": "ابھی اسٹاک ویلیو کی کوئی سرگزشت نہیں۔",
+    "date": "تاریخ",
+    "change": "تبدیلی",
+    "qty": "مقدار",
+    "price": "قیمت",
+    "value": "اسٹاک ویلیو",
+    "set": "سیٹ",
+    "quantity": "مقدار",
+    "both": "قیمت اور مقدار"
   },
   "noDescription": "کوئی تفصیل نہیں",
   "images": {
