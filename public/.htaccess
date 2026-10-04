@@ -19,6 +19,10 @@ DirectoryIndex index.html
     RewriteRule ^dashboard/(.+)$ /$1 [L]
 
     RewriteRule ^index\.html$ - [L]
+
+    # Never SPA-fallback hashed build assets — missing CSS/JS must 404, not return HTML.
+    RewriteRule ^_next/ - [L]
+
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
     RewriteCond %{REQUEST_FILENAME} !-l
