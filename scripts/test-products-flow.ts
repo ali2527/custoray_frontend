@@ -3,7 +3,6 @@ import { createRequire } from "node:module"
 
 import {
   EMPTY_PRODUCT,
-  MAX_PRICE,
   MAX_PRODUCT_IMAGES,
   MIN_PRICE,
   applyImportedProductRows,
@@ -170,16 +169,19 @@ test("edit form without stock fields keeps previous qty", () => {
   assert.equal(next.orders, 3)
   assert.equal(next.lifecycle, sample.lifecycle)
 })
-test("price below minimum clamps to 100.00", () => {
-  assert.equal(normalizePriceValue("12"), "100.00")
+test("prices are never clamped", () => {
+  assert.equal(normalizePriceValue("20000"), "20000.00")
+  assert.equal(normalizePriceValue("9999999"), "9999999.00")
+  assert.equal(normalizePriceValue("12"), "12.00")
+  assert.equal(normalizePriceValue("-12"), "-12.00")
 })
-test("price above maximum clamps to 10000.00", () => {
-  assert.equal(normalizePriceValue("99999"), "10000.00")
-})
-test("empty price uses fallback then clamps", () => {
+test("empty price uses fallback", () => {
   assert.equal(normalizePriceValue("", 180), "180.00")
-  assert.equal(MIN_PRICE, 100)
-  assert.equal(MAX_PRICE, 10000)
+  assert.equal(MIN_PRICE, 0)
+})
+test("formatted price strings parse for edit save", () => {
+  assert.equal(normalizePriceValue("15,000"), "15000.00")
+  assert.equal(normalizePriceValue("Rs 12,500.50"), "12500.50")
 })
 test("next srNo increments from existing", () => {
   assert.equal(nextProductSrNo([sample]), 2)
@@ -461,10 +463,10 @@ test("import lifecycle matches edit form and ignores stock status column", () =>
   assert.equal(parseImportedProductLifecycle("in stock"), "")
   assert.equal(parseImportedProductLifecycle("archived"), "archived")
 })
-test("maps sale price aliases and clamps", () => {
+test("maps sale price aliases without the old 100 floor", () => {
   const cheap = mapImportedProduct({ name: "Cheap", "sale price": "5" }, [], AUTO)
   const named = mapImportedProduct({ name: "Priced", price: "300" }, [], AUTO)
-  assert.equal(cheap?.salePrice, "100.00")
+  assert.equal(cheap?.salePrice, "5.00")
   assert.equal(named?.salePrice, "300.00")
 })
 test("maps cost price aliases and model/varient columns", () => {

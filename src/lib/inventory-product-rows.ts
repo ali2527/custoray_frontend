@@ -12,25 +12,27 @@ import {
 
 export const INVENTORY_PRODUCTS_STORAGE_KEY = "custoray-inventory-products-v1"
 export const PRODUCTS_CHANGED_EVENT = "custoray-products-changed"
-export const MIN_PRICE = 100
-export const MAX_PRICE = 10000
+/** Fallback only when the input is empty/invalid — prices are never clamped. */
+export const MIN_PRICE = 0
 export const MAX_PRODUCT_IMAGES = 8
 export const PRODUCT_VARIANTS = ["Genuine", "1st Copy", "2nd Copy", "Others"] as const
 export const PRODUCT_LIFECYCLE_OPTIONS = ["active", "inactive", "archived"] as const
 export type ProductLifecycle = (typeof PRODUCT_LIFECYCLE_OPTIONS)[number]
 
-export function clampPriceValue(value: number): number {
-  return Math.min(MAX_PRICE, Math.max(MIN_PRICE, value))
-}
-
 export function normalizePriceValue(
   value: string | number | null | undefined,
   fallback: number = MIN_PRICE
 ): string {
+  if (typeof value === "string" && value.trim() === "") {
+    return Number(fallback).toFixed(2)
+  }
+  // Strip currency / grouping so "15,000" or "Rs 12,500.50" still parse.
   const parsed =
-    typeof value === "string" && value.trim() === "" ? Number.NaN : Number(value)
+    typeof value === "number"
+      ? value
+      : Number(String(value ?? "").replace(/[^0-9.-]/g, ""))
   const finalValue = Number.isFinite(parsed) ? parsed : fallback
-  return clampPriceValue(finalValue).toFixed(2)
+  return Number(finalValue).toFixed(2)
 }
 
 export const productSchema = z.object({

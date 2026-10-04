@@ -848,7 +848,7 @@ function getProductColumns(
     cell: ({ row }) => (
       <div className="flex justify-center">
         <span className="text-foreground min-w-12 text-center tabular-nums">
-          {row.original.costPrice}
+          {formatMoney(row.original.costPrice)}
         </span>
       </div>
     ),
@@ -867,7 +867,7 @@ function getProductColumns(
     cell: ({ row }) => (
       <div className="flex justify-center">
         <span className="text-foreground min-w-12 text-center tabular-nums">
-          {row.original.salePrice}
+          {formatMoney(row.original.salePrice)}
         </span>
       </div>
     ),
@@ -921,7 +921,9 @@ function getProductColumns(
     cell: ({ row }) => (
       <div className="flex min-w-28 justify-center">
         <span className="text-foreground text-center tabular-nums">
-          {productStockValue(row.original.salePrice, row.original.stock)}
+          {formatMoney(
+            productStockValue(row.original.salePrice, row.original.stock)
+          )}
         </span>
       </div>
     ),
