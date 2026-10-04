@@ -54,7 +54,7 @@ import { mapApiOrderToRow, mapApiReturnToRow, resolveDefaultStoreId } from "@/li
 import { emitProductsChanged } from "@/lib/inventory-product-rows"
 
 function formatPosMoney(value: string) {
-  return formatMoney(value).replace(/^\$/, "Rs ")
+  return formatMoney(value)
 }
 
 function formatPosReturnMoney(value: string) {

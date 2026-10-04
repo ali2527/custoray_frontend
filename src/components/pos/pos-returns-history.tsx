@@ -13,7 +13,7 @@ import { formatDate as formatReturnDate, isPosReturn, type ReturnRow } from "@/l
 import { cn } from "@/lib/utils"
 
 function formatPosMoney(value: string) {
-  return formatMoney(value).replace(/^\$/, "Rs ")
+  return formatMoney(value)
 }
 
 const panelClass =

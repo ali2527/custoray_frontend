@@ -74,7 +74,7 @@ type InOutPoint = {
 function formatDashMoney(value: string | number): string {
   const n = typeof value === "number" ? value : Number(value)
   const amount = Number.isFinite(n) ? n.toFixed(2) : "0.00"
-  return formatMoney(amount).replace("$", "Rs ")
+  return formatMoney(amount)
 }
 
 function formatAxisMoney(value: number): string {

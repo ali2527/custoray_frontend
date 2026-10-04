@@ -861,7 +861,7 @@ export function computeTopMovers(
 }
 
 export function formatInventoryReportMoney(value: string): string {
-  return formatMoney(value).replace(/^\$/, "Rs ")
+  return formatMoney(value)
 }
 
 export function reorderStatusBadgeClass(status: InventoryReorderStatus): string {

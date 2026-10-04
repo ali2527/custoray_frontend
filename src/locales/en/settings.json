@@ -15,7 +15,18 @@
     "fontSizeSm": "Small",
     "fontSizeBase": "Default",
     "fontSizeLg": "Large",
-    "fontSizeXl": "Extra large"
+    "fontSizeXl": "Extra large",
+    "priceFormat": "Price format",
+    "priceFormatDescription": "Choose how amounts show commas and currency across the app.",
+    "priceFormatUs": "United States",
+    "priceFormatUsHint": "Western grouping with US dollars ($1,234,567.89).",
+    "priceFormatPakistani": "Pakistan",
+    "priceFormatPakistaniHint": "Lakh/crore grouping with Pakistani rupees.",
+    "priceFormatIndian": "India",
+    "priceFormatIndianHint": "Lakh/crore grouping with Indian rupees.",
+    "priceFormatUk": "United Kingdom",
+    "priceFormatUkHint": "Western grouping with British pounds.",
+    "priceFormatPersistHint": "Your choice is saved on this device and used for tables, POS, invoices, and reports."
   },
   "appearance": {
     "themes": "Themes",

@@ -291,7 +291,7 @@ export function computePosDailyTotals(
 }
 
 export function formatPosReportMoney(value: string): string {
-  return formatMoney(value).replace(/^\$/, "Rs ")
+  return formatMoney(value)
 }
 
 export const POS_REPORT_PERIODS: { value: PosReportPeriod; label: string }[] = [
