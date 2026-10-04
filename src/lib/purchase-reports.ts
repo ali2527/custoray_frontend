@@ -610,7 +610,7 @@ export function computePurchaseTimeline(
 }
 
 export function formatPurchaseReportMoney(value: string): string {
-  return formatMoney(value).replace(/^\$/, "Rs ")
+  return formatMoney(value)
 }
 
 export const PURCHASE_REPORT_PRESETS: {

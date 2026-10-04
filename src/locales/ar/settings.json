@@ -15,7 +15,18 @@
     "fontSizeSm": "صغير",
     "fontSizeBase": "افتراضي",
     "fontSizeLg": "كبير",
-    "fontSizeXl": "كبير جداً"
+    "fontSizeXl": "كبير جداً",
+    "priceFormat": "تنسيق الأسعار",
+    "priceFormatDescription": "اختر كيف تظهر الفواصل والعملة للمبالغ في التطبيق.",
+    "priceFormatUs": "الولايات المتحدة",
+    "priceFormatUsHint": "تجميع غربي مع الدولار الأمريكي ($1,234,567.89).",
+    "priceFormatPakistani": "باكستان",
+    "priceFormatPakistaniHint": "تجميع لاك/كرور مع الروبية الباكستانية.",
+    "priceFormatIndian": "الهند",
+    "priceFormatIndianHint": "تجميع لاك/كرور مع الروبية الهندية.",
+    "priceFormatUk": "المملكة المتحدة",
+    "priceFormatUkHint": "تجميع غربي مع الجنيه الإسترليني.",
+    "priceFormatPersistHint": "يُحفظ اختيارك على هذا الجهاز ويُستخدم في الجداول ونقطة البيع والفواتير والتقارير."
   },
   "appearance": {
     "themes": "السمات",

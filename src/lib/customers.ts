@@ -2,6 +2,7 @@ import { z } from "zod"
 
 import { ApiClientError } from "@/lib/api/client"
 import type { ApiBuyer } from "@/lib/api/business"
+import { formatMoneyWithSettings } from "@/lib/money-format-settings"
 
 export const CUSTOMER_STATUS_OPTIONS = ["active", "inactive"] as const
 
@@ -100,13 +101,8 @@ export function computeBalance(
 }
 
 export function formatMoney(value: string): string {
-  const n = Number(value)
-  if (!Number.isFinite(n)) return value
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-  }).format(n)
+  // Locale + currency come from Language & region → Price format (persisted).
+  return formatMoneyWithSettings(value)
 }
 
 export function parseMoney(raw: string): string {

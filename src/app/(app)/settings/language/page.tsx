@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { useAppearance } from "@/components/theme/appearance-provider"
+import { MoneyFormatSettings } from "@/components/settings/money-format-settings"
 import {
   FONT_SIZE_VALUES,
   LANGUAGES,
@@ -95,6 +96,8 @@ export default function LanguageSettingsPage() {
           </Select>
         </div>
       </section>
+
+      <MoneyFormatSettings />
     </div>
   )
 }

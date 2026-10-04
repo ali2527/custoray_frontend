@@ -208,7 +208,7 @@ export function qrImageUrl(data: string, size = 280): string {
 }
 
 export function formatStorefrontMoney(value: string): string {
-  return formatMoney(value).replace(/^\$/, "Rs ")
+  return formatMoney(value)
 }
 
 export function isStorefrontOrder(

@@ -15,7 +15,18 @@
     "fontSizeSm": "چھوٹا",
     "fontSizeBase": "ڈیفالٹ",
     "fontSizeLg": "بڑا",
-    "fontSizeXl": "بہت بڑا"
+    "fontSizeXl": "بہت بڑا",
+    "priceFormat": "قیمت کی شکل",
+    "priceFormatDescription": "منتخب کریں کہ رقم میں کاما اور کرنسی کیسے دکھیں گے۔",
+    "priceFormatUs": "امریکہ",
+    "priceFormatUsHint": "مغربی گروپنگ کے ساتھ امریکی ڈالر ($1,234,567.89)۔",
+    "priceFormatPakistani": "پاکستان",
+    "priceFormatPakistaniHint": "لاکھ/کروڑ گروپنگ کے ساتھ پاکستانی روپے۔",
+    "priceFormatIndian": "بھارت",
+    "priceFormatIndianHint": "لاکھ/کروڑ گروپنگ کے ساتھ بھارتی روپے۔",
+    "priceFormatUk": "برطانیہ",
+    "priceFormatUkHint": "مغربی گروپنگ کے ساتھ برطانوی پاؤنڈ۔",
+    "priceFormatPersistHint": "آپ کا انتخاب اس ڈیوائس پر محفوظ رہتا ہے اور ٹیبلز، POS، انوائسز اور رپورٹس میں استعمال ہوتا ہے۔"
   },
   "appearance": {
     "themes": "تھیمز",

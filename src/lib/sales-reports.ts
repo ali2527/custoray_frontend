@@ -823,7 +823,7 @@ export function computeSalesTimeline(
 }
 
 export function formatSalesReportMoney(value: string): string {
-  return formatMoney(value).replace(/^\$/, "Rs ")
+  return formatMoney(value)
 }
 
 export const SALES_REPORT_PRESETS: {

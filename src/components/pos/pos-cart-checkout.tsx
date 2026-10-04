@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils"
 import { useTranslation } from "react-i18next"
 
 function formatPosPositive(value: string) {
-  return formatCurrency(value).replace(/^\$/, "Rs ")
+  return formatCurrency(value)
 }
 
 type PosCartCheckoutProps = {

@@ -614,7 +614,7 @@ export function getRecentPayments(
 }
 
 export function formatPaymentReportMoney(value: string): string {
-  return formatMoney(value).replace(/^\$/, "Rs ")
+  return formatMoney(value)
 }
 
 /** Deterministic 0–1 from a string seed (stable across renders). */
