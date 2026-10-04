@@ -161,16 +161,18 @@
   },
   "products": {
     "title": "Product SKUs",
-    "description": "Choose whether new products get an automatic SKU or you enter one yourself.",
+    "description": "Choose whether new products get an automatic SKU or you enter one yourself. Your choice is saved and stays active.",
     "autoTitle": "Auto SKU",
-    "autoDescription": "Assign the next SKU with your prefix. Imports ignore the SKU column.",
+    "autoDescription": "Assign the next SKU with your prefix. SKU field is locked on new products.",
     "customTitle": "Custom SKU",
-    "customDescription": "Enter SKUs yourself when adding or importing products.",
+    "customDescription": "Enter SKUs yourself when adding or importing products. SKU is required.",
     "prefix": "SKU prefix",
     "prefixPlaceholder": "SKU",
     "prefixHint": "New products will use {{first}}, then {{second}}, and so on.",
-    "customHint": "Add and import products with your own SKU values. The SKU column is required on upload.",
-    "tableHint": "These options apply when you add or import products."
+    "modeActive": "Active",
+    "customLockedTitle": "Custom SKU is active",
+    "customHint": "SKU is required when adding or importing products. Names may repeat if SKUs differ.",
+    "tableHint": "These options apply when you add or import products and persist across sessions."
   },
   "preferences": {
     "title": "App preferences",

@@ -28,12 +28,20 @@ export function useProductSkuSettings() {
   }, [])
 
   function persist(next: ProductSkuSettings) {
-    setSettings(next)
-    saveProductSkuSettings(next)
+    const normalized: ProductSkuSettings = {
+      mode: next.mode === "custom" ? "custom" : "auto",
+      prefix:
+        next.prefix?.trim() ||
+        loadProductSkuSettings().prefix ||
+        DEFAULT_PRODUCT_SKU_SETTINGS.prefix,
+    }
+    setSettings(normalized)
+    saveProductSkuSettings(normalized)
   }
 
   function setMode(mode: ProductSkuMode) {
-    persist({ ...settings, mode })
+    // Read latest from storage so mode switches aren't lost to stale state.
+    persist({ ...loadProductSkuSettings(), mode })
   }
 
   return { settings, persist, setMode }

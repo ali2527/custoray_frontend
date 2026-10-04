@@ -12,6 +12,7 @@ import {
   IconCopy,
   IconDotsVertical,
   IconEye,
+  IconLock,
   IconPhoto,
   IconPlus,
   IconPencil,
@@ -80,6 +81,7 @@ import {
   DEFAULT_PRODUCT_SKU_SETTINGS,
   PRODUCT_SKU_SETTINGS_EVENT,
   loadProductSkuSettings,
+  nextAutoSku,
   productImportColumns,
   productImportSampleRow,
   type ProductSkuSettings,
@@ -493,17 +495,42 @@ function ProductFormSidebarForm({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {skuSettings.mode === "custom" ? (
           <div className="flex flex-col gap-2">
-            <Label htmlFor={`${formId}-sku`}>{t("fields.sku")}</Label>
-            <Input id={`${formId}-sku`} name="sku" defaultValue={item.sku} />
-          </div>
-        ) : !isNew ? (
-          <div className="flex flex-col gap-2">
-            <Label>{t("fields.sku")}</Label>
-            <p className="text-muted-foreground bg-muted/50 rounded-md border px-3 py-2 font-mono text-sm">
-              {item.sku}
+            <Label htmlFor={`${formId}-sku`}>
+              {t("fields.sku")}
+              <span className="text-destructive ms-0.5" aria-hidden>
+                *
+              </span>
+            </Label>
+            <Input
+              id={`${formId}-sku`}
+              name="sku"
+              defaultValue={item.sku}
+              required
+              autoComplete="off"
+              placeholder={t("form.skuCustomPlaceholder")}
+            />
+            <p className="text-muted-foreground text-xs">
+              {t("form.skuCustomHint")}
             </p>
           </div>
-        ) : null}
+        ) : (
+          <div className="flex flex-col gap-2">
+            <Label className="inline-flex items-center gap-1.5">
+              {t("fields.sku")}
+              <IconLock className="text-muted-foreground size-3.5" aria-hidden />
+            </Label>
+            <p className="text-muted-foreground bg-muted/50 rounded-md border px-3 py-2 font-mono text-sm">
+              {isNew
+                ? nextAutoSku(existingProducts, skuSettings.prefix)
+                : item.sku || "—"}
+            </p>
+            {isNew ? (
+              <p className="text-muted-foreground text-xs">
+                {t("form.skuAutoLockedHint")}
+              </p>
+            ) : null}
+          </div>
+        )}
         <div className="flex flex-col gap-2">
           <Label htmlFor={`${formId}-name`}>{t("fields.name")}</Label>
           <Input id={`${formId}-name`} name="name" defaultValue={item.name} />

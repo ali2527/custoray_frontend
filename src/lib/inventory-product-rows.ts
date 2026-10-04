@@ -183,14 +183,11 @@ function resolveImportedSku(
   existing: ProductRow[],
   skuSettings: ProductSkuSettings
 ): string {
-  const taken = new Set(
-    existing.map((row) => row.sku.trim().toLowerCase()).filter(Boolean)
-  )
-  if (fileSku && !taken.has(fileSku.toLowerCase())) return fileSku
-  if (skuSettings.mode === "custom" && fileSku) {
-    // Same SKU already exists — caller should treat as conflict.
+  if (skuSettings.mode === "custom") {
+    // Custom mode is locked: use the provided SKU as-is (caller requires it).
     return fileSku
   }
+  // Auto mode is locked: ignore the file SKU column and assign the next prefix.
   return nextAutoSku(existing, skuSettings.prefix)
 }
 
@@ -203,8 +200,8 @@ export function mapImportedProduct(
 ): ProductRow | null {
   const name = (row.name ?? "").trim()
   const fileSku = (row.sku ?? "").trim()
-  // Product names may repeat; uniqueness is by SKU only.
-  if (!name && !fileSku) return null
+  // Name is required; SKUs must be unique (names may repeat).
+  if (!name) return null
   if (skuSettings.mode === "custom" && !fileSku) return null
 
   const finalSr = nextProductSrNo(existing)
@@ -401,7 +398,9 @@ export function productFromSidebarForm(
   )
   let sku = previous.sku
   if (skuSettings.mode === "custom") {
-    sku = String(fd.get("sku") ?? previous.sku).trim() || previous.sku
+    const typed = String(fd.get("sku") ?? "").trim()
+    // New products must supply a SKU; edits keep the previous value if cleared.
+    sku = typed || (isNew ? "" : previous.sku)
   } else if (isNew) {
     sku = nextAutoSku(existing, skuSettings.prefix)
   }
