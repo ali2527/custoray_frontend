@@ -88,7 +88,6 @@ import { ApiClientError } from "@/lib/api/client"
 import { cn } from "@/lib/utils"
 import { useInventoryProducts } from "@/hooks/use-inventory-products"
 import { useCatalogFieldSettings } from "@/hooks/use-catalog-field-settings"
-import { productCatalogImportSelect } from "@/lib/catalog-field-settings"
 
 const ADD_NEW_BRAND_VALUE = "__add_new_brand__"
 const ADD_NEW_CATEGORY_VALUE = "__add_new_category__"
@@ -979,14 +978,6 @@ export default function ProductsPage() {
     createLookup,
   } = useInventoryProducts()
   const { settings: catalogTables } = useCatalogFieldSettings()
-  const productImportSelect = productCatalogImportSelect(
-    {
-      brands: brandOptions,
-      categories: categoryOptions,
-      variants: variantOptions,
-    },
-    catalogTables
-  )
   const [sidebar, setSidebar] = useState<ProductSidebarState>(null)
   const [addFormKey, setAddFormKey] = useState(0)
   const [isMutating, setIsMutating] = useState(false)
@@ -1379,10 +1370,9 @@ export default function ProductsPage() {
         mapImportedProduct(row, existing, skuSettings, catalogRef.current)
       }
       importSelectColumns={{
-        ...productImportSelect.selectColumns,
         lifecycle: [...PRODUCT_LIFECYCLE_OPTIONS],
       }}
-      importRequiredSelectColumns={productImportSelect.requiredSelectColumns}
+      importRequiredSelectColumns={[]}
       importSampleFilename="products-sample.csv"
       importSampleCsvContent={buildSampleCsv(
         productImportColumns(skuSettings, catalogTables),

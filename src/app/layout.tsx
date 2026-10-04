@@ -48,7 +48,7 @@ export default function RootLayout({
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var k="custoray:asset-reload";function bad(m){return /ChunkLoadError|Loading chunk \\d+ failed|CSS_CHUNK_LOAD_FAILED|\\/_next\\/static\\//i.test(String(m||""));}function reload(){try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");}catch(e){}location.reload();}window.addEventListener("error",function(e){var t=e&&e.target;if(!t)return;var url=t.src||t.href||"";if((t.tagName==="SCRIPT"||t.tagName==="LINK")&&url.indexOf("/_next/static/")!==-1)reload();},true);window.addEventListener("unhandledrejection",function(e){var r=e&&e.reason;if(bad(r&&(r.message||r)))reload();});window.addEventListener("load",function(){try{sessionStorage.removeItem(k);}catch(e){}});})();`,
+            __html: `(function(){var k="custoray:asset-reload";function bad(m){return /ChunkLoadError|Loading chunk \\d+ failed|CSS_CHUNK_LOAD_FAILED/i.test(String(m||""));}function reload(){try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");}catch(e){}location.reload();}window.addEventListener("error",function(e){var t=e&&e.target;if(!t||t.tagName!=="SCRIPT")return;var url=t.src||"";if(url.indexOf("/_next/static/")!==-1)reload();},true);window.addEventListener("unhandledrejection",function(e){var r=e&&e.reason;if(bad(r&&(r.message||r)))reload();});window.addEventListener("load",function(){try{sessionStorage.removeItem(k);}catch(e){}});})();`,
           }}
         />
         <ThemeProvider

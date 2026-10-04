@@ -78,21 +78,34 @@ function isSelectIncomplete(
   options: string[],
   requiredKeys?: string[]
 ): boolean {
-  if (matchSelectOption(raw, options)) return false
-  if (!isRequiredSelectKey(key, requiredKeys)) return Boolean(raw.trim())
+  const value = raw.trim()
+  if (!value) return isRequiredSelectKey(key, requiredKeys)
+  if (matchSelectOption(value, options)) return false
+  // Optional select columns may keep free-text values for import.
+  if (!isRequiredSelectKey(key, requiredKeys)) return false
   return true
 }
 
 function resolveSelectCells(
   cells: Record<string, string>,
-  columns?: ImportSelectColumns
+  columns?: ImportSelectColumns,
+  requiredKeys?: string[]
 ): Record<string, string> {
   if (!columns) return cells
   const next = { ...cells }
   for (const key of Object.keys(next)) {
     const options = lookupSelectOptions(key, columns)
     if (!options) continue
-    next[key] = matchSelectOption(next[key] ?? "", options)
+    const raw = next[key] ?? ""
+    const matched = matchSelectOption(raw, options)
+    if (matched) {
+      next[key] = matched
+      continue
+    }
+    // Keep free-text for optional columns; clear only required mismatches.
+    if (isRequiredSelectKey(key, requiredKeys) && raw.trim()) {
+      next[key] = ""
+    }
   }
   return next
 }
@@ -335,7 +348,7 @@ export function DataTableImportDialog({
     }
     const rows = previewRows
       .filter((r) => selectedIds.has(r.id))
-      .map((r) => resolveSelectCells(r.cells, selectColumns))
+      .map((r) => resolveSelectCells(r.cells, selectColumns, requiredSelectColumns))
     const incomplete = rows.filter((cells) =>
       previewKeys.some((key) => {
         const options = lookupSelectOptions(key, selectColumns)
@@ -421,6 +434,18 @@ export function DataTableImportDialog({
                   {t("importDialog.step1Body")}
                 </p>
               </div>
+              {columns && columns.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {columns.map((column) => (
+                    <span
+                      key={column}
+                      className="bg-background text-foreground/80 inline-flex rounded-md border px-2 py-1 font-mono text-[11px]"
+                    >
+                      {column}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
               <Button type="button" size="lg" onClick={handleDownloadSample}>
                 {t("importDialog.downloadSample")}
               </Button>
