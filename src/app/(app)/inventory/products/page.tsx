@@ -809,27 +809,6 @@ function getProductColumns(
     },
   },
   {
-    id: "stockValue",
-    accessorFn: (row) => Number(productStockValue(row.salePrice, row.stock)),
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title={t("columns.stockValue")} align="center" />
-    ),
-    sortingFn: (rowA, rowB, columnId) => {
-      const a = Number(rowA.getValue(columnId))
-      const b = Number(rowB.getValue(columnId))
-      return a === b ? 0 : a > b ? 1 : -1
-    },
-    enableHiding: false,
-    meta: { dataTableFilter: false, dataTableFilterLabel: t("columns.stockValue") },
-    cell: ({ row }) => (
-      <div className="flex min-w-28 justify-center">
-        <span className="text-foreground text-center tabular-nums">
-          {productStockValue(row.original.salePrice, row.original.stock)}
-        </span>
-      </div>
-    ),
-  },
-  {
     accessorKey: "costPrice",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title={t("columns.costPrice")} align="center" />
@@ -899,6 +878,27 @@ function getProductColumns(
         </span>
       )
     },
+  },
+  {
+    id: "stockValue",
+    accessorFn: (row) => Number(productStockValue(row.salePrice, row.stock)),
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title={t("columns.stockValue")} align="center" />
+    ),
+    sortingFn: (rowA, rowB, columnId) => {
+      const a = Number(rowA.getValue(columnId))
+      const b = Number(rowB.getValue(columnId))
+      return a === b ? 0 : a > b ? 1 : -1
+    },
+    enableHiding: false,
+    meta: { dataTableFilter: false, dataTableFilterLabel: t("columns.stockValue") },
+    cell: ({ row }) => (
+      <div className="flex min-w-28 justify-center">
+        <span className="text-foreground text-center tabular-nums">
+          {productStockValue(row.original.salePrice, row.original.stock)}
+        </span>
+      </div>
+    ),
   },
   {
     id: "actions",

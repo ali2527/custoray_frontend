@@ -72,7 +72,7 @@ const panelClass =
   "rounded-xl bg-card shadow-sm shadow-black/[0.04] ring-1 ring-border/40"
 
 const searchInputClass =
-  "h-10 rounded-full text-sm shadow-sm focus-visible:ring-0 focus-visible:ring-offset-0 hover:ring-0 focus:ring-0 focus:outline-none min-w-0 flex-1"
+  "h-10 rounded-full text-sm shadow-sm focus-visible:ring-0 focus-visible:ring-offset-0 hover:ring-0 focus:ring-0 focus:outline-none sm:h-9"
 
 export function PosTerminal() {
   const { t } = useTranslation("pos")
@@ -84,6 +84,7 @@ export function PosTerminal() {
   const searchInputRef = React.useRef<HTMLInputElement>(null)
 
   const [mode, setMode] = React.useState<"sale" | "return">("sale")
+  const [mobilePane, setMobilePane] = React.useState<"catalog" | "cart">("catalog")
   const [search, setSearch] = React.useState("")
   const [brand, setBrand] = React.useState<string>("all")
   const [cart, setCart] = React.useState<PosCartLine[]>([])
@@ -357,6 +358,7 @@ export function PosTerminal() {
       isSale ? settings.defaultSaleStatus : settings.defaultReturnStatus
     )
     setPaidAmountDraft("")
+    setMobilePane("catalog")
   }, [
     isSale,
     settings.defaultPaymentMethod,
@@ -370,6 +372,7 @@ export function PosTerminal() {
       clearCart()
       setSearch("")
       setBrand("all")
+      setMobilePane("catalog")
       setDocumentStatus(
         nextMode === "sale"
           ? settings.defaultSaleStatus
@@ -383,6 +386,11 @@ export function PosTerminal() {
       settings.defaultReturnStatus,
       settings.defaultSaleStatus,
     ]
+  )
+
+  const cartItemCount = React.useMemo(
+    () => cart.reduce((sum, line) => sum + line.quantity, 0),
+    [cart]
   )
 
   const applyDiscount = React.useCallback(() => {
@@ -674,7 +682,7 @@ export function PosTerminal() {
   ])
 
   return (
-    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden p-3">
+    <div className="flex h-full min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-3">
       <CustomerQuickAddSheet
         open={customerQuickAddOpen}
         onOpenChange={setCustomerQuickAddOpen}
@@ -682,33 +690,48 @@ export function PosTerminal() {
         onCreated={handleCustomerCreated}
       />
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] gap-3 lg:grid-cols-[minmax(0,1fr)_400px]">
-          <div className={cn(panelClass, "flex h-full min-h-0 flex-col overflow-hidden")}>
-            <div className="border-border/40 flex flex-col gap-2 border-b px-3 py-2.5 lg:flex-row lg:items-center">
-              <div className="bg-muted/70 inline-flex shrink-0 self-start rounded-full p-0.5 ring-1 ring-border/40">
-                {(
-                  [
-                    { value: "sale", label: t("newSale"), icon: IconShoppingCart },
-                    { value: "return", label: t("returns"), icon: IconRotateClockwise },
-                  ] as const
-                ).map(({ value, label, icon: Icon }) => (
-                  <button
-                    key={value}
-                    type="button"
-                    onClick={() => switchMode(value)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
-                      mode === value
-                        ? "bg-background text-foreground shadow-sm"
-                        : "text-muted-foreground hover:text-foreground"
-                    )}
-                  >
-                    <Icon className="size-3.5" stroke={1.75} />
-                    {label}
-                  </button>
-                ))}
+      <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-[minmax(0,1fr)] gap-2 sm:gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(320px,400px)]">
+          <div
+            className={cn(
+              panelClass,
+              "flex h-full min-h-0 flex-col overflow-hidden",
+              mobilePane !== "catalog" && "max-lg:hidden"
+            )}
+          >
+            <div className="border-border/40 flex flex-col gap-2 border-b px-2.5 py-2 sm:gap-2.5 sm:px-3 sm:py-2.5 lg:flex-row lg:items-center">
+              <div className="flex items-center gap-2">
+                <div className="bg-muted/70 inline-flex h-10 min-h-10 flex-1 items-center rounded-full p-0.5 ring-1 ring-border/40 sm:h-9 sm:min-h-9 sm:flex-none">
+                  {(
+                    [
+                      { value: "sale", label: t("newSale"), icon: IconShoppingCart },
+                      { value: "return", label: t("returns"), icon: IconRotateClockwise },
+                    ] as const
+                  ).map(({ value, label, icon: Icon }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => switchMode(value)}
+                      className={cn(
+                        "inline-flex h-full min-h-9 flex-1 items-center justify-center gap-1.5 rounded-full px-3 text-xs font-medium transition-colors sm:flex-none sm:px-3.5",
+                        mode === value
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <Icon className="size-3.5" stroke={1.75} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <Link
+                  href="/pos/settings"
+                  aria-label={t("openPosSettings")}
+                  className="text-muted-foreground hover:bg-muted hover:text-foreground inline-flex size-10 shrink-0 items-center justify-center rounded-full sm:size-9 lg:hidden"
+                >
+                  <IconSettings className="size-4" stroke={1.75} />
+                </Link>
               </div>
-              <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center">
                 <PosCustomerSelect
                   customerId={customerId}
                   customerName={customerName}
@@ -717,40 +740,44 @@ export function PosTerminal() {
                   onAddCustomer={() => setCustomerQuickAddOpen(true)}
                   customerOptions={customerOptions}
                   walkInCustomerId={WALK_IN_CUSTOMER_ID}
-                  className="w-full shrink-0 sm:w-[220px] lg:w-[240px]"
+                  className="w-full min-w-0 sm:w-[12.5rem] sm:shrink-0"
                 />
-                <SearchInput
-                  ref={searchInputRef}
-                  placeholder={t("searchCatalog")}
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  icon={<IconSearch className="size-4" />}
-                  className={cn(searchInputClass, "min-w-0 flex-1")}
-                />
+                <div className="min-w-0 w-full flex-1">
+                  <SearchInput
+                    ref={searchInputRef}
+                    placeholder={t("searchCatalog")}
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    icon={<IconSearch className="size-3.5" />}
+                    className={searchInputClass}
+                  />
+                </div>
               </div>
-              <p className="text-muted-foreground hidden shrink-0 px-1 text-xs tabular-nums xl:block">
-                {filteredProducts.length}{" "}
-                {filteredProducts.length === 1 ? t("product") : t("products")}
-              </p>
-              <Link
-                href="/pos/settings"
-                aria-label={t("openPosSettings")}
-                className="text-muted-foreground hover:bg-muted hover:text-foreground inline-flex size-9 shrink-0 items-center justify-center rounded-full"
-              >
-                <IconSettings className="size-4" stroke={1.75} />
-              </Link>
+              <div className="hidden shrink-0 items-center gap-1 lg:flex">
+                <p className="text-muted-foreground hidden px-1.5 text-xs tabular-nums xl:block">
+                  {filteredProducts.length}{" "}
+                  {filteredProducts.length === 1 ? t("product") : t("products")}
+                </p>
+                <Link
+                  href="/pos/settings"
+                  aria-label={t("openPosSettings")}
+                  className="text-muted-foreground hover:bg-muted hover:text-foreground inline-flex size-9 shrink-0 items-center justify-center rounded-full"
+                >
+                  <IconSettings className="size-3.5" stroke={1.75} />
+                </Link>
+              </div>
             </div>
 
             <PosCatalogTabs
               brand={brand}
               onBrandChange={setBrand}
               brands={brands}
-              className="px-3"
+              className="px-2 sm:px-3"
             />
 
             {filteredProducts.length > 0 ? (
-              <div className="bg-muted/20 min-h-[18rem] flex-1 overflow-y-auto p-3">
-                <div className={cn("grid auto-rows-fr gap-3", catalogGridClass(settings.catalogColumns))}>
+              <div className="bg-muted/20 min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 sm:min-h-[12rem] sm:p-3 lg:min-h-[18rem]">
+                <div className={cn("grid auto-rows-fr gap-2 sm:gap-3", catalogGridClass(settings.catalogColumns))}>
                   {filteredProducts.map((product) => (
                     <PosProductCard
                       key={product.id}
@@ -769,7 +796,7 @@ export function PosTerminal() {
                 </div>
               </div>
             ) : (
-              <div className="bg-muted/20 flex flex-1 flex-col items-center justify-center gap-2 px-4 py-16 text-center">
+              <div className="bg-muted/20 flex flex-1 flex-col items-center justify-center gap-2 px-4 py-10 text-center sm:py-16">
                 <div className="bg-muted/60 text-muted-foreground flex size-12 items-center justify-center rounded-2xl">
                   {isSale ? (
                     <IconShoppingCart className="size-5" />
@@ -798,7 +825,8 @@ export function PosTerminal() {
           <div
             className={cn(
               panelClass,
-              "flex h-full min-h-0 flex-col overflow-hidden"
+              "flex h-full min-h-0 flex-col overflow-hidden",
+              mobilePane !== "cart" && "max-lg:hidden"
             )}
           >
             {isSale ? (
@@ -855,6 +883,50 @@ export function PosTerminal() {
             />
           </div>
         </div>
+
+      <nav
+        className="border-border/50 bg-card/95 mt-2 grid shrink-0 grid-cols-2 gap-1 rounded-xl p-1 shadow-sm ring-1 ring-border/40 backdrop-blur lg:hidden"
+        aria-label={t("register")}
+      >
+        <button
+          type="button"
+          onClick={() => setMobilePane("catalog")}
+          className={cn(
+            "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors",
+            mobilePane === "catalog"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          <IconSearch className="size-4" stroke={1.75} />
+          {t("products")}
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobilePane("cart")}
+          className={cn(
+            "inline-flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium transition-colors",
+            mobilePane === "cart"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          )}
+        >
+          <IconShoppingCart className="size-4" stroke={1.75} />
+          <span>{isSale ? t("cart") : t("return")}</span>
+          {cartItemCount > 0 ? (
+            <span
+              className={cn(
+                "inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[11px] font-semibold tabular-nums",
+                mobilePane === "cart"
+                  ? "bg-primary-foreground/20 text-primary-foreground"
+                  : "bg-primary/10 text-primary"
+              )}
+            >
+              {cartItemCount}
+            </span>
+          ) : null}
+        </button>
+      </nav>
     </div>
   )
 }

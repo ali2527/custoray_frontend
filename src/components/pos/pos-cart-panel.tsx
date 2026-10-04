@@ -98,7 +98,7 @@ export function PosCartPanel({
         className
       )}
     >
-      <div className="border-border/40 flex items-center justify-between gap-2 border-b px-4 py-3">
+      <div className="border-border/40 flex items-center justify-between gap-2 border-b px-3 py-2.5 sm:px-4 sm:py-3">
         <div className="flex items-center gap-2">
           <p className="text-sm font-semibold">{isReturn ? t("return") : t("cart")}</p>
           {cartItemCount > 0 ? (
@@ -114,7 +114,7 @@ export function PosCartPanel({
             type="button"
             variant="ghost"
             size="sm"
-            className="text-muted-foreground h-8 px-2 text-xs"
+            className="text-muted-foreground h-9 min-w-11 px-3 text-xs"
             onClick={onClearCart}
           >
             {t("clear")}
@@ -122,9 +122,9 @@ export function PosCartPanel({
         ) : null}
       </div>
 
-      <div className="min-h-[160px] flex-1 space-y-2 overflow-y-auto p-3">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-contain p-2.5 sm:min-h-[160px] sm:p-3">
         {cart.length === 0 ? (
-          <div className="text-muted-foreground flex min-h-[140px] flex-col items-center justify-center gap-2 text-center text-sm">
+          <div className="text-muted-foreground flex min-h-[120px] flex-col items-center justify-center gap-2 text-center text-sm sm:min-h-[140px]">
             <div className="bg-muted/60 flex size-11 items-center justify-center rounded-2xl">
               <IconShoppingCart className="size-5 opacity-50" stroke={1.5} />
             </div>
@@ -154,7 +154,7 @@ export function PosCartPanel({
                 <button
                   type="button"
                   onClick={() => onSelectLine(line.productId)}
-                  className="w-full px-3 py-2.5 text-left"
+                  className="w-full min-h-11 px-3 py-2.5 text-left"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="min-w-0">

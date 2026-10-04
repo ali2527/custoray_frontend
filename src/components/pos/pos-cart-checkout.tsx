@@ -104,8 +104,8 @@ export function PosCartCheckout({
           : t("saveCancelledSale")
 
   return (
-    <div className="border-border/40 space-y-2.5 border-t p-3">
-      <div className="grid grid-cols-2 gap-2">
+    <div className="border-border/40 sticky bottom-0 z-10 space-y-2.5 border-t bg-card/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-card/90 max-lg:pb-[max(0.75rem,env(safe-area-inset-bottom))] max-lg:shadow-[0_-6px_16px_rgba(0,0,0,0.06)]">
+      <div className="grid grid-cols-1 gap-2 min-[380px]:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="pos-payment" className="text-xs">
             {isReturn ? t("refund") : t("payment")}

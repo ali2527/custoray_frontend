@@ -52,11 +52,15 @@ export function PosCatalogTabs({
         <div
           ref={scrollRef}
           onWheel={handleWheel}
-          className="overflow-x-auto overscroll-x-contain scroll-smooth px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="snap-x snap-mandatory overflow-x-auto overscroll-x-contain scroll-smooth px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
           <TabsList className={tabListClass}>
             {brands.map((item) => (
-              <TabsTrigger key={item} value={item} className={tabTriggerClass}>
+              <TabsTrigger
+                key={item}
+                value={item}
+                className={cn(tabTriggerClass, "snap-start")}
+              >
                 {item === "all" ? t("tabs.all") : item}
               </TabsTrigger>
             ))}

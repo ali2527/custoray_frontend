@@ -143,7 +143,7 @@ export function isValidPosDocumentStatus(
 }
 
 export function catalogGridClass(columns: PosSettings["catalogColumns"]): string {
-  if (columns === 2) return "grid-cols-2"
-  if (columns === 4) return "grid-cols-2 sm:grid-cols-3 xl:grid-cols-4"
-  return "grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-3"
+  if (columns === 2) return "grid-cols-1 min-[360px]:grid-cols-2"
+  if (columns === 4) return "grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3 xl:grid-cols-4"
+  return "grid-cols-1 min-[360px]:grid-cols-2 sm:grid-cols-3"
 }

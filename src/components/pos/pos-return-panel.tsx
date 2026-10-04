@@ -47,7 +47,8 @@ export function PosReturnPanel({
             <button
               type="button"
               onClick={onDismissJustCreated}
-              className="text-muted-foreground hover:text-foreground shrink-0 text-[10px]"
+              className="text-muted-foreground hover:text-foreground inline-flex size-8 shrink-0 items-center justify-center rounded-md text-sm"
+              aria-label="Dismiss"
             >
               ×
             </button>
