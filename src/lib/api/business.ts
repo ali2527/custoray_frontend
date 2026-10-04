@@ -247,6 +247,26 @@ export async function apiListProductPriceHistory(id: string) {
   )
 }
 
+export type ApiProductStockValueEvent = {
+  id: string
+  productId: string
+  sku: string
+  reason: "set" | "price" | "quantity" | "both"
+  previousPrice: string | null
+  price: string
+  previousStock: number | null
+  stock: number
+  previousValue: string | null
+  value: string
+  createdAt: string
+}
+
+export async function apiListProductStockValueHistory(id: string) {
+  return apiFetch<{ items: ApiProductStockValueEvent[] }>(
+    `/products/${assertProductId(id)}/stock-value-history`
+  )
+}
+
 export async function apiDeleteProduct(id: string) {
   return apiFetch<null>(`/products/${assertProductId(id)}`, { method: "DELETE" })
 }

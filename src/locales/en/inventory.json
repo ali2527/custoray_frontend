@@ -28,6 +28,7 @@
     "price": "Price",
     "costPrice": "Cost Price",
     "salePrice": "Sale Price",
+    "stockValue": "Stock value",
     "stock": "Stock",
     "status": "Status",
     "description": "Description",
@@ -71,6 +72,7 @@
     "ordersPeriod": "Orders (period)",
     "costPrice": "Cost price",
     "salePrice": "Sale price",
+    "stockValue": "Stock value",
     "status": "Status",
     "id": "ID",
     "description": "Description",
@@ -174,6 +176,18 @@
     "set": "Set",
     "increased": "Increased",
     "decreased": "Decreased"
+  },
+  "stockValueTimeline": {
+    "title": "Stock value timeline",
+    "empty": "No stock value history yet.",
+    "date": "Date",
+    "change": "Change",
+    "qty": "Qty",
+    "price": "Price",
+    "value": "Stock value",
+    "set": "Set",
+    "quantity": "Quantity",
+    "both": "Price & qty"
   },
   "noDescription": "No description",
   "images": {
