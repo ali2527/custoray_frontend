@@ -1,6 +1,15 @@
 Options -Indexes
 DirectoryIndex index.html
 
+<IfModule mod_headers.c>
+  # HTML must never be cached — stale HTML points at deleted hashed CSS/JS chunks.
+  <FilesMatch "\.(?i:html)$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+</IfModule>
+
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
