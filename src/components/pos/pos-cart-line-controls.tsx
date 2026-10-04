@@ -76,15 +76,22 @@ export function PosCartLineControls({
 
   return (
     <div className="space-y-3 border-t border-border/30 pt-3">
-      <div className={cn("grid items-end gap-3", allowLinePriceEdit ? "grid-cols-[1fr_1fr_auto]" : "grid-cols-[1fr_auto]")}>
+      <div
+        className={cn(
+          "grid items-end gap-2 sm:gap-3",
+          allowLinePriceEdit
+            ? "grid-cols-1 min-[420px]:grid-cols-[1fr_1fr_auto]"
+            : "grid-cols-[1fr_auto]"
+        )}
+      >
         <div>
           <p className="text-muted-foreground mb-1.5 text-xs font-medium">Quantity</p>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1.5">
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="size-9 shrink-0 rounded-lg"
+              className="size-10 shrink-0 rounded-lg sm:size-9"
               onClick={() => applyQuantity(String(Math.max(1, line.quantity - 1)))}
             >
               <IconMinus className="size-3.5" />
@@ -104,13 +111,13 @@ export function PosCartLineControls({
                 else setQtyDraft(String(line.quantity))
                 event.currentTarget.blur()
               }}
-              className="h-9 px-1 text-center text-sm font-semibold tabular-nums"
+              className="h-10 px-1 text-center text-sm font-semibold tabular-nums sm:h-9"
             />
             <Button
               type="button"
               variant="outline"
               size="icon"
-              className="size-9 shrink-0 rounded-lg"
+              className="size-10 shrink-0 rounded-lg sm:size-9"
               onClick={() =>
                 applyQuantity(String(Math.min(line.maxStock, line.quantity + 1)))
               }
@@ -138,7 +145,7 @@ export function PosCartLineControls({
                 if (priceDraft.trim()) applyPrice(priceDraft)
                 event.currentTarget.blur()
               }}
-              className="h-9 text-sm font-semibold tabular-nums"
+              className="h-10 text-sm font-semibold tabular-nums sm:h-9"
             />
           </div>
         ) : (
@@ -152,7 +159,7 @@ export function PosCartLineControls({
           type="button"
           variant="ghost"
           size="icon"
-          className="text-muted-foreground hover:text-destructive size-9 shrink-0"
+          className="text-muted-foreground hover:text-destructive size-10 shrink-0 justify-self-end sm:size-9"
           onClick={() => onRemove(line.productId)}
           aria-label={t("remove")}
         >

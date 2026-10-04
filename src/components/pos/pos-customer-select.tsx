@@ -36,7 +36,7 @@ export function PosCustomerSelect({
   const hasSelectedCustomer = customerId !== walkInCustomerId
 
   return (
-    <div className={cn("flex min-w-0 items-center gap-1", className)}>
+    <div className={cn("flex min-w-0 items-center gap-1.5", className)}>
       <InfiniteScrollSelect
         id="pos-customer-toolbar"
         value={customerId}
@@ -48,8 +48,8 @@ export function PosCustomerSelect({
         pageSize={10}
         onAddNew={onAddCustomer}
         addNewLabel={t("addCustomer")}
-        leadingIcon={<IconUser className="size-4" stroke={1.75} />}
-        className="h-10 min-w-0 flex-1 rounded-full text-sm shadow-sm"
+        leadingIcon={<IconUser className="size-3.5" stroke={1.75} />}
+        className="h-10 min-w-0 flex-1 rounded-full text-xs font-medium shadow-sm sm:h-9"
       />
 
       {hasSelectedCustomer ? (
@@ -57,22 +57,22 @@ export function PosCustomerSelect({
           type="button"
           variant="outline"
           size="icon"
-          className="size-10 shrink-0 rounded-full"
+          className="size-10 shrink-0 rounded-full shadow-sm sm:size-9"
           onClick={onClearCustomer}
           aria-label={t("clearCustomer", { name: customerName })}
         >
-          <IconX className="size-4" />
+          <IconX className="size-3.5" />
         </Button>
       ) : (
         <Button
           type="button"
           variant="outline"
           size="icon"
-          className="size-10 shrink-0 rounded-full"
+          className="size-10 shrink-0 rounded-full shadow-sm sm:size-9"
           onClick={onAddCustomer}
           aria-label={t("addCustomer")}
         >
-          <IconPlus className="size-4" />
+          <IconPlus className="size-3.5" />
         </Button>
       )}
     </div>
