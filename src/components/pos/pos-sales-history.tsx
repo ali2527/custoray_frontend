@@ -60,7 +60,7 @@ import { canReturnDocument } from "@/lib/return-eligibility"
 import { cn } from "@/lib/utils"
 
 function formatPosMoney(value: string) {
-  return formatMoney(value).replace(/^\$/, "Rs ")
+  return formatMoney(value)
 }
 
 const panelClass =
