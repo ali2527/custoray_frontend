@@ -153,10 +153,15 @@ console.log("\nSales import / export")
 test("sample csv round-trips through parse and import", () => {
   const csv = buildSampleCsv([...ORDER_IMPORT_COLUMNS], ORDER_IMPORT_SAMPLE_ROW)
   const parsed = parseCsv(csv)
+  assert.deepEqual(Object.keys(parsed[0] ?? {}), [...ORDER_IMPORT_COLUMNS])
+  assert.equal(parsed[0]?.totalAmount, "6400.00")
+  assert.equal(parsed[0]?.lineTotal, "6400.00")
   const created = importOrdersFromRows(parsed, [])
   assert.equal(created.length, 1)
   assert.equal(created[0]?.customerName, "Acme Retail Co.")
   assert.equal(created[0]?.lines[0]?.productName, "Premium Basmati Rice 25kg")
+  assert.equal(created[0]?.lines[0]?.lineTotal, "6400.00")
+  assert.equal(created[0]?.totalAmount, "6400.00")
   assert.equal(created[0]?.status, "completed")
 })
 test("csv rows with the same invoice number become one bill with multiple lines", () => {
@@ -301,9 +306,15 @@ test("purchase tabs isolate status", () => {
 })
 test("purchase sample csv imports and groups lines", () => {
   const csv = buildSampleCsv([...PURCHASE_IMPORT_COLUMNS], PURCHASE_IMPORT_SAMPLE_ROW)
-  const created = importPurchasesFromRows(parseCsv(csv), [])
+  const parsed = parseCsv(csv)
+  assert.deepEqual(Object.keys(parsed[0] ?? {}), [...PURCHASE_IMPORT_COLUMNS])
+  assert.equal(parsed[0]?.totalAmount, "14500.00")
+  assert.equal(parsed[0]?.lineTotal, "14500.00")
+  const created = importPurchasesFromRows(parsed, [])
   assert.equal(created.length, 1)
   assert.equal(created[0]?.vendorName, "Karachi Steel Supplies")
+  assert.equal(created[0]?.totalAmount, "14500.00")
+  assert.equal(created[0]?.lines[0]?.lineTotal, "14500.00")
   const grouped = importPurchasesFromRows(
     [
       {

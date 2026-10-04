@@ -59,6 +59,7 @@
     "duplicatedNamed": "Duplicated {{name}} (demo).",
     "noRowsToImport": "No rows to import.",
     "importedRows": "Imported {{count}} row(s).",
+    "importCapped": "Only the first {{max}} rows can be imported. {{truncated}} row(s) were skipped.",
     "noRowsAdded": "No rows were added. Check that CSV headers match the sample file.",
     "approvedCount": "Approved {{count}} section(s) (demo).",
     "wouldDeleteCount": "Would delete {{count}} section(s)."
@@ -128,7 +129,7 @@
     "parsingAria": "Parsing CSV rows",
     "selectedFile": "Selected: {{name}}",
     "step3Title": "Step 3 — Review rows",
-    "step3Body": "Use the checkboxes to choose which rows to import. Brand, category, and variant must be selected from the dropdowns before a product can be imported.",
+    "step3Body": "Use the checkboxes to choose which rows to import. Imports run in batches of 100, up to 500 rows per file. Brand, category, and variant must be selected from the dropdowns before a product can be imported.",
     "selectAllPreview": "Select all preview rows for import",
     "includeRow": "Include row {{n}} in import",
     "deleteRow": "Delete row {{n}}",

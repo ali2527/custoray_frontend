@@ -42,6 +42,8 @@ export const PURCHASE_IMPORT_COLUMNS = [
   "productName",
   "quantity",
   "unitPrice",
+  "lineTotal",
+  "totalAmount",
   "paidAmount",
   "status",
   "description",
@@ -57,6 +59,8 @@ export const PURCHASE_IMPORT_SAMPLE_ROW: Record<
   productName: "Steel Rod 12mm (bundle)",
   quantity: "10",
   unitPrice: "1450.00",
+  lineTotal: "14500.00",
+  totalAmount: "14500.00",
   paidAmount: "14500.00",
   status: "completed",
   description: "Imported purchase",
@@ -365,12 +369,19 @@ function importedPurchaseLine(row: Record<string, string>, id: number): Purchase
   const unitPrice = parseMoney(
     String(row.unitPrice ?? row.unit_price ?? row.rate ?? "0")
   )
+  const computed = computeLineTotal(quantity, unitPrice)
+  const fileLineTotal = String(
+    row.lineTotal ?? row.line_total ?? row.amount ?? ""
+  ).trim()
   return {
     id,
     productName: productName || "Imported item",
     quantity,
     unitPrice,
-    lineTotal: computeLineTotal(quantity, unitPrice),
+    lineTotal:
+      Number(unitPrice) > 0 || !fileLineTotal
+        ? computed
+        : parseMoney(fileLineTotal),
   }
 }
 
@@ -385,7 +396,7 @@ export function flattenPurchaseForExport(
 ): Record<string, unknown>[] {
   const lines = purchase.lines?.length
     ? purchase.lines
-    : [{ productName: "", quantity: 1, unitPrice: "0.00" }]
+    : [{ productName: "", quantity: 1, unitPrice: "0.00", lineTotal: "0.00" }]
   return lines.map((line) => ({
     purchaseNumber: purchase.purchaseNumber,
     vendorName: purchase.vendorName,
@@ -393,6 +404,8 @@ export function flattenPurchaseForExport(
     productName: line.productName,
     quantity: line.quantity,
     unitPrice: line.unitPrice,
+    lineTotal: line.lineTotal ?? computeLineTotal(line.quantity, line.unitPrice),
+    totalAmount: purchase.totalAmount,
     paidAmount: purchase.paidAmount,
     status: purchase.status,
     description: purchase.description === "—" ? "" : purchase.description,

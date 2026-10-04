@@ -66,6 +66,8 @@ export function flattenPurchaseLineForExport(
     productName: line.productName,
     quantity: line.quantity,
     unitPrice: line.unitPrice,
+    lineTotal: line.lineTotal,
+    totalAmount: "",
     paidAmount: "",
     status: line.purchaseStatus,
     description: "",

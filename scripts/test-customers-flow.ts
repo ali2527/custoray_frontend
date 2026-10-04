@@ -1,6 +1,8 @@
 import assert from "node:assert/strict"
 
 import {
+  CUSTOMER_IMPORT_COLUMNS,
+  CUSTOMER_IMPORT_SAMPLE_ROW,
   customerTabFilter,
   filterCustomerRows,
   mapApiBuyerToRow,
@@ -9,6 +11,7 @@ import {
   toApiCustomerWrite,
   type CustomerRow,
 } from "../src/lib/customers"
+import { buildSampleCsv, parseCsv, projectCsvRecord } from "../src/lib/csv"
 import { customerKeys } from "../src/lib/customers-query"
 import { appendCustomerTimelineSeed } from "../src/lib/customer-timeline-seed"
 import {
@@ -73,13 +76,45 @@ const inactive: CustomerRow = {
 console.log("\nCustomers flow tests\n")
 
 console.log("Import / mapping")
-test("import maps name phone opening balance and status", () => {
+test("customer sample csv includes every import column", () => {
+  const csv = buildSampleCsv([...CUSTOMER_IMPORT_COLUMNS], CUSTOMER_IMPORT_SAMPLE_ROW)
+  const parsed = parseCsv(csv)
+  assert.deepEqual(Object.keys(parsed[0] ?? {}), [...CUSTOMER_IMPORT_COLUMNS])
+  const mapped = mapImportedCustomerWrite(parsed[0]!)
+  assert.equal(mapped?.name, "Acme Retail")
+  assert.equal(mapped?.imageUrl, "")
+})
+test("import projection reads snake_case and spaced headers", () => {
+  const projected = projectCsvRecord(
+    {
+      Name: "Beta Shop",
+      phone_number: "03001112222",
+      "Opening Balance": "12.5",
+      STATUS: "active",
+      image_url: "https://cdn.example/beta.png",
+      description: "Notes",
+    },
+    [...CUSTOMER_IMPORT_COLUMNS]
+  )
+  assert.equal(projected.name, "Beta Shop")
+  assert.equal(projected.openingBalance, "12.5")
+  assert.equal(projected.status, "active")
+  assert.equal(projected.imageUrl, "https://cdn.example/beta.png")
+  // Alias headers are kept so mappers can still read phone_number → phone.
+  assert.equal(projected.phone_number, "03001112222")
+  const mapped = mapImportedCustomerWrite(projected)
+  assert.equal(mapped?.phone, "03001112222")
+  assert.equal(mapped?.openingBalance, 12.5)
+  assert.equal(mapped?.imageUrl, "https://cdn.example/beta.png")
+})
+test("import maps name phone opening balance status and imageUrl", () => {
   const mapped = mapImportedCustomerWrite({
     name: "Sony Shop",
     description: "Retail",
     phone: "03001234567",
     openingBalance: "15.5",
     status: "inactive",
+    imageUrl: "https://cdn.example/shop.png",
   })
   assert.deepEqual(mapped, {
     name: "Sony Shop",
@@ -87,6 +122,7 @@ test("import maps name phone opening balance and status", () => {
     phone: "03001234567",
     openingBalance: 15.5,
     status: "inactive",
+    imageUrl: "https://cdn.example/shop.png",
   })
 })
 test("import rejects unmatched status so the row is not created", () => {

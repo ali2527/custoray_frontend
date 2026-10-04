@@ -31,6 +31,7 @@ import {
 import { markSetupMilestone } from "@/lib/setup-progress"
 import type { ProductSkuSettings } from "@/lib/product-sku-settings"
 import type { CatalogTablesSettings } from "@/lib/catalog-field-settings"
+import { runBatchedBulkCreate } from "@/lib/import-batch"
 
 export type ProductLookupType = "brand" | "category" | "variant"
 
@@ -246,10 +247,11 @@ export function useInventoryProducts() {
       if (payload.length === 0) {
         return { created: [] as ProductRow[], failed: skipped, unmatched }
       }
-      const extra = Math.max(0, payload.length - 100)
-      const res = await apiBulkCreateProducts(payload.slice(0, 100))
+      const res = await runBatchedBulkCreate(payload, (batch) =>
+        apiBulkCreateProducts(batch)
+      )
       const created = (res.items ?? []).map(mapApiProductToRow)
-      const failed = skipped + extra + (res.errors?.length ?? 0)
+      const failed = skipped + (res.errors?.length ?? 0)
       if ((res.errors?.length ?? 0) > 0 && created.length === 0) {
         throw new Error(res.errors[0]?.message || "Import failed")
       }
