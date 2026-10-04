@@ -50,7 +50,8 @@ export function PosInvoicePanel({
               <button
                 type="button"
                 onClick={onDismissJustCreated}
-                className="text-muted-foreground hover:text-foreground text-[10px]"
+                className="text-muted-foreground hover:text-foreground inline-flex size-8 shrink-0 items-center justify-center rounded-md text-sm"
+                aria-label="Dismiss"
               >
                 ×
               </button>

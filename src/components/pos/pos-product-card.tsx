@@ -59,12 +59,12 @@ export function PosProductCard({
           {inCartQty}
         </span>
       ) : !isDisabled ? (
-        <span className="bg-background/90 text-muted-foreground absolute top-2 right-2 z-10 flex size-6 items-center justify-center rounded-full opacity-0 shadow-sm ring-1 ring-border/50 transition-opacity group-hover:opacity-100">
+        <span className="bg-background/90 text-muted-foreground absolute top-2 right-2 z-10 flex size-6 items-center justify-center rounded-full opacity-100 shadow-sm ring-1 ring-border/50 transition-opacity lg:opacity-0 lg:group-hover:opacity-100">
           <IconPlus className="size-3.5" stroke={2} />
         </span>
       ) : null}
 
-      <div className="relative h-20 w-full shrink-0 overflow-hidden bg-muted/40">
+      <div className="relative h-16 w-full shrink-0 overflow-hidden bg-muted/40 sm:h-20">
         {imageUrl ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img
