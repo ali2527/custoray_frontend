@@ -427,6 +427,7 @@ export type ApiBuyer = {
 }
 
 export type ApiBuyerWrite = {
+  id?: string
   name: string
   phone?: string
   description?: string
@@ -438,6 +439,7 @@ export type ApiBuyerWrite = {
 export type ApiBuyerBulkResult = {
   items: ApiBuyer[]
   added: number
+  updated?: number
   errors?: { name: string; message: string }[]
 }
 
