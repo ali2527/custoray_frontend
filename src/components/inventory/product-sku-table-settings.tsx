@@ -1,5 +1,6 @@
 "use client"
 
+import { Lock } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { Button } from "@/components/ui/button"
@@ -14,6 +15,7 @@ import {
 export function ProductSkuTableSettings() {
   const { t } = useTranslation("settings")
   const { settings, persist, setMode } = useProductSkuSettings()
+  const isCustom = settings.mode === "custom"
 
   return (
     <div className="space-y-2">
@@ -25,18 +27,20 @@ export function ProductSkuTableSettings() {
           type="button"
           variant={settings.mode === "auto" ? "default" : "outline"}
           size="sm"
-          className="h-8 px-2.5 text-xs"
+          className="h-8 gap-1 px-2.5 text-xs"
           onClick={() => setMode("auto")}
         >
+          {!isCustom ? <Lock className="size-3" aria-hidden /> : null}
           {t("products.autoTitle")}
         </Button>
         <Button
           type="button"
-          variant={settings.mode === "custom" ? "default" : "outline"}
+          variant={isCustom ? "default" : "outline"}
           size="sm"
-          className="h-8 px-2.5 text-xs"
+          className="h-8 gap-1 px-2.5 text-xs"
           onClick={() => setMode("custom")}
         >
+          {isCustom ? <Lock className="size-3" aria-hidden /> : null}
           {t("products.customTitle")}
         </Button>
       </div>
@@ -66,9 +70,15 @@ export function ProductSkuTableSettings() {
           </p>
         </div>
       ) : (
-        <p className="text-muted-foreground text-[11px] leading-relaxed">
-          {t("products.customHint")}
-        </p>
+        <div className="border-primary/20 bg-primary/5 rounded-lg border px-2.5 py-2">
+          <p className="text-foreground flex items-center gap-1.5 text-[11px] font-medium">
+            <Lock className="text-primary size-3" />
+            {t("products.customLockedTitle")}
+          </p>
+          <p className="text-muted-foreground mt-1 text-[11px] leading-relaxed">
+            {t("products.customHint")}
+          </p>
+        </div>
       )}
     </div>
   )

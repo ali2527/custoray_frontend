@@ -85,7 +85,10 @@
     "notSelected": "Not selected",
     "selectBrand": "Select brand",
     "selectCategory": "Select category",
-    "selectVariant": "Select variant"
+    "selectVariant": "Select variant",
+    "skuCustomPlaceholder": "Enter SKU",
+    "skuCustomHint": "Required. Product names may repeat if SKUs differ.",
+    "skuAutoLockedHint": "Assigned automatically from Product SKU settings. Locked while Auto SKU is active."
   },
   "productSheet": {
     "add": "Add product",

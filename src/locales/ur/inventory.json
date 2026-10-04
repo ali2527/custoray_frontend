@@ -85,7 +85,10 @@
     "notSelected": "منتخب نہیں",
     "selectBrand": "برانڈ منتخب کریں",
     "selectCategory": "کیٹگری منتخب کریں",
-    "selectVariant": "ویریئنٹ منتخب کریں"
+    "selectVariant": "ویریئنٹ منتخب کریں",
+    "skuCustomPlaceholder": "SKU درج کریں",
+    "skuCustomHint": "ضروری ہے۔ اگر SKU مختلف ہو تو نام دہرایا جا سکتا ہے۔",
+    "skuAutoLockedHint": "پروڈکٹ SKU سیٹنگز سے خودبخود لگے گا۔ خودکار SKU فعال ہونے پر لاک ہے۔"
   },
   "productSheet": {
     "add": "مصنوعات شامل کریں",

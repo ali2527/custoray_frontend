@@ -1,6 +1,6 @@
 "use client"
 
-import { Package } from "lucide-react"
+import { Lock, Package } from "lucide-react"
 import { useTranslation } from "react-i18next"
 
 import { SettingsSection } from "@/components/settings/settings-section"
@@ -18,16 +18,21 @@ function ModeCard({
   title,
   description,
   onClick,
+  locked,
+  lockedLabel,
 }: {
   selected: boolean
   title: string
   description: string
   onClick: () => void
+  locked?: boolean
+  lockedLabel: string
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={selected}
       className={cn(
         "flex cursor-pointer flex-col rounded-xl border p-4 text-start transition-colors",
         selected
@@ -35,7 +40,15 @@ function ModeCard({
           : "border-border hover:border-primary/40 bg-card"
       )}
     >
-      <span className="text-sm font-semibold">{title}</span>
+      <span className="flex items-center gap-2 text-sm font-semibold">
+        {title}
+        {selected && locked ? (
+          <span className="text-primary inline-flex items-center gap-1 text-[11px] font-medium">
+            <Lock className="size-3" aria-hidden />
+            {lockedLabel}
+          </span>
+        ) : null}
+      </span>
       <span className="text-muted-foreground mt-1 text-sm leading-snug">
         {description}
       </span>
@@ -46,6 +59,7 @@ function ModeCard({
 export function ProductSkuSettingsForm() {
   const { t } = useTranslation("settings")
   const { settings, persist, setMode } = useProductSkuSettings()
+  const isCustom = settings.mode === "custom"
 
   return (
     <SettingsSection
@@ -59,12 +73,16 @@ export function ProductSkuSettingsForm() {
           title={t("products.autoTitle")}
           description={t("products.autoDescription")}
           onClick={() => setMode("auto")}
+          locked={!isCustom}
+          lockedLabel={t("products.modeActive")}
         />
         <ModeCard
-          selected={settings.mode === "custom"}
+          selected={isCustom}
           title={t("products.customTitle")}
           description={t("products.customDescription")}
           onClick={() => setMode("custom")}
+          locked={isCustom}
+          lockedLabel={t("products.modeActive")}
         />
       </div>
       {settings.mode === "auto" ? (
@@ -90,7 +108,15 @@ export function ProductSkuSettingsForm() {
           </p>
         </div>
       ) : (
-        <p className="text-muted-foreground text-sm">{t("products.customHint")}</p>
+        <div className="border-primary/20 bg-primary/5 rounded-xl border px-4 py-3">
+          <p className="text-foreground flex items-center gap-2 text-sm font-medium">
+            <Lock className="text-primary size-3.5" />
+            {t("products.customLockedTitle")}
+          </p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {t("products.customHint")}
+          </p>
+        </div>
       )}
       <p className="text-muted-foreground text-sm">{t("products.tableHint")}</p>
     </SettingsSection>

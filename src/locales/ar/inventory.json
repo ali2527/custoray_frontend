@@ -85,7 +85,10 @@
     "notSelected": "غير محدد",
     "selectBrand": "اختر العلامة التجارية",
     "selectCategory": "اختر الفئة",
-    "selectVariant": "اختر المتغير"
+    "selectVariant": "اختر المتغير",
+    "skuCustomPlaceholder": "أدخل رمز الصنف",
+    "skuCustomHint": "مطلوب. يمكن تكرار اسم المنتج إذا اختلف الرمز.",
+    "skuAutoLockedHint": "يُعيَّن تلقائياً من إعدادات رمز الصنف. مقفل أثناء تفعيل الرمز التلقائي."
   },
   "productSheet": {
     "add": "إضافة منتج",
