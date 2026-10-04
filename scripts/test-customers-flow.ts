@@ -125,6 +125,16 @@ test("import maps name phone opening balance status and imageUrl", () => {
     imageUrl: "https://cdn.example/shop.png",
   })
 })
+test("import maps api id for updates", () => {
+  const mapped = mapImportedCustomerWrite({
+    id: "ckbuyer123",
+    name: "Sony Shop",
+    phone: "0300",
+    status: "active",
+  })
+  assert.equal(mapped?.id, "ckbuyer123")
+  assert.equal(mapped?.name, "Sony Shop")
+})
 test("import rejects unmatched status so the row is not created", () => {
   const mapped = mapImportedCustomerWrite({
     name: "Orphan",

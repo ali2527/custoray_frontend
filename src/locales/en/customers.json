@@ -172,7 +172,7 @@
     "saved": "Customer saved.",
     "saveFailed": "Could not save customer.",
     "removedCount": "Removed {{count}} customer(s).",
-    "importPartial": "{{added}} imported, {{failed}} could not be imported.",
+    "importPartial": "{{added}} added, {{updated}} updated, {{failed}} failed.",
     "deletePartial": "{{deleted}} deleted, {{failed}} could not be deleted.",
     "updatePartial": "{{updated}} updated, {{failed}} could not be updated.",
     "setActiveCount": "Set {{count}} to active.",

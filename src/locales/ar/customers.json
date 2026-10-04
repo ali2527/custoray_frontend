@@ -172,7 +172,7 @@
     "saved": "تم حفظ العميل.",
     "saveFailed": "تعذر حفظ العميل.",
     "removedCount": "تم حذف {{count}} عميل.",
-    "importPartial": "تم استيراد {{added}}، وتعذر استيراد {{failed}}.",
+    "importPartial": "تمت إضافة {{added}}، وتحديث {{updated}}، وفشل {{failed}}.",
     "deletePartial": "تم حذف {{deleted}}، وتعذر حذف {{failed}}.",
     "updatePartial": "تم تحديث {{updated}}، وتعذر تحديث {{failed}}.",
     "setActiveCount": "تم تعيين {{count}} كنشط.",

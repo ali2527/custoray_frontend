@@ -119,8 +119,10 @@ export function useCustomersQuery() {
   const bulkCreateMutation = useMutation({
     mutationFn: (items: CustomerWrite[]) => apiBulkCreateBuyers(items),
     onSuccess: (res) => {
-      if ((res.added ?? res.items?.length ?? 0) > 0) {
-        markSetupMilestone("customer")
+      const changed =
+        (res.added ?? 0) + (res.updated ?? 0) + (res.items?.length ?? 0)
+      if (changed > 0) {
+        if ((res.added ?? 0) > 0) markSetupMilestone("customer")
         invalidateCustomers(queryClient, tenantId)
       }
     },
