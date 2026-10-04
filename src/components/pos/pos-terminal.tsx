@@ -753,19 +753,13 @@ export function PosTerminal() {
                   />
                 </div>
               </div>
-              <div className="hidden shrink-0 items-center gap-1 lg:flex">
-                <p className="text-muted-foreground hidden px-1.5 text-xs tabular-nums xl:block">
-                  {filteredProducts.length}{" "}
-                  {filteredProducts.length === 1 ? t("product") : t("products")}
-                </p>
-                <Link
-                  href="/pos/settings"
-                  aria-label={t("openPosSettings")}
-                  className="text-muted-foreground hover:bg-muted hover:text-foreground inline-flex size-9 shrink-0 items-center justify-center rounded-full"
-                >
-                  <IconSettings className="size-3.5" stroke={1.75} />
-                </Link>
-              </div>
+              <Link
+                href="/pos/settings"
+                aria-label={t("openPosSettings")}
+                className="text-muted-foreground hover:bg-muted hover:text-foreground hidden size-9 shrink-0 items-center justify-center rounded-full lg:inline-flex"
+              >
+                <IconSettings className="size-3.5" stroke={1.75} />
+              </Link>
             </div>
 
             <PosCatalogTabs
