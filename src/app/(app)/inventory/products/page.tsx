@@ -72,7 +72,9 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { LookupFormSheet, type LookupType } from "@/components/inventory/lookup-form-sheet"
 import { ProductPriceTimeline } from "@/components/inventory/product-price-timeline"
+import { ProductStockValueTimeline } from "@/components/inventory/product-stock-value-timeline"
 import { formatMoney } from "@/lib/customers"
+import { productStockValue } from "@/lib/product-stock-value"
 import { buildSampleCsv } from "@/lib/csv"
 import {
   DEFAULT_PRODUCT_SKU_SETTINGS,
@@ -372,6 +374,9 @@ function ProductViewSidebarBody({ item }: { item: ProductRow }) {
             </ProductViewDetail>
           ) : null}
           <ProductViewDetail label={t("fields.qty")}>{item.stock}</ProductViewDetail>
+          <ProductViewDetail label={t("fields.stockValue")}>
+            {formatMoney(productStockValue(item.salePrice, item.stock))}
+          </ProductViewDetail>
           <ProductViewDetail label={t("fields.orders")}>{item.orders}</ProductViewDetail>
           <ProductViewDetail label={t("fields.sku")}>
             <span className="font-mono">{item.sku || "—"}</span>
@@ -387,6 +392,11 @@ function ProductViewSidebarBody({ item }: { item: ProductRow }) {
         sku={item.sku}
         salePrice={item.salePrice}
         costPrice={item.costPrice}
+      />
+      <ProductStockValueTimeline
+        productId={item.id}
+        salePrice={item.salePrice}
+        stock={item.stock}
       />
     </div>
   )
@@ -832,6 +842,26 @@ function getProductColumns(
       <div className="flex justify-center">
         <span className="text-foreground min-w-12 text-center tabular-nums">
           {row.original.salePrice}
+        </span>
+      </div>
+    ),
+  },
+  {
+    id: "stockValue",
+    accessorFn: (row) => Number(productStockValue(row.salePrice, row.stock)),
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title={t("columns.stockValue")} align="center" />
+    ),
+    sortingFn: (rowA, rowB, columnId) => {
+      const a = Number(rowA.getValue(columnId))
+      const b = Number(rowB.getValue(columnId))
+      return a === b ? 0 : a > b ? 1 : -1
+    },
+    meta: { dataTableFilter: false },
+    cell: ({ row }) => (
+      <div className="flex justify-center">
+        <span className="text-foreground min-w-16 text-center tabular-nums">
+          {productStockValue(row.original.salePrice, row.original.stock)}
         </span>
       </div>
     ),

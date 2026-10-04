@@ -28,6 +28,7 @@
     "price": "السعر",
     "costPrice": "سعر التكلفة",
     "salePrice": "سعر البيع",
+    "stockValue": "قيمة المخزون",
     "stock": "المخزون",
     "status": "الحالة",
     "description": "الوصف",
@@ -71,6 +72,7 @@
     "ordersPeriod": "الطلبات (الفترة)",
     "costPrice": "سعر التكلفة",
     "salePrice": "سعر البيع",
+    "stockValue": "قيمة المخزون",
     "status": "الحالة",
     "id": "المعرّف",
     "description": "الوصف",
@@ -174,6 +176,18 @@
     "set": "تعيين",
     "increased": "زيادة",
     "decreased": "انخفاض"
+  },
+  "stockValueTimeline": {
+    "title": "سجل قيمة المخزون",
+    "empty": "لا يوجد سجل لقيمة المخزون بعد.",
+    "date": "التاريخ",
+    "change": "التغيير",
+    "qty": "الكمية",
+    "price": "السعر",
+    "value": "قيمة المخزون",
+    "set": "تعيين",
+    "quantity": "الكمية",
+    "both": "السعر والكمية"
   },
   "noDescription": "لا يوجد وصف",
   "images": {
