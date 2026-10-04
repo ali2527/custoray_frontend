@@ -4,6 +4,7 @@ import * as React from "react"
 import { QueryClientProvider } from "@tanstack/react-query"
 
 import { AuthProvider } from "@/context/auth-context"
+import { MoneyFormatProvider } from "@/context/money-format-context"
 import { AppearanceProvider } from "@/components/theme/appearance-provider"
 import { I18nProvider } from "@/components/i18n/i18n-provider"
 import { ConfirmDialogHost } from "@/components/confirm-dialog"
@@ -16,11 +17,13 @@ export function RootProviders({ children }: { children: React.ReactNode }) {
     <AppearanceProvider>
       <I18nProvider>
         <AuthProvider>
-          <QueryClientProvider client={queryClient}>
-            {children}
-            <ConfirmDialogHost />
-            <Toaster />
-          </QueryClientProvider>
+          <MoneyFormatProvider>
+            <QueryClientProvider client={queryClient}>
+              {children}
+              <ConfirmDialogHost />
+              <Toaster />
+            </QueryClientProvider>
+          </MoneyFormatProvider>
         </AuthProvider>
       </I18nProvider>
     </AppearanceProvider>

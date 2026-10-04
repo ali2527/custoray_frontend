@@ -154,15 +154,15 @@ export function sanitizeProductWrite(
   }
   if (data.costPrice !== undefined) {
     const costPrice = Number(data.costPrice)
-    if (!finiteInRange(costPrice, 0, 1_000_000)) {
-      productValidationError("Cost price must be between 0 and 1,000,000")
+    if (!Number.isFinite(costPrice) || costPrice < 0) {
+      productValidationError("Cost price must be a non-negative number")
     }
     payload.costPrice = costPrice
   }
   if (data.salePrice !== undefined) {
     const salePrice = Number(data.salePrice)
-    if (!finiteInRange(salePrice, 0, 1_000_000)) {
-      productValidationError("Sale price must be between 0 and 1,000,000")
+    if (!Number.isFinite(salePrice) || salePrice < 0) {
+      productValidationError("Sale price must be a non-negative number")
     }
     payload.salePrice = salePrice
   }
