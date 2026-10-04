@@ -94,25 +94,33 @@ export function saveProductSkuSettings(settings: ProductSkuSettings) {
 }
 
 export const PRODUCT_IMPORT_BASE_COLUMNS = [
+  "sku",
   "name",
   "brand",
   "category",
   "variant",
+  "stock",
   "costPrice",
   "salePrice",
   "lifecycle",
+  "imageUrls",
 ] as const
 
 export function productImportColumns(
-  settings: Pick<ProductSkuSettings, "mode">,
+  _settings: Pick<ProductSkuSettings, "mode"> = DEFAULT_PRODUCT_SKU_SETTINGS,
   tables: CatalogTablesSettings = DEFAULT_CATALOG_FIELD_SETTINGS
 ): string[] {
   const catalog = productImportCatalogColumns(tables)
-  const base = ["name", ...catalog, "costPrice", "salePrice", "lifecycle"]
-  if (settings.mode === "custom") {
-    return ["sku", ...base]
-  }
-  return base
+  return [
+    "sku",
+    "name",
+    ...catalog,
+    "stock",
+    "costPrice",
+    "salePrice",
+    "lifecycle",
+    "imageUrls",
+  ]
 }
 
 export function productImportSampleRow(
@@ -120,16 +128,16 @@ export function productImportSampleRow(
   tables: CatalogTablesSettings = DEFAULT_CATALOG_FIELD_SETTINGS
 ): Record<string, string> {
   const row: Record<string, string> = {
+    sku: formatAutoSku(settings.prefix, 1),
     name: "Demo product",
+    stock: "25",
     costPrice: "120.00",
     salePrice: "150.00",
     lifecycle: "active",
+    imageUrls: "",
   }
   if (tables.brand) row.brand = "Acme"
   if (tables.category) row.category = "Electronics"
   if (tables.variant) row.variant = "Others"
-  if (settings.mode === "custom") {
-    row.sku = formatAutoSku(settings.prefix, 1)
-  }
   return row
 }
