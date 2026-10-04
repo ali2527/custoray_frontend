@@ -37,6 +37,8 @@ export function flattenSaleLineForExport(
     productName: line.productName,
     quantity: line.quantity,
     unitPrice: line.unitPrice,
+    lineTotal: line.lineTotal,
+    totalAmount: "",
     paidAmount: "",
     paymentMethod: line.paymentMethod,
     status: line.orderStatus,

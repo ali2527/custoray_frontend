@@ -28,17 +28,33 @@ export function pickObjectKeys(
   return next
 }
 
+/** Normalize CSV headers so customerName, customer_name, and "Customer Name" match. */
+export function normalizeCsvHeaderKey(key: string): string {
+  return key.trim().toLowerCase().replace(/[\s_-]+/g, "")
+}
+
 export function projectCsvRecord(
   cells: Record<string, string>,
   columns: string[]
 ): Record<string, string> {
   const lookup = new Map<string, string>()
   for (const [key, value] of Object.entries(cells)) {
-    lookup.set(key.trim().toLowerCase(), value)
+    const exact = key.trim().toLowerCase()
+    const normalized = normalizeCsvHeaderKey(key)
+    if (!lookup.has(exact)) lookup.set(exact, value)
+    if (!lookup.has(normalized)) lookup.set(normalized, value)
   }
-  const next: Record<string, string> = {}
+  // Keep original headers so mapper aliases (phone_number, customer, …) still work.
+  const next: Record<string, string> = { ...cells }
   for (const column of columns) {
-    next[column] = lookup.get(column.toLowerCase()) ?? ""
+    const matched =
+      lookup.get(column.toLowerCase()) ??
+      lookup.get(normalizeCsvHeaderKey(column))
+    if (matched !== undefined) {
+      next[column] = matched
+    } else if (!(column in next)) {
+      next[column] = ""
+    }
   }
   return next
 }
