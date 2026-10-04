@@ -47,6 +47,7 @@ import { z } from "zod"
 import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTableExportDialog } from "@/components/data-table-export-dialog"
 import { DataTableImportDialog, type ImportSelectColumns } from "@/components/data-table-import-dialog"
+import { useMoneyFormat } from "@/context/money-format-context"
 import { useIsMobile } from "@/hooks/use-mobile"
 import { buildSampleCsv, pickObjectKeys } from "@/lib/csv"
 import { IMPORT_MAX_TOTAL, capImportRows } from "@/lib/import-batch"
@@ -924,6 +925,7 @@ function DataTableGridView<TData>({
   emptyTitle,
   emptyDescription,
   showCatalogEmpty,
+  moneyFormatVariant,
 }: {
   table: TanStackTable<TData>
   isLoading?: boolean
@@ -931,6 +933,7 @@ function DataTableGridView<TData>({
   emptyTitle?: string
   emptyDescription?: string
   showCatalogEmpty?: boolean
+  moneyFormatVariant: string
 }) {
   const { t } = useTranslation()
   const rows = table.getRowModel().rows
@@ -960,7 +963,10 @@ function DataTableGridView<TData>({
         const [primaryCell, ...restCells] = dataCells
         if (pendingRowIds?.has(row.id)) {
           return (
-            <div key={row.id} className="rounded-xl border px-5 py-4">
+            <div
+              key={`${row.id}:${moneyFormatVariant}`}
+              className="rounded-xl border px-5 py-4"
+            >
               <div className="flex items-center gap-3 border-b pb-4">
                 <Skeleton className="size-4 rounded" />
                 <Skeleton className="h-4 w-32" />
@@ -976,7 +982,7 @@ function DataTableGridView<TData>({
         }
         return (
           <Card
-            key={row.id}
+            key={`${row.id}:${moneyFormatVariant}`}
             className={cn(
               "group/card border-border/80 gap-0 overflow-hidden rounded-xl px-0 py-0 shadow-sm transition-all duration-200 sm:shadow-xs",
               "hover:border-primary/20 hover:shadow-md",
@@ -1160,6 +1166,9 @@ export function DataTable<TData>({
   ) => Record<string, unknown> | Record<string, unknown>[]
 }) {
   const { t } = useTranslation()
+  // Subscribe so price cells re-render when Language & region → Price format changes.
+  const { settings: moneyFormat } = useMoneyFormat()
+  const moneyFormatVariant = moneyFormat.variant
   const resolvedAddLabel = addButtonLabel ?? t("table.add")
   const resolvedSearchPlaceholder = searchPlaceholder ?? t("search.placeholder")
   const [data, setData] = React.useState(() => initialData)
@@ -1490,7 +1499,7 @@ export function DataTable<TData>({
                     const rowPending = pendingRowIdSet.has(row.id)
                     return (
                     <TableRow
-                      key={row.id}
+                      key={`${row.id}:${moneyFormatVariant}`}
                       data-state={row.getIsSelected() && "selected"}
                       aria-busy={rowPending || undefined}
                     >
@@ -1546,6 +1555,7 @@ export function DataTable<TData>({
             emptyTitle={emptyTitle}
             emptyDescription={emptyDescription}
             showCatalogEmpty={data.length === 0 && !globalFilter.trim()}
+            moneyFormatVariant={moneyFormatVariant}
           />
         )}
         <div className="flex items-center justify-between">

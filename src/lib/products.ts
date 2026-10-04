@@ -5,11 +5,7 @@ import { parseMoney } from "@/lib/customers"
 
 export { parseMoney }
 
-const MIN_PRICE = 100
-
-function clampPriceValue(value: number): number {
-  return Math.min(10000, Math.max(MIN_PRICE, value))
-}
+const MIN_PRICE = 0
 
 function normalizePriceValue(
   value: string | number | null | undefined,
@@ -17,7 +13,7 @@ function normalizePriceValue(
 ): string {
   const n = Number(String(value ?? "").replace(/[^0-9.-]/g, ""))
   const resolved = Number.isFinite(n) ? n : fallback
-  return clampPriceValue(resolved).toFixed(2)
+  return Number(resolved).toFixed(2)
 }
 
 export const productSchema = z.object({
@@ -92,8 +88,8 @@ export const EMPTY_PRODUCT: ProductRow = {
   productStatus: "active",
   stock: 0,
   orders: 0,
-  costPrice: MIN_PRICE.toFixed(2),
-  salePrice: MIN_PRICE.toFixed(2),
+  costPrice: "100.00",
+  salePrice: "100.00",
   lifecycle: "active",
   imageUrls: [],
 }
