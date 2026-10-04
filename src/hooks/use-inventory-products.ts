@@ -222,21 +222,34 @@ export function useInventoryProducts() {
       let acc = [...current]
       const payload: ApiProductWrite[] = []
       const unmatched = new Set<string>()
+      let skipped = 0
+      const seenSkus = new Set(
+        current.map((row) => row.sku.trim().toLowerCase()).filter(Boolean)
+      )
       for (const row of rows) {
         const mapped = mapImportedProduct(row, acc, skuSettings, catalog, (name) =>
           unmatched.add(name)
         )
-        if (!mapped) continue
+        if (!mapped) {
+          skipped += 1
+          continue
+        }
+        const skuKey = mapped.sku.trim().toLowerCase()
+        if (!skuKey || seenSkus.has(skuKey)) {
+          skipped += 1
+          continue
+        }
+        seenSkus.add(skuKey)
         acc = [...acc, mapped]
         payload.push(toApiProductWrite(mapped))
       }
       if (payload.length === 0) {
-        return { created: [] as ProductRow[], failed: 0, unmatched }
+        return { created: [] as ProductRow[], failed: skipped, unmatched }
       }
       const extra = Math.max(0, payload.length - 100)
       const res = await apiBulkCreateProducts(payload.slice(0, 100))
       const created = (res.items ?? []).map(mapApiProductToRow)
-      const failed = extra + (res.errors?.length ?? 0)
+      const failed = skipped + extra + (res.errors?.length ?? 0)
       if ((res.errors?.length ?? 0) > 0 && created.length === 0) {
         throw new Error(res.errors[0]?.message || "Import failed")
       }

@@ -170,8 +170,28 @@ function resolveImportedCatalogLink(
 ): string {
   if (!enabled) return ""
   const matched = matchCatalogOption(raw, options)
-  if (matched.unmatched) onUnmatched?.(matched.unmatched)
+  if (matched.unmatched) {
+    onUnmatched?.(matched.unmatched)
+    // Keep the typed name so import can create the catalog entry server-side.
+    return matched.unmatched
+  }
   return matched.value
+}
+
+function resolveImportedSku(
+  fileSku: string,
+  existing: ProductRow[],
+  skuSettings: ProductSkuSettings
+): string {
+  const taken = new Set(
+    existing.map((row) => row.sku.trim().toLowerCase()).filter(Boolean)
+  )
+  if (fileSku && !taken.has(fileSku.toLowerCase())) return fileSku
+  if (skuSettings.mode === "custom" && fileSku) {
+    // Same SKU already exists — caller should treat as conflict.
+    return fileSku
+  }
+  return nextAutoSku(existing, skuSettings.prefix)
 }
 
 export function mapImportedProduct(
@@ -183,11 +203,10 @@ export function mapImportedProduct(
 ): ProductRow | null {
   const name = (row.name ?? "").trim()
   const fileSku = (row.sku ?? "").trim()
-  if (skuSettings.mode === "auto") {
-    if (!name) return null
-  } else if (!fileSku) {
-    return null
-  }
+  // Product names may repeat; uniqueness is by SKU only.
+  if (!name && !fileSku) return null
+  if (skuSettings.mode === "custom" && !fileSku) return null
+
   const finalSr = nextProductSrNo(existing)
   const importedSalePrice =
     row.salePrice ?? row["sale price"] ?? row["sale_price"] ?? row.price
@@ -220,14 +239,11 @@ export function mapImportedProduct(
   )
   const lifecycleRaw = (row.lifecycle ?? "").trim()
   const parsedLifecycle = parseImportedProductLifecycle(lifecycleRaw)
-  if (lifecycleRaw && !parsedLifecycle) return null
+  const sku = resolveImportedSku(fileSku, existing, skuSettings)
   return {
     srNo: finalSr,
-    sku:
-      skuSettings.mode === "auto"
-        ? nextAutoSku(existing, skuSettings.prefix)
-        : fileSku,
-    name: name || fileSku,
+    sku,
+    name: name || sku,
     brand,
     category,
     variant,
@@ -238,7 +254,7 @@ export function mapImportedProduct(
     costPrice: normalizedCostPrice,
     salePrice: normalizedSalePrice,
     lifecycle: parsedLifecycle || "active",
-    imageUrls: parseImageUrls(row.imageUrls, []),
+    imageUrls: parseImageUrls(row.imageUrls ?? row.images ?? "", []),
   }
 }
 

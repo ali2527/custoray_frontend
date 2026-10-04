@@ -130,9 +130,14 @@ export async function apiFetch<T>(
       window.dispatchEvent(new CustomEvent("custoray:access-blocked", { detail: code }))
     }
 
-    if (code === "SESSION_ENDED" || code === "ACCOUNT_BLOCKED") {
+    if (code === "ACCOUNT_BLOCKED") {
       emitSessionExpired()
-    } else if (!isRetry && shouldRefresh(path, res.status, code)) {
+    } else if (
+      !isRetry &&
+      (code === "SESSION_ENDED" || shouldRefresh(path, res.status, code))
+    ) {
+      // SESSION_ENDED can be a stale access token after refresh rotation.
+      // Always try one cookie refresh before forcing logout.
       const refreshed = await refreshAccessCookie()
       if (refreshed) {
         return apiFetch<T>(path, options, true)
