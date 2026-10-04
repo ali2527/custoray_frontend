@@ -1424,9 +1424,19 @@ export function DataTable<TData>({
     table.setRowSelection(next)
   }, [table])
 
+  const noRows = !isLoading && (table.getRowModel().rows?.length ?? 0) === 0
+  const emptyStateTitle =
+    data.length === 0 && !globalFilter.trim() && emptyTitle
+      ? emptyTitle
+      : t("empty.noResultsTitle")
+  const emptyStateDescription =
+    data.length === 0 && !globalFilter.trim() && emptyDescription
+      ? emptyDescription
+      : t("empty.noResultsHint")
+
   const tableContent = (
     <div className="relative flex flex-col gap-4 overflow-auto">
-        {layoutView === "list" || !enableLayoutToggle ? (
+        {layoutView === "list" || !enableLayoutToggle || noRows ? (
           <div className="relative w-full overflow-x-auto rounded-md border">
             <Table className={cn("w-full", tableClassName)}>
               <colgroup>
@@ -1504,36 +1514,19 @@ export function DataTable<TData>({
                   })
                 ) : (
                   <TableRow className="hover:bg-transparent">
-                    {table.getVisibleLeafColumns().map((column) => (
-                      <TableCell
-                        key={column.id}
-                        className={cn(
-                          "h-64 border-0 p-0",
-                          getColumnMeta(column)?.cellClassName
-                        )}
+                    <TableCell
+                      colSpan={table.getVisibleLeafColumns().length || 1}
+                      className="h-auto !w-full border-0 p-0 whitespace-normal"
+                    >
+                      <DataTableEmptyState
+                        title={emptyStateTitle}
+                        description={emptyStateDescription}
                       />
-                    ))}
+                    </TableCell>
                   </TableRow>
                 )}
               </TableBody>
             </Table>
-            {!isLoading && !table.getRowModel().rows?.length ? (
-              <div className="pointer-events-none absolute inset-x-0 top-10 bottom-0 flex items-center justify-center">
-                <DataTableEmptyState
-                  className="min-h-0 py-8"
-                  title={
-                    data.length === 0 && !globalFilter.trim() && emptyTitle
-                      ? emptyTitle
-                      : t("empty.noResultsTitle")
-                  }
-                  description={
-                    data.length === 0 && !globalFilter.trim() && emptyDescription
-                      ? emptyDescription
-                      : t("empty.noResultsHint")
-                  }
-                />
-              </div>
-            ) : null}
           </div>
         ) : (
           <DataTableGridView

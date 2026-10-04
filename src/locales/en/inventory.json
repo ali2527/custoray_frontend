@@ -64,7 +64,7 @@
     "brand": "Brand",
     "category": "Category",
     "variant": "Variant",
-    "lifecycle": "Lifecycle",
+    "lifecycle": "Status",
     "stock": "Stock",
     "listing": "Listing",
     "qty": "Qty",
