@@ -1,14 +1,16 @@
 "use client"
 
-import { usePathname } from "next/navigation"
+import { use } from "react"
 
 import { EmployeeFormPage } from "@/components/employees/employee-form-page"
 import { useEmployees } from "@/context/employees-context"
-import { pathMatch } from "@/lib/route-ids"
 
-export default function EditEmployeePage() {
-  const pathname = usePathname()
-  const id = pathMatch(pathname, /^\/employees\/(\d+)\/edit$/)
+export default function EditEmployeePage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = use(params)
   const { getEmployee } = useEmployees()
   const employee = getEmployee(Number(id))
 
