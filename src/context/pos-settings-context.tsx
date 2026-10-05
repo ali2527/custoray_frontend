@@ -9,12 +9,15 @@ import {
   type PosSettings,
 } from "@/lib/pos-settings"
 import { useAuth } from "@/context/auth-context"
+import { createLoadGate } from "@/lib/load-when-used"
 import {
   apiGetPosSettings,
   apiPatchPosSettings,
 } from "@/lib/api/business"
 import { resolveDefaultStoreId } from "@/lib/pos-api"
 import { ApiClientError } from "@/lib/api/client"
+
+const { LoadGate, useMarkNeeded } = createLoadGate()
 
 type PosSettingsContextValue = {
   settings: PosSettings
@@ -28,6 +31,22 @@ type PosSettingsContextValue = {
 const PosSettingsContext = React.createContext<PosSettingsContextValue | null>(null)
 
 export function PosSettingsProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <LoadGate>
+      {(active) => (
+        <PosSettingsProviderLive active={active}>{children}</PosSettingsProviderLive>
+      )}
+    </LoadGate>
+  )
+}
+
+function PosSettingsProviderLive({
+  active,
+  children,
+}: {
+  active: boolean
+  children: React.ReactNode
+}) {
   const { session, hydrated: authHydrated } = useAuth()
   const tenantId = session?.tenantId
   const [settings, setSettings] = React.useState<PosSettings>(DEFAULT_POS_SETTINGS)
@@ -39,7 +58,7 @@ export function PosSettingsProvider({ children }: { children: React.ReactNode })
   settingsRef.current = settings
 
   React.useEffect(() => {
-    if (!authHydrated) return
+    if (!active || !authHydrated) return
     let cancelled = false
 
     async function hydrate() {
@@ -82,7 +101,7 @@ export function PosSettingsProvider({ children }: { children: React.ReactNode })
     return () => {
       cancelled = true
     }
-  }, [authHydrated, tenantId])
+  }, [active, authHydrated, tenantId])
 
   React.useEffect(() => {
     if (!hydrated || typeof window === "undefined") return
@@ -128,6 +147,7 @@ export function PosSettingsProvider({ children }: { children: React.ReactNode })
 }
 
 export function usePosSettings() {
+  useMarkNeeded()
   const context = React.useContext(PosSettingsContext)
   if (!context) {
     throw new Error("usePosSettings must be used within PosSettingsProvider")

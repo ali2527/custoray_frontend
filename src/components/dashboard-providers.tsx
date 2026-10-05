@@ -18,7 +18,6 @@ import { PurchasesProvider } from "@/context/purchases-context"
 import { ReturnsProvider } from "@/context/returns-context"
 import { TaxSettingsProvider } from "@/context/tax-settings-context"
 import { VendorsProvider } from "@/context/vendors-context"
-import { ZakatProvider } from "@/context/zakat-context"
 
 export function DashboardProviders({ children }: { children: React.ReactNode }) {
   return (
@@ -37,9 +36,7 @@ export function DashboardProviders({ children }: { children: React.ReactNode }) 
                             <PaymentsProvider>
                               <ExpenseTypesProvider>
                                 <ExpensesProvider>
-                                  <ProductsProvider>
-                                    <ZakatProvider>{children}</ZakatProvider>
-                                  </ProductsProvider>
+                                  <ProductsProvider>{children}</ProductsProvider>
                                 </ExpensesProvider>
                               </ExpenseTypesProvider>
                             </PaymentsProvider>
