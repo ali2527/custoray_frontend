@@ -20,6 +20,8 @@ function copyInto(from, to) {
   fs.cpSync(from, to, { recursive: true, force: true })
 }
 
+console.log(`start: PORT=${process.env.PORT || "unset"}`)
+
 if (!fs.existsSync(serverFile)) {
   console.error("start: .next/standalone/server.js not found. Run npm run build first.")
   process.exit(1)
@@ -28,10 +30,17 @@ if (!fs.existsSync(serverFile)) {
 copyInto(path.join(root, "public"), path.join(standaloneDir, "public"))
 copyInto(path.join(root, ".next", "static"), path.join(standaloneDir, ".next", "static"))
 
+console.log("start: launching standalone server")
+
 const child = spawn(process.execPath, [serverFile], {
   cwd: standaloneDir,
   stdio: "inherit",
   env: process.env,
+})
+
+child.on("error", (err) => {
+  console.error("start: failed to launch server", err)
+  process.exit(1)
 })
 
 child.on("exit", (code, signal) => {
