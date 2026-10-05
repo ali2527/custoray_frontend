@@ -9,6 +9,7 @@ module.exports = {
       watch: false,
       env: {
         NODE_ENV: "customdev",
+        PORT: 3036,
       },
     },
   ],
