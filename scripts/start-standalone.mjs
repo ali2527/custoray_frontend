@@ -20,7 +20,10 @@ function copyInto(from, to) {
   fs.cpSync(from, to, { recursive: true, force: true })
 }
 
-console.log(`start: PORT=${process.env.PORT || "unset"}`)
+// cPanel sets HOSTNAME to the machine name. Next binds only to that name,
+// so http://127.0.0.1 never opens. Listen on every local address instead.
+process.env.HOSTNAME = "0.0.0.0"
+console.log(`start: PORT=${process.env.PORT || "unset"} HOSTNAME=${process.env.HOSTNAME}`)
 
 if (!fs.existsSync(serverFile)) {
   console.error("start: .next/standalone/server.js not found. Run npm run build first.")
