@@ -1,8 +1,7 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { use, useEffect, useMemo, useState } from "react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
 import { IconArrowLeft, IconCheck, IconPencil } from "@tabler/icons-react"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
@@ -24,7 +23,6 @@ import {
   type InvoiceTemplateId,
 } from "@/lib/invoice-templates"
 import { cn } from "@/lib/utils"
-import { firstSegmentAfter } from "@/lib/route-ids"
 import i18n from "@/i18n"
 
 type PreviewData =
@@ -68,11 +66,14 @@ function resolvePreviewData(slug: string): PreviewData | null {
   return null
 }
 
-export default function InvoiceTemplatePreviewPage() {
+export default function InvoiceTemplatePreviewPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = use(params)
   const { t } = useTranslation("documents")
   const { t: tc } = useTranslation("common")
-  const pathname = usePathname()
-  const slug = firstSegmentAfter(pathname, "/documents/invoice-templates/preview")
 
   const [activeRef, setActiveRef] = useState<ActiveInvoiceTemplateRef>({ kind: "preset", id: "classic" })
   const [hydrated, setHydrated] = useState(false)

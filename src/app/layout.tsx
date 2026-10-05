@@ -46,11 +46,6 @@ export default function RootLayout({
             __html: `(function(){try{sessionStorage.removeItem("custoray.accessToken");}catch(e){}try{localStorage.removeItem("custoray-auth-session-v1");}catch(e){}try{var p=JSON.parse(localStorage.getItem("custoray-appearance-v1")||"null");if(!p)return;var r=document.documentElement;var hex=/^#([0-9a-fA-F]{6})$/;if(p.colorTheme==="custom"&&hex.test(p.customColor||"")){r.setAttribute("data-theme","custom");r.style.setProperty("--primary",p.customColor);r.style.setProperty("--ring",p.customColor);r.style.setProperty("--sidebar-primary",p.customColor);}else if(p.colorTheme&&p.colorTheme!=="green"){r.setAttribute("data-theme",p.colorTheme);}r.setAttribute("data-density",p.compactLayout?"compact":"comfortable");r.setAttribute("data-reduce-motion",p.reduceMotion?"true":"false");var sizes={sm:"0.875rem",base:"0.9375rem",lg:"1.125rem",xl:"1.25rem"};if(sizes[p.fontSize])r.style.setProperty("--app-font-size",sizes[p.fontSize]);var lang=p.language;var rtl=lang==="ar"||lang==="ur";if(lang==="en"||lang==="ar"||lang==="ur"){r.setAttribute("lang",lang);r.setAttribute("dir",rtl?"rtl":"ltr");}}catch(e){}})();`,
           }}
         />
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){var k="custoray:asset-reload";var failed=false;function bad(m){return /ChunkLoadError|Loading chunk \\d+ failed|CSS_CHUNK_LOAD_FAILED/i.test(String(m||""));}function reload(){failed=true;try{if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");}catch(e){return;}location.reload();}window.addEventListener("error",function(e){var t=e&&e.target;if(!t||t.tagName!=="SCRIPT")return;var url=t.src||"";if(url.indexOf("/_next/static/")!==-1)reload();},true);window.addEventListener("unhandledrejection",function(e){var r=e&&e.reason;if(bad(r&&(r.message||r)))reload();});window.addEventListener("load",function(){if(failed)return;window.setTimeout(function(){if(failed)return;try{sessionStorage.removeItem(k);}catch(e){}},2500);});})();`,
-          }}
-        />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
