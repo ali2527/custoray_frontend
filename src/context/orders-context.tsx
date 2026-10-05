@@ -7,8 +7,11 @@ import {
 } from "@/lib/orders"
 import { markSetupMilestone } from "@/lib/setup-progress"
 import { useAuth } from "@/context/auth-context"
+import { createLoadGate } from "@/lib/load-when-used"
 import { apiListAllOrders } from "@/lib/api/business"
 import { mapApiOrderToRow } from "@/lib/pos-api"
+
+const { LoadGate, useMarkNeeded } = createLoadGate()
 
 type OrdersContextValue = {
   orders: OrderRow[]
@@ -27,6 +30,20 @@ type OrdersContextValue = {
 const OrdersContext = React.createContext<OrdersContextValue | null>(null)
 
 export function OrdersProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <LoadGate>
+      {(active) => <OrdersProviderLive active={active}>{children}</OrdersProviderLive>}
+    </LoadGate>
+  )
+}
+
+function OrdersProviderLive({
+  active,
+  children,
+}: {
+  active: boolean
+  children: React.ReactNode
+}) {
   const { session, hydrated: authHydrated } = useAuth()
   const tenantId = session?.tenantId
   const [orders, setOrders] = React.useState<OrderRow[]>([])
@@ -48,7 +65,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   React.useEffect(() => {
-    if (!authHydrated) return
+    if (!active || !authHydrated) return
     setOrders([])
     setHydrated(true)
     if (tenantId) {
@@ -56,7 +73,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
     } else {
       setLoading(false)
     }
-  }, [authHydrated, tenantId, refreshOrders])
+  }, [active, authHydrated, tenantId, refreshOrders])
 
   const getOrder = React.useCallback(
     (id: number) => orders.find((o) => o.id === id),
@@ -160,6 +177,7 @@ export function OrdersProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useOrders() {
+  useMarkNeeded()
   const ctx = React.useContext(OrdersContext)
   if (!ctx) {
     throw new Error("useOrders must be used within OrdersProvider")

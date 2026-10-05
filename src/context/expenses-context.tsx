@@ -3,6 +3,9 @@
 import * as React from "react"
 
 import { useExpensesQuery } from "@/hooks/use-expenses"
+import { createLoadGate } from "@/lib/load-when-used"
+
+const { LoadGate, useMarkNeeded } = createLoadGate()
 import {
   mapApiExpenseToRow,
   toApiExpenseWrite,
@@ -24,8 +27,24 @@ type ExpensesContextValue = {
 const ExpensesContext = React.createContext<ExpensesContextValue | null>(null)
 
 export function ExpensesProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <LoadGate>
+      {(active) => (
+        <ExpensesProviderLive active={active}>{children}</ExpensesProviderLive>
+      )}
+    </LoadGate>
+  )
+}
+
+function ExpensesProviderLive({
+  active,
+  children,
+}: {
+  active: boolean
+  children: React.ReactNode
+}) {
   const { expenses, isLoading, create, update, removeMany, bulkCreate } =
-    useExpensesQuery()
+    useExpensesQuery(active)
   const expensesRef = React.useRef(expenses)
   expensesRef.current = expenses
 
@@ -113,6 +132,7 @@ export function ExpensesProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useExpenses() {
+  useMarkNeeded()
   const ctx = React.useContext(ExpensesContext)
   if (!ctx) {
     throw new Error("useExpenses must be used within ExpensesProvider")

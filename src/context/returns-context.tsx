@@ -10,8 +10,11 @@ import {
 import type { OrderRow } from "@/lib/orders"
 import type { PurchaseRow } from "@/lib/purchases"
 import { useAuth } from "@/context/auth-context"
+import { createLoadGate } from "@/lib/load-when-used"
 import { apiListAllReturns } from "@/lib/api/business"
 import { mapApiReturnToRow } from "@/lib/pos-api"
+
+const { LoadGate, useMarkNeeded } = createLoadGate()
 
 type ReturnsContextValue = {
   returns: ReturnRow[]
@@ -35,6 +38,20 @@ type ReturnsContextValue = {
 const ReturnsContext = React.createContext<ReturnsContextValue | null>(null)
 
 export function ReturnsProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <LoadGate>
+      {(active) => <ReturnsProviderLive active={active}>{children}</ReturnsProviderLive>}
+    </LoadGate>
+  )
+}
+
+function ReturnsProviderLive({
+  active,
+  children,
+}: {
+  active: boolean
+  children: React.ReactNode
+}) {
   const { session, hydrated: authHydrated } = useAuth()
   const tenantId = session?.tenantId
   const [returns, setReturns] = React.useState<ReturnRow[]>([])
@@ -56,7 +73,7 @@ export function ReturnsProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   React.useEffect(() => {
-    if (!authHydrated) return
+    if (!active || !authHydrated) return
     setReturns([])
     setHydrated(true)
     if (tenantId) {
@@ -64,7 +81,7 @@ export function ReturnsProvider({ children }: { children: React.ReactNode }) {
     } else {
       setLoading(false)
     }
-  }, [authHydrated, tenantId, refreshReturns])
+  }, [active, authHydrated, tenantId, refreshReturns])
 
   const getReturn = React.useCallback(
     (id: number) => returns.find((row) => row.id === id),
@@ -153,6 +170,7 @@ export function ReturnsProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useReturns() {
+  useMarkNeeded()
   const ctx = React.useContext(ReturnsContext)
   if (!ctx) {
     throw new Error("useReturns must be used within ReturnsProvider")

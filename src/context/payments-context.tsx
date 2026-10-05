@@ -3,6 +3,9 @@
 import * as React from "react"
 
 import { usePaymentsQuery } from "@/hooks/use-payments"
+import { createLoadGate } from "@/lib/load-when-used"
+
+const { LoadGate, useMarkNeeded } = createLoadGate()
 import {
   mapApiPaymentToRow,
   toApiPaymentWrite,
@@ -24,6 +27,22 @@ type PaymentsContextValue = {
 const PaymentsContext = React.createContext<PaymentsContextValue | null>(null)
 
 export function PaymentsProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <LoadGate>
+      {(active) => (
+        <PaymentsProviderLive active={active}>{children}</PaymentsProviderLive>
+      )}
+    </LoadGate>
+  )
+}
+
+function PaymentsProviderLive({
+  active,
+  children,
+}: {
+  active: boolean
+  children: React.ReactNode
+}) {
   const {
     payments,
     isLoading,
@@ -31,7 +50,7 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
     update,
     removeMany,
     bulkCreate,
-  } = usePaymentsQuery()
+  } = usePaymentsQuery(active)
   const paymentsRef = React.useRef(payments)
   paymentsRef.current = payments
 
@@ -120,6 +139,7 @@ export function PaymentsProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function usePayments() {
+  useMarkNeeded()
   const ctx = React.useContext(PaymentsContext)
   if (!ctx) {
     throw new Error("usePayments must be used within PaymentsProvider")

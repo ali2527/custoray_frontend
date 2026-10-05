@@ -24,11 +24,11 @@ function reindex(rows: ExpenseRow[]): ExpenseRow[] {
   return rows.map((item, index) => ({ ...item, id: index + 1 }))
 }
 
-export function useExpensesQuery() {
+export function useExpensesQuery(active: boolean) {
   const { session, hydrated: authHydrated } = useAuth()
   const tenantId = session?.tenantId
   const queryClient = useQueryClient()
-  const enabled = authHydrated && Boolean(tenantId)
+  const enabled = active && authHydrated && Boolean(tenantId)
 
   const query = useQuery({
     queryKey: expenseKeys.list(tenantId),
