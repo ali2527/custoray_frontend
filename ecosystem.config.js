@@ -2,8 +2,8 @@ module.exports = {
   apps: [
     {
       name: "custoray_frontend_dev",
-      script: "npm",
-      args: "start",
+      script: "scripts/start-standalone.mjs",
+      interpreter: "node",
       instances: 1,
       autorestart: true,
       watch: false,
