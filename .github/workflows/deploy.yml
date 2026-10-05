@@ -14,26 +14,6 @@ jobs:
       - name: 🚚 Get latest code
         uses: actions/checkout@v4
 
-      - name: Use Node.js 22
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: 🔨 Install Dependencies
-        run: npm ci --legacy-peer-deps
-        env:
-          NODE_OPTIONS: "--max_old_space_size=8192"
-
-      - name: 🏗 Build Project
-        run: npm run build
-        env:
-          NODE_OPTIONS: "--max_old_space_size=8192"
-          CI: false
-          # From GitHub Environment "customdev" Variables
-          NEXT_PUBLIC_GOOGLE_CLIENT_ID_PROD: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID_PROD }}
-          NEXT_PUBLIC_GOOGLE_CLIENT_ID_DEV: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID_DEV }}
-
       - name: 📂 Sync files
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -41,8 +21,35 @@ jobs:
           username: ${{ vars.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftp
-          local-dir: ./out/
+          port: 21
+          local-dir: ./
           server-dir: /${{ vars.SERVER_DIR }}/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.github*/**
+            **/node_modules/**
+            **/.next/**
+            **/*.logs*/**
+            **/*.zip**/
+
+      - name: Restart PM2 App
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ vars.SERVER }}
+          username: ${{ vars.CPANEL_USERNAME }}
+          password: ${{ secrets.CPANEL_PASSWORD }}
+          port: 22
+          script: |
+            cd ./public_html/${{ vars.SERVER_DIR }}/
+            export NODE_OPTIONS="--max_old_space_size=8192"
+            export CI=false
+            export NEXT_PUBLIC_GOOGLE_CLIENT_ID_PROD="${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID_PROD }}"
+            export NEXT_PUBLIC_GOOGLE_CLIENT_ID_DEV="${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID_DEV }}"
+            npm install --legacy-peer-deps
+            npm run build
+            pm2 reload ecosystem.config.js --update-env || pm2 start ecosystem.config.js
+            pm2 save
 
   health-check:
     name: Health Check
