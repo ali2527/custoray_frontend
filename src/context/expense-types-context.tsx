@@ -3,6 +3,9 @@
 import * as React from "react"
 
 import { useExpenseTypesQuery } from "@/hooks/use-expense-types"
+import { createLoadGate } from "@/lib/load-when-used"
+
+const { LoadGate, useMarkNeeded } = createLoadGate()
 import {
   mapApiExpenseTypeToRow,
   toApiExpenseTypeWrite,
@@ -29,6 +32,22 @@ type ExpenseTypesContextValue = {
 const ExpenseTypesContext = React.createContext<ExpenseTypesContextValue | null>(null)
 
 export function ExpenseTypesProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <LoadGate>
+      {(active) => (
+        <ExpenseTypesProviderLive active={active}>{children}</ExpenseTypesProviderLive>
+      )}
+    </LoadGate>
+  )
+}
+
+function ExpenseTypesProviderLive({
+  active,
+  children,
+}: {
+  active: boolean
+  children: React.ReactNode
+}) {
   const {
     expenseTypes,
     isLoading,
@@ -37,7 +56,7 @@ export function ExpenseTypesProvider({ children }: { children: React.ReactNode }
     removeMany,
     setStatus,
     bulkCreate,
-  } = useExpenseTypesQuery()
+  } = useExpenseTypesQuery(active)
   const rowsRef = React.useRef(expenseTypes)
   rowsRef.current = expenseTypes
 
@@ -107,6 +126,7 @@ export function ExpenseTypesProvider({ children }: { children: React.ReactNode }
 }
 
 export function useExpenseTypes() {
+  useMarkNeeded()
   const ctx = React.useContext(ExpenseTypesContext)
   if (!ctx) {
     throw new Error("useExpenseTypes must be used within ExpenseTypesProvider")

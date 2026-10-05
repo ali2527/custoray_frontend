@@ -21,11 +21,11 @@ import {
   type VendorWrite,
 } from "@/lib/vendors"
 
-export function useVendorsQuery() {
+export function useVendorsQuery(active: boolean) {
   const { session, hydrated: authHydrated } = useAuth()
   const tenantId = session?.tenantId
   const queryClient = useQueryClient()
-  const enabled = authHydrated && Boolean(tenantId)
+  const enabled = active && authHydrated && Boolean(tenantId)
 
   const query = useQuery({
     queryKey: vendorKeys.list(tenantId),

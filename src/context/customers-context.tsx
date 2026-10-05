@@ -3,6 +3,9 @@
 import * as React from "react"
 
 import { useCustomersQuery } from "@/hooks/use-customers"
+import { createLoadGate } from "@/lib/load-when-used"
+
+const { LoadGate, useMarkNeeded } = createLoadGate()
 import {
   mapApiBuyerToRow,
   toApiCustomerWrite,
@@ -29,6 +32,22 @@ type CustomersContextValue = {
 const CustomersContext = React.createContext<CustomersContextValue | null>(null)
 
 export function CustomersProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <LoadGate>
+      {(active) => (
+        <CustomersProviderLive active={active}>{children}</CustomersProviderLive>
+      )}
+    </LoadGate>
+  )
+}
+
+function CustomersProviderLive({
+  active,
+  children,
+}: {
+  active: boolean
+  children: React.ReactNode
+}) {
   const {
     customers,
     isLoading,
@@ -37,7 +56,7 @@ export function CustomersProvider({ children }: { children: React.ReactNode }) {
     removeMany,
     setStatus,
     bulkCreate,
-  } = useCustomersQuery()
+  } = useCustomersQuery(active)
   const customersRef = React.useRef(customers)
   customersRef.current = customers
 
@@ -135,6 +154,7 @@ export function CustomersProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useCustomers() {
+  useMarkNeeded()
   const ctx = React.useContext(CustomersContext)
   if (!ctx) {
     throw new Error("useCustomers must be used within CustomersProvider")

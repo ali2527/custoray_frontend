@@ -20,6 +20,9 @@ import {
   emitProductsChanged,
 } from "@/lib/inventory-product-rows"
 import { useAuth } from "@/context/auth-context"
+import { createLoadGate } from "@/lib/load-when-used"
+
+const { LoadGate, useMarkNeeded } = createLoadGate()
 
 function mapApiProduct(p: ApiProduct): ProductRow {
   const lifecycle =
@@ -77,6 +80,20 @@ type ProductsContextValue = {
 const ProductsContext = React.createContext<ProductsContextValue | null>(null)
 
 export function ProductsProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <LoadGate>
+      {(active) => <ProductsProviderLive active={active}>{children}</ProductsProviderLive>}
+    </LoadGate>
+  )
+}
+
+function ProductsProviderLive({
+  active,
+  children,
+}: {
+  active: boolean
+  children: React.ReactNode
+}) {
   const { session, hydrated } = useAuth()
   const tenantId = session?.tenantId
   const [products, setProducts] = React.useState<ProductRow[]>([])
@@ -103,11 +120,11 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   React.useEffect(() => {
-    if (!hydrated) return
+    if (!active || !hydrated) return
     apiIdBySrNo.current.clear()
     setProducts([])
     void loadFromApi()
-  }, [hydrated, tenantId, loadFromApi])
+  }, [active, hydrated, tenantId, loadFromApi])
 
   React.useEffect(() => {
     const onChanged = () => {
@@ -219,6 +236,7 @@ export function ProductsProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useProducts() {
+  useMarkNeeded()
   const ctx = React.useContext(ProductsContext)
   if (!ctx) {
     throw new Error("useProducts must be used within ProductsProvider")

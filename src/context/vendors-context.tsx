@@ -3,6 +3,9 @@
 import * as React from "react"
 
 import { useVendorsQuery } from "@/hooks/use-vendors"
+import { createLoadGate } from "@/lib/load-when-used"
+
+const { LoadGate, useMarkNeeded } = createLoadGate()
 import {
   mapApiVendorToRow,
   toApiVendorWrite,
@@ -29,6 +32,20 @@ type VendorsContextValue = {
 const VendorsContext = React.createContext<VendorsContextValue | null>(null)
 
 export function VendorsProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <LoadGate>
+      {(active) => <VendorsProviderLive active={active}>{children}</VendorsProviderLive>}
+    </LoadGate>
+  )
+}
+
+function VendorsProviderLive({
+  active,
+  children,
+}: {
+  active: boolean
+  children: React.ReactNode
+}) {
   const {
     vendors,
     isLoading,
@@ -37,7 +54,7 @@ export function VendorsProvider({ children }: { children: React.ReactNode }) {
     removeMany,
     setStatus,
     bulkCreate,
-  } = useVendorsQuery()
+  } = useVendorsQuery(active)
   const vendorsRef = React.useRef(vendors)
   vendorsRef.current = vendors
 
@@ -133,6 +150,7 @@ export function VendorsProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useVendors() {
+  useMarkNeeded()
   const ctx = React.useContext(VendorsContext)
   if (!ctx) {
     throw new Error("useVendors must be used within VendorsProvider")

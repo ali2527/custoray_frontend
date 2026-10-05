@@ -22,11 +22,11 @@ import {
 } from "@/lib/customers"
 import { markSetupMilestone } from "@/lib/setup-progress"
 
-export function useCustomersQuery() {
+export function useCustomersQuery(active: boolean) {
   const { session, hydrated: authHydrated } = useAuth()
   const tenantId = session?.tenantId
   const queryClient = useQueryClient()
-  const enabled = authHydrated && Boolean(tenantId)
+  const enabled = active && authHydrated && Boolean(tenantId)
 
   const query = useQuery({
     queryKey: customerKeys.list(tenantId),
