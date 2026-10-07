@@ -11,12 +11,14 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import {
+  apiStepUp,
   apiTotpDisable,
   apiTotpEnable,
   apiTotpSetup,
   apiTotpStatus,
   type TotpSetup,
 } from "@/lib/api/auth"
+import { PasswordInput } from "@/components/ui/password-input"
 import { formatTotpSecret } from "@/lib/two-factor"
 
 export function TwoFactorSettings() {
@@ -25,6 +27,7 @@ export function TwoFactorSettings() {
   const [loading, setLoading] = useState(true)
   const [setup, setSetup] = useState<TotpSetup | null>(null)
   const [code, setCode] = useState("")
+  const [currentPassword, setCurrentPassword] = useState("")
   const [busy, setBusy] = useState(false)
   const [copied, setCopied] = useState(false)
 
@@ -68,15 +71,21 @@ export function TwoFactorSettings() {
   }
 
   async function disable() {
+    if (!currentPassword) {
+      toast.error(t("twoFactor.toastPasswordRequired"))
+      return
+    }
     if (code.length !== 6) {
       toast.error(t("twoFactor.toastEnterToDisable"))
       return
     }
     setBusy(true)
     try {
+      await apiStepUp({ password: currentPassword, totpCode: code })
       await apiTotpDisable(code)
       setEnabled(false)
       setCode("")
+      setCurrentPassword("")
       toast.success(t("twoFactor.toastDisabled"))
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("twoFactor.toastInvalid"))
@@ -113,13 +122,22 @@ export function TwoFactorSettings() {
         <div className="space-y-3">
           <p className="text-sm">{t("twoFactor.onMessage")}</p>
           <div className="grid gap-2">
+            <Label htmlFor="disable-password">{t("twoFactor.currentPassword")}</Label>
+            <PasswordInput
+              id="disable-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              autoComplete="current-password"
+            />
+          </div>
+          <div className="grid gap-2">
             <Label htmlFor="disable-otp">{t("twoFactor.authenticatorCode")}</Label>
             <AuthCodeInput id="disable-otp" value={code} onChange={setCode} />
           </div>
           <Button
             type="button"
             variant="outline"
-            disabled={busy || code.length !== 6}
+            disabled={busy || code.length !== 6 || !currentPassword}
             onClick={() => void disable()}
           >
             {busy ? t("twoFactor.disabling") : t("twoFactor.disable")}

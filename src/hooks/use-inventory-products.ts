@@ -16,7 +16,10 @@ import {
   type ApiProductWrite,
 } from "@/lib/api/business"
 import { settledErrorMessage } from "@/lib/api/client"
-import { inventoryKeys, invalidateInventory } from "@/lib/inventory-query"
+import {
+  inventoryKeys,
+  patchInventoryProductRows,
+} from "@/lib/inventory-query"
 import {
   PRODUCT_VARIANTS,
   cacheInventoryProducts,
@@ -89,8 +92,8 @@ export function useInventoryProducts() {
   ])
 
   const persistRows = (rows: ProductRow[]) => {
-    queryClient.setQueryData(inventoryKeys.products(tenantId), rows)
     cacheInventoryProducts(rows, tenantId)
+    patchInventoryProductRows<ProductRow>(queryClient, tenantId, () => rows)
   }
 
   const saveMutation = useMutation({
@@ -104,7 +107,11 @@ export function useInventoryProducts() {
       const saved = isNew
         ? await apiCreateProduct(toApiProductWrite(row))
         : await apiUpdateProduct(row.id!, toApiProductWrite(row))
-      return { row: mapApiProductToRow(saved), isNew }
+      const fromApi = mapApiProductToRow(saved)
+      return {
+        row: { ...row, ...fromApi, id: saved.id || row.id },
+        isNew,
+      }
     },
     onSuccess: ({ row, isNew }) => {
       const current =
@@ -112,11 +119,12 @@ export function useInventoryProducts() {
         []
       persistRows(
         isNew
-          ? [row, ...current]
-          : current.map((item) => (item.id === row.id ? row : item))
+          ? [row, ...current.filter((item) => item.id !== row.id)]
+          : current.map((item) =>
+              item.id === row.id || item.srNo === row.srNo ? row : item
+            )
       )
       if (isNew) markSetupMilestone("product")
-      invalidateInventory(queryClient, tenantId)
     },
   })
 
@@ -136,7 +144,6 @@ export function useInventoryProducts() {
         queryClient.getQueryData<ProductRow[]>(inventoryKeys.products(tenantId)) ??
         []
       persistRows(current.filter((row) => !row.id || !deleted.has(row.id)))
-      invalidateInventory(queryClient, tenantId)
     },
   })
 
@@ -169,7 +176,6 @@ export function useInventoryProducts() {
           row.id && updated.has(row.id) ? { ...row, lifecycle } : row
         )
       )
-      invalidateInventory(queryClient, tenantId)
     },
   })
 
@@ -197,7 +203,6 @@ export function useInventoryProducts() {
         []
       persistRows([row, ...current])
       markSetupMilestone("product")
-      invalidateInventory(queryClient, tenantId)
     },
   })
 
@@ -264,7 +269,6 @@ export function useInventoryProducts() {
         []
       persistRows([...created, ...current])
       markSetupMilestone("product")
-      invalidateInventory(queryClient, tenantId)
     },
   })
 
@@ -304,7 +308,6 @@ export function useInventoryProducts() {
           }
         }
       )
-      invalidateInventory(queryClient, tenantId)
     },
   })
 

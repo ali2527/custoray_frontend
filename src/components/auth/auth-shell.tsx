@@ -13,7 +13,7 @@ export const AUTH_BUTTON =
   "h-10 w-full rounded-lg text-xs font-medium shadow-none"
 
 const CARD_SIZE =
-  "gap-0 overflow-hidden rounded-2xl border border-border/70 p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_40px_rgba(15,23,42,0.08)] md:h-[38.5rem] md:min-h-[38.5rem]"
+  "gap-0 overflow-hidden rounded-2xl border border-border/70 p-0 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_16px_40px_rgba(15,23,42,0.08)] md:min-h-[38.5rem]"
 
 export function AuthShell({
   children,
@@ -32,11 +32,21 @@ export function AuthShell({
       />
       <div className="w-full max-w-md sm:max-w-2xl md:max-w-4xl lg:max-w-[58rem]">
         <Card className={CARD_SIZE}>
-          <CardContent className="grid h-full min-h-0 p-0 md:grid-cols-2">
-            <div className="flex h-full min-h-0 flex-col justify-center overflow-hidden px-6 py-6 sm:px-8 md:px-10">
-              <div className={cn("mx-auto flex w-full max-w-[22.5rem] flex-col text-xs [&_label]:text-xs", className)}>
-                <AuthBrand className="mb-5" />
-                {children}
+          <CardContent className="grid min-h-0 p-0 md:grid-cols-2 md:items-stretch">
+            {/* Logo stays pinned; form scrolls so password tips never clip brand/CTAs */}
+            <div className="flex max-h-[min(42rem,calc(100svh-6rem))] min-h-0 flex-col px-6 py-6 sm:px-8 md:max-h-none md:min-h-[38.5rem] md:px-10 md:py-8">
+              <div
+                className={cn(
+                  "mx-auto flex h-full w-full max-w-[22.5rem] min-h-0 flex-1 flex-col text-xs [&_label]:text-xs",
+                  className
+                )}
+              >
+                <AuthBrand className="mb-4 shrink-0" />
+                <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5 [scrollbar-width:thin]">
+                  <div className="flex min-h-full flex-col justify-center py-0.5">
+                    {children}
+                  </div>
+                </div>
               </div>
             </div>
             <AuthMarketingPanel variant={hero} />

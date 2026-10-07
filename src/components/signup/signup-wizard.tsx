@@ -3,11 +3,16 @@
 import { useEffect, useRef, useState, type FormEvent } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ArrowRight, Building2, ChevronLeft, Loader2, Mail, Phone, User } from "lucide-react"
+import { ArrowRight, Building2, ChevronLeft, Loader2, Mail, Phone, Sparkles, User } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
+import { PasswordRequirements } from "@/components/auth/password-requirements"
 import { AuthSocialButtons } from "@/components/auth/auth-social"
+import {
+  rememberPendingVerifyEmail,
+  VerifyEmailDialog,
+} from "@/components/verifyEmailForm"
 import {
   AUTH_BUTTON,
   AUTH_INPUT,
@@ -38,7 +43,8 @@ import {
   phoneProfile,
   validateSignupPhone,
 } from "@/lib/phone-mask"
-import { queueWelcomeFlow } from "@/lib/welcome-flow"
+import { generateStrongPassword, isPasswordStrong } from "@/lib/password"
+import { markWelcomeFlow } from "@/lib/welcome-flow"
 import { FALLBACK_PLANS } from "@/lib/subscription-access"
 import { cn } from "@/lib/utils"
 
@@ -103,7 +109,10 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
   const [step, setStep] = useState<1 | 2>(1)
   const [advancing, setAdvancing] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [verifyOpen, setVerifyOpen] = useState(false)
+  const [verifyEmail, setVerifyEmail] = useState("")
   const [acceptedTerms, setAcceptedTerms] = useState(false)
+  const [passwordRevealed, setPasswordRevealed] = useState(false)
   const [errors, setErrors] = useState<FieldErrors>({})
   const [values, setValues] = useState({
     ownerName: "",
@@ -135,6 +144,11 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
   function update<K extends keyof typeof values>(key: K, value: (typeof values)[K]) {
     setValues((prev) => ({ ...prev, [key]: value }))
     setErrors((prev) => ({ ...prev, [key]: undefined }))
+  }
+
+  function suggestStrongPassword() {
+    update("password", generateStrongPassword())
+    setPasswordRevealed(true)
   }
 
   function setCountry(country: string) {
@@ -175,7 +189,7 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(values.email.trim())) {
       next.email = t("signup.errors.email")
     }
-    if (values.password.length < 8) next.password = t("signup.errors.password")
+    if (!isPasswordStrong(values.password)) next.password = t("signup.errors.password")
     setErrors(next)
     if (Object.keys(next).length || advancing) return
     setAdvancing(true)
@@ -215,6 +229,12 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
       if (!result.ok) {
         stayOnSignup.current = false
         toast.error(result.error)
+        return
+      }
+      if ("requiresEmailVerification" in result && result.requiresEmailVerification) {
+        rememberPendingVerifyEmail(result.email)
+        setVerifyEmail(result.email)
+        setVerifyOpen(true)
         return
       }
       queueWelcomeFlow()
@@ -284,16 +304,16 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
             <div className="grid gap-1.5">
               <div className="flex items-center justify-between gap-2">
                 <Label htmlFor="password">{t("signup.password")}</Label>
-                <span
-                  className={cn(
-                    "text-[11px]",
-                    values.password.length >= 8
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                  )}
-                >
-                  {t("signup.passwordHint")}
-                </span>
+                {!isPasswordStrong(values.password) ? (
+                  <button
+                    type="button"
+                    onClick={suggestStrongPassword}
+                    className="text-primary hover:text-primary/80 inline-flex items-center gap-1 text-[11px] font-medium"
+                  >
+                    <Sparkles className="size-3" aria-hidden />
+                    {t("signup.suggestPassword")}
+                  </button>
+                ) : null}
               </div>
               <PasswordInput
                 id="password"
@@ -301,12 +321,19 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
                 placeholder="••••••••"
                 autoComplete="new-password"
                 minLength={8}
+                maxLength={128}
                 required
                 value={values.password}
-                onChange={(e) => update("password", e.target.value)}
+                forceShow={passwordRevealed}
+                onForceShowChange={setPasswordRevealed}
+                onChange={(e) => {
+                  setPasswordRevealed(false)
+                  update("password", e.target.value)
+                }}
                 aria-invalid={Boolean(errors.password)}
                 className={AUTH_INPUT}
               />
+              <PasswordRequirements password={values.password} />
               <FieldError message={errors.password} />
             </div>
             <Button type="submit" className={AUTH_BUTTON} disabled={advancing} aria-busy={advancing}>
@@ -487,6 +514,12 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
           </form>
         </>
       )}
+      <VerifyEmailDialog
+        open={verifyOpen}
+        email={verifyEmail}
+        onOpenChange={setVerifyOpen}
+        startCooldown
+      />
     </AuthShell>
   )
 }

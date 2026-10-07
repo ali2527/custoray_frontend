@@ -36,8 +36,9 @@ export function EmailForm() {
     setSending(true)
     try {
       await apiForgotPassword(email)
+      // Generic success — do not reveal whether the account exists.
       toast.success(t("forgotPassword.toastSent"))
-      router.push(`/resetCode?email=${encodeURIComponent(email)}`)
+      router.push("/")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("forgotPassword.toastError"))
     } finally {

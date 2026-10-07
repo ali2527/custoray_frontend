@@ -1,16 +1,23 @@
-const CHALLENGE_KEY = "custoray:2fa-challenge"
+/**
+ * Phase 2: the 2FA challenge secret is an HttpOnly cookie set by the API.
+ * This module only tracks a non-secret UI flag for routing to /2fa.
+ */
 
-export function saveTwoFactorChallenge(token: string) {
-  sessionStorage.setItem(CHALLENGE_KEY, token)
+const PENDING_KEY = "custoray:2fa-pending"
+
+export function markTwoFactorPending() {
+  if (typeof window === "undefined") return
+  sessionStorage.setItem(PENDING_KEY, "1")
 }
 
-export function loadTwoFactorChallenge() {
-  if (typeof window === "undefined") return null
-  return sessionStorage.getItem(CHALLENGE_KEY)
+export function isTwoFactorPending() {
+  if (typeof window === "undefined") return false
+  return sessionStorage.getItem(PENDING_KEY) === "1"
 }
 
 export function clearTwoFactorChallenge() {
-  sessionStorage.removeItem(CHALLENGE_KEY)
+  if (typeof window === "undefined") return
+  sessionStorage.removeItem(PENDING_KEY)
 }
 
 export function formatTotpSecret(secret: string) {

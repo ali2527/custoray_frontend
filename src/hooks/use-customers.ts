@@ -55,7 +55,6 @@ export function useCustomersQuery(active: boolean) {
         queryClient.getQueryData<CustomerRow[]>(customerKeys.list(tenantId)) ?? []
       persistRows([row, ...current.filter((item) => item.apiId !== row.apiId)])
       markSetupMilestone("customer")
-      invalidateCustomers(queryClient, tenantId)
     },
   })
 
@@ -72,7 +71,6 @@ export function useCustomersQuery(active: boolean) {
           item.apiId === saved.id ? { ...row, id: item.id || row.id } : item
         )
       )
-      invalidateCustomers(queryClient, tenantId)
     },
   })
 
@@ -90,7 +88,6 @@ export function useCustomersQuery(active: boolean) {
       const current =
         queryClient.getQueryData<CustomerRow[]>(customerKeys.list(tenantId)) ?? []
       persistRows(current.filter((item) => !ids.includes(item.apiId)))
-      invalidateCustomers(queryClient, tenantId)
     },
   })
 
@@ -106,13 +103,23 @@ export function useCustomersQuery(active: boolean) {
         ids.map((id) => apiUpdateBuyer(id, { status }))
       )
       return {
+        updatedIds: ids.filter((_, index) => results[index]?.status === "fulfilled"),
         updated: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
         message: settledErrorMessage(results),
+        status,
       }
     },
-    onSuccess: ({ updated }) => {
-      if (updated > 0) invalidateCustomers(queryClient, tenantId)
+    onSuccess: ({ updatedIds, status }) => {
+      if (updatedIds.length === 0) return
+      const updated = new Set(updatedIds)
+      const current =
+        queryClient.getQueryData<CustomerRow[]>(customerKeys.list(tenantId)) ?? []
+      persistRows(
+        current.map((item) =>
+          updated.has(item.apiId) ? { ...item, status } : item
+        )
+      )
     },
   })
 

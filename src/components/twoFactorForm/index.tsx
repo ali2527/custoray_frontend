@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { useAuth } from "@/context/auth-context"
-import { clearTwoFactorChallenge, loadTwoFactorChallenge } from "@/lib/two-factor"
+import { clearTwoFactorChallenge, isTwoFactorPending } from "@/lib/two-factor"
 
 export function TwoFactorForm() {
   const { t } = useTranslation("auth")
@@ -27,7 +27,7 @@ export function TwoFactorForm() {
 
   useEffect(() => {
     if (!hydrated) return
-    if (loadTwoFactorChallenge()) {
+    if (isTwoFactorPending()) {
       setReady(true)
       return
     }

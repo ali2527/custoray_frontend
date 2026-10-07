@@ -68,13 +68,55 @@ export async function apiSignup(input: {
   password: string;
   planCode?: string;
 }) {
-  return apiFetch<null>("/auth/tenant/signup", {
+  return apiFetch<{ requiresEmailVerification: boolean; email: string }>(
+    "/auth/tenant/signup",
+    {
+      method: "POST",
+      body: JSON.stringify({
+        ...input,
+        termsVersion: "2026-01-01",
+        privacyVersion: "2026-01-01",
+      }),
+    }
+  );
+}
+
+export async function apiVerifyEmail(token: string) {
+  return apiFetch<null>("/auth/verify-email", {
     method: "POST",
-    body: JSON.stringify({
-      ...input,
-      termsVersion: "2026-01-01",
-      privacyVersion: "2026-01-01",
-    }),
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function apiResendVerification(email: string) {
+  return apiFetch<null>("/auth/resend-verification", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function apiResetPassword(token: string, password: string) {
+  return apiFetch<null>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, password }),
+  });
+}
+
+export async function apiRequestEmailChange(input: {
+  currentPassword: string;
+  newEmail: string;
+  totpCode?: string;
+}) {
+  return apiFetch<{ pendingEmail: string }>("/account/request-email-change", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export async function apiConfirmEmailChange(token: string) {
+  return apiFetch<null>("/auth/confirm-email-change", {
+    method: "POST",
+    body: JSON.stringify({ token }),
   });
 }
 
@@ -104,11 +146,33 @@ export async function apiGoogle(input: {
   });
 }
 
-export async function apiVerifyTwoFactor(challengeToken: string, code: string) {
+export async function apiVerifyTwoFactor(code: string) {
   return apiFetch<null>("/auth/2fa/verify", {
     method: "POST",
-    body: JSON.stringify({ challengeToken, code }),
+    body: JSON.stringify({ code }),
   });
+}
+
+export type AuthSessionRow = {
+  id: string;
+  current: boolean;
+  ip: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  lastUsedAt: string;
+  expiresAt: string;
+};
+
+export async function apiListSessions() {
+  return apiFetch<{ sessions: AuthSessionRow[] }>("/auth/sessions");
+}
+
+export async function apiRevokeSession(id: string) {
+  return apiFetch<null>(`/auth/sessions/${id}`, { method: "DELETE" });
+}
+
+export async function apiRevokeOtherSessions() {
+  return apiFetch<null>("/auth/sessions/others", { method: "DELETE" });
 }
 
 export async function apiTotpStatus() {
@@ -133,14 +197,21 @@ export async function apiTotpDisable(code: string) {
   });
 }
 
+export async function apiStepUp(input: { password: string; totpCode?: string }) {
+  return apiFetch<{ expiresAt: string }>("/auth/step-up", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 export async function apiMe() {
   return apiFetch<SessionPayload>("/auth/me");
 }
 
 export async function apiPatchAccount(input: {
   name?: string
-  email?: string
   password?: string
+  currentPassword?: string
 }) {
   return apiFetch<{ id: string; email: string; name: string }>("/account", {
     method: "PATCH",

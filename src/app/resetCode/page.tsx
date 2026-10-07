@@ -1,11 +1,6 @@
-import { Suspense } from "react"
+import { redirect } from "next/navigation"
 
-import { ResetCodeForm } from "@/components/resetCodeForm"
-
+/** Legacy OTP reset UI removed — password reset uses emailed secure links. */
 export default function ResetCodePage() {
-  return (
-    <Suspense fallback={null}>
-      <ResetCodeForm />
-    </Suspense>
-  )
+  redirect("/forgetPassword")
 }

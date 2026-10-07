@@ -55,7 +55,6 @@ export function useVendorsQuery(active: boolean) {
       persistRows([row, ...current.filter((item) => item.apiId !== row.apiId)].map(
         (item, index) => ({ ...item, id: index + 1 })
       ))
-      invalidateVendors(queryClient, tenantId)
     },
   })
 
@@ -74,7 +73,6 @@ export function useVendorsQuery(active: boolean) {
             : item
         )
       )
-      invalidateVendors(queryClient, tenantId)
     },
   })
 
@@ -96,7 +94,6 @@ export function useVendorsQuery(active: boolean) {
           .filter((item) => !ids.includes(item.apiId))
           .map((item, index) => ({ ...item, id: index + 1 }))
       )
-      invalidateVendors(queryClient, tenantId)
     },
   })
 
@@ -112,13 +109,23 @@ export function useVendorsQuery(active: boolean) {
         ids.map((id) => apiUpdateVendor(id, { status }))
       )
       return {
+        updatedIds: ids.filter((_, index) => results[index]?.status === "fulfilled"),
         updated: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
         message: settledErrorMessage(results),
+        status,
       }
     },
-    onSuccess: ({ updated }) => {
-      if (updated > 0) invalidateVendors(queryClient, tenantId)
+    onSuccess: ({ updatedIds, status }) => {
+      if (updatedIds.length === 0) return
+      const updated = new Set(updatedIds)
+      const current =
+        queryClient.getQueryData<VendorRow[]>(vendorKeys.list(tenantId)) ?? []
+      persistRows(
+        current.map((item) =>
+          updated.has(item.apiId) ? { ...item, status } : item
+        )
+      )
     },
   })
 

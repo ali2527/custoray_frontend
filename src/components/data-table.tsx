@@ -1172,12 +1172,11 @@ export function DataTable<TData>({
   const resolvedAddLabel = addButtonLabel ?? t("table.add")
   const resolvedSearchPlaceholder = searchPlaceholder ?? t("search.placeholder")
   const [data, setData] = React.useState(() => initialData)
-  const incomingSignature = initialData
-    .map((row) => {
-      const record = row as { id?: string | number; srNo?: string | number; name?: string }
-      return `${record.id ?? ""}:${record.srNo ?? ""}:${record.name ?? ""}`
-    })
-    .join("|")
+  // Sync whenever any row field changes (price, stock, status, …) — not only id/name.
+  const incomingSignature = React.useMemo(
+    () => initialData.map((row) => JSON.stringify(row)).join("\n"),
+    [initialData]
+  )
   const [seenSignature, setSeenSignature] = React.useState(incomingSignature)
   if (seenSignature !== incomingSignature) {
     setSeenSignature(incomingSignature)

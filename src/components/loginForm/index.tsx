@@ -21,8 +21,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { PasswordInput } from "@/components/ui/password-input"
+import {
+  rememberPendingVerifyEmail,
+  VerifyEmailDialog,
+} from "@/components/verifyEmailForm"
 import { useAuth } from "@/context/auth-context"
-import { loadTwoFactorChallenge } from "@/lib/two-factor"
+import { isTwoFactorPending } from "@/lib/two-factor"
 
 export function LoginForm({
   expiredNotice = false,
@@ -35,13 +39,15 @@ export function LoginForm({
   const router = useRouter()
   const { login, session, hydrated, access } = useAuth()
   const [submitting, setSubmitting] = useState(false)
+  const [verifyOpen, setVerifyOpen] = useState(false)
+  const [verifyEmail, setVerifyEmail] = useState("")
   const stayOnAuth = useRef(false)
 
   const nextPath = access && !access.allowed ? "/trial-ended" : redirectTo || "/home"
 
   useEffect(() => {
     if (!hydrated || stayOnAuth.current) return
-    if (loadTwoFactorChallenge()) {
+    if (isTwoFactorPending()) {
       router.replace("/2fa")
       return
     }
@@ -73,6 +79,14 @@ export function LoginForm({
     if (result.requiresTwoFactor) {
       stayOnAuth.current = true
       router.replace("/2fa")
+      return
+    }
+
+    if ("requiresEmailVerification" in result && result.requiresEmailVerification) {
+      stayOnAuth.current = true
+      rememberPendingVerifyEmail(result.email)
+      setVerifyEmail(result.email)
+      setVerifyOpen(true)
       return
     }
 
@@ -164,6 +178,12 @@ export function LoginForm({
           }}
         />
       </form>
+      <VerifyEmailDialog
+        open={verifyOpen}
+        email={verifyEmail}
+        onOpenChange={setVerifyOpen}
+        startCooldown={false}
+      />
     </AuthShell>
   )
 }

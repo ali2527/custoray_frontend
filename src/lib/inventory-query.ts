@@ -34,6 +34,20 @@ export function invalidateInventory(
   emitProductsChanged()
 }
 
+/** Patch the products list cache in place — no refetch. Notifies other product listeners (POS). */
+export function patchInventoryProductRows<T>(
+  queryClient: QueryClient,
+  tenantId: string | undefined,
+  updater: (current: T[]) => T[]
+) {
+  const key = inventoryKeys.products(tenantId)
+  void queryClient.cancelQueries({ queryKey: key })
+  queryClient.setQueryData<T[] | undefined>(key, (current) =>
+    updater(current ?? [])
+  )
+  emitProductsChanged()
+}
+
 type CatalogCacheRow = { id: string; srNo: number }
 
 /** Drop deleted catalog rows immediately, then invalidate every inventory query. */

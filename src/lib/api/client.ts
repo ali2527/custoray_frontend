@@ -61,14 +61,22 @@ const SKIP_REFRESH_PATHS = [
   "/auth/logout",
   "/auth/forgot-password",
   "/auth/reset-password",
+  "/auth/verify-email",
+  "/auth/resend-verification",
+  "/auth/confirm-email-change",
 ]
 
 let refreshInFlight: Promise<boolean> | null = null
+const REFRESH_LOCK_CHANNEL =
+  typeof BroadcastChannel !== "undefined"
+    ? new BroadcastChannel("custoray-auth-refresh")
+    : null
 
 function shouldRefresh(path: string, status: number, code: string) {
   if (status !== 401) return false
   if (code === "TRIAL_EXPIRED" || code === "PLAN_EXPIRED") return false
   if (code === "ACCOUNT_BLOCKED") return false
+  if (code === "SESSION_COMPROMISED") return false
   // UNAUTHORIZED / TOKEN_EXPIRED / SESSION_ENDED: try cookie refresh once.
   return !SKIP_REFRESH_PATHS.some((p) => path === p || path.startsWith(`${p}/`))
 }
@@ -77,14 +85,23 @@ async function refreshAccessCookie() {
   if (!refreshInFlight) {
     refreshInFlight = (async () => {
       try {
+        REFRESH_LOCK_CHANNEL?.postMessage({ type: "refresh-start" })
         const res = await fetch(`${getApiBaseUrl()}/auth/refresh`, {
           method: "POST",
           credentials: "include",
           cache: "no-store",
         })
-        const json = (await res.json().catch(() => ({}))) as { success?: boolean }
-        return res.ok && json.success !== false
+        const json = (await res.json().catch(() => ({}))) as {
+          success?: boolean
+          code?: string
+        }
+        const ok = res.ok && json.success !== false
+        REFRESH_LOCK_CHANNEL?.postMessage({
+          type: ok ? "refresh-ok" : "refresh-fail",
+        })
+        return ok
       } catch {
+        REFRESH_LOCK_CHANNEL?.postMessage({ type: "refresh-fail" })
         return false
       } finally {
         refreshInFlight = null

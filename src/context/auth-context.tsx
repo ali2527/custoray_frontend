@@ -24,10 +24,10 @@ import {
   type CompanyMembership,
   type SessionPayload,
 } from "@/lib/api/auth"
+import { ApiClientError } from "@/lib/api/client"
 import {
   clearTwoFactorChallenge,
-  loadTwoFactorChallenge,
-  saveTwoFactorChallenge,
+  markTwoFactorPending,
 } from "@/lib/two-factor"
 import {
   loadActiveCompanyId,
@@ -43,7 +43,13 @@ import {
 } from "@/lib/employee-permissions"
 
 type LoginResult =
-  | { ok: true; accessAllowed: boolean; requiresTwoFactor?: false }
+  | { ok: true; accessAllowed: boolean; requiresTwoFactor?: false; requiresEmailVerification?: false }
+  | {
+      ok: true
+      accessAllowed: false
+      requiresEmailVerification: true
+      email: string
+    }
   | { ok: true; accessAllowed: false; requiresTwoFactor: true }
   | { ok: false; error: string }
 
@@ -214,6 +220,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         pathname === "/forgetPassword" ||
         pathname === "/resetCode" ||
         pathname === "/resetPassword" ||
+        pathname === "/reset-password" ||
+        pathname === "/verify-email" ||
+        pathname === "/confirm-email-change" ||
         Boolean(pathname?.startsWith("/legal"))
       if (!stay) router.replace("/")
     }
@@ -235,19 +244,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const data = await apiLogin(trimmedEmail, password)
         if (data.requiresTwoFactor) {
-          if (!data.challengeToken) {
-            return { ok: false, error: "Authenticator challenge missing. Try again." }
-          }
           clearSession()
           setSession(null)
           setAccess(null)
-          saveTwoFactorChallenge(data.challengeToken)
+          markTwoFactorPending()
           return { ok: true, accessAllowed: false, requiresTwoFactor: true }
         }
         const me = await apiMe()
         const nextAccess = applyRemoteSession(me)
         return { ok: true, accessAllowed: nextAccess.allowed }
       } catch (err) {
+        if (
+          err instanceof ApiClientError &&
+          err.code === "EMAIL_NOT_VERIFIED"
+        ) {
+          return {
+            ok: true,
+            accessAllowed: false,
+            requiresEmailVerification: true,
+            email: trimmedEmail,
+          }
+        }
         return {
           ok: false,
           error: err instanceof Error ? err.message : "Login failed",
@@ -260,7 +277,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signup = React.useCallback(
     async (input: SignupInput): Promise<LoginResult> => {
       try {
-        await apiSignup(input)
+        const data = await apiSignup(input)
+        if (data.requiresEmailVerification) {
+          clearSession()
+          setSession(null)
+          setAccess(null)
+          return {
+            ok: true,
+            accessAllowed: false,
+            requiresEmailVerification: true,
+            email: data.email || input.email,
+          }
+        }
         const me = await apiMe()
         const nextAccess = applyRemoteSession(me)
         return { ok: true, accessAllowed: nextAccess.allowed }
@@ -283,13 +311,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         const data = await apiGoogle(input)
         if (data.requiresTwoFactor) {
-          if (!data.challengeToken) {
-            return { ok: false, error: "Authenticator challenge missing. Try again." }
-          }
           clearSession()
           setSession(null)
           setAccess(null)
-          saveTwoFactorChallenge(data.challengeToken)
+          markTwoFactorPending()
           return {
             ok: true,
             accessAllowed: false,
@@ -316,12 +341,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const completeTwoFactor = React.useCallback(
     async (code: string): Promise<LoginResult> => {
-      const challengeToken = loadTwoFactorChallenge()
-      if (!challengeToken) {
-        return { ok: false, error: "Authenticator session expired. Sign in again." }
-      }
       try {
-        await apiVerifyTwoFactor(challengeToken, code)
+        // Challenge secret is HttpOnly cookie — not readable by JS.
+        await apiVerifyTwoFactor(code)
         clearTwoFactorChallenge()
         const me = await apiMe()
         const nextAccess = applyRemoteSession(me)
