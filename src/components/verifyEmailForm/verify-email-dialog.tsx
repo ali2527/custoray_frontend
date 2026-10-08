@@ -20,28 +20,6 @@ import { apiResendVerification } from "@/lib/api/auth"
 
 const RESEND_COOLDOWN_SEC = 60
 
-function inboxShortcut(email: string) {
-  const domain = email.split("@")[1]?.toLowerCase() ?? ""
-  if (domain === "gmail.com" || domain === "googlemail.com") {
-    return {
-      href: "https://mail.google.com/mail/u/0/#search/Custoray",
-      labelKey: "verifyEmail.openGmail" as const,
-    }
-  }
-  if (
-    domain === "outlook.com" ||
-    domain === "hotmail.com" ||
-    domain === "live.com" ||
-    domain === "msn.com"
-  ) {
-    return {
-      href: "https://outlook.live.com/mail/0/",
-      labelKey: "verifyEmail.openOutlook" as const,
-    }
-  }
-  return null
-}
-
 export function VerifyEmailDialog({
   open,
   email,
@@ -61,7 +39,6 @@ export function VerifyEmailDialog({
   const [emailDraft, setEmailDraft] = useState(email)
   const [resending, setResending] = useState(false)
   const [cooldown, setCooldown] = useState(0)
-  const inbox = inboxShortcut(email)
 
   useEffect(() => {
     if (!open) return
@@ -161,24 +138,14 @@ export function VerifyEmailDialog({
             {t("verifyEmail.expiresNote")}
           </p>
 
-          <div className="flex flex-col gap-2.5 sm:flex-row">
-            {inbox ? (
-              <Button asChild className="h-11 flex-1 rounded-xl text-sm font-medium shadow-none">
-                <a href={inbox.href} target="_blank" rel="noreferrer">
-                  {t(inbox.labelKey)}
-                </a>
-              </Button>
-            ) : null}
-            <Button
-              type="button"
-              variant={inbox ? "outline" : "default"}
-              className="h-11 flex-1 rounded-xl text-sm font-medium shadow-none"
-              disabled={resending || cooldown > 0 || (!email && !emailDraft.trim())}
-              onClick={() => void resend(email || emailDraft)}
-            >
-              {resendLabel}
-            </Button>
-          </div>
+          <Button
+            type="button"
+            className="h-11 w-full rounded-xl text-sm font-medium shadow-none"
+            disabled={resending || cooldown > 0 || (!email && !emailDraft.trim())}
+            onClick={() => void resend(email || emailDraft)}
+          >
+            {resendLabel}
+          </Button>
 
           <p className="text-center text-sm">
             <Link

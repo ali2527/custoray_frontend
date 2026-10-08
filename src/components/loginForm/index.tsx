@@ -36,15 +36,11 @@ export function LoginForm({
   expiredNotice = false,
   openVerify = false,
   verifyPending = false,
-  verifiedNotice = false,
-  justVerified = false,
   redirectTo,
 }: {
   expiredNotice?: boolean
   openVerify?: boolean
   verifyPending?: boolean
-  verifiedNotice?: boolean
-  justVerified?: boolean
   redirectTo?: string
 }) {
   const { t } = useTranslation("auth")
@@ -53,17 +49,15 @@ export function LoginForm({
   const [submitting, setSubmitting] = useState(false)
   const [verifyOpen, setVerifyOpen] = useState(false)
   const [verifyEmail, setVerifyEmail] = useState("")
-  const [showReady, setShowReady] = useState(justVerified)
-  const stayOnAuth = useRef(openVerify || verifiedNotice || justVerified)
+  const stayOnAuth = useRef(openVerify)
 
   function closeInboxAfterVerify() {
     clearPendingVerifyEmail()
     clearEmailVerifiedFlag()
     setVerifyOpen(false)
-    setShowReady(true)
     stayOnAuth.current = true
     if (window.location.search.includes("verify=1")) {
-      router.replace("/?notice=ready")
+      router.replace("/")
     }
   }
 
@@ -160,11 +154,6 @@ export function LoginForm({
             : t("login.subtitle")
         }
       />
-      {verifiedNotice || justVerified || showReady ? (
-        <p className="border-border bg-muted/50 text-foreground mb-3 rounded-lg border px-3 py-2.5 text-center text-[13px] leading-relaxed">
-          {t(justVerified || showReady ? "verifyEmail.readyNotice" : "verifyEmail.verifiedNotice")}
-        </p>
-      ) : null}
       <form className="space-y-3.5" onSubmit={handleSubmit}>
         <div className="grid gap-1.5">
           <Label htmlFor="email">{t("login.email")}</Label>

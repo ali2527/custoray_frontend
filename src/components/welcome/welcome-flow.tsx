@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { usePathname, useRouter } from "next/navigation"
-import { BadgeCheck } from "lucide-react"
+import { ArrowRight, Check } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -14,18 +14,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { MilestoneStepper } from "@/components/welcome/green-progress"
 import {
   persistWelcomeCompany,
   useWelcomeCompanyDraft,
   WelcomeSetupBody,
-  WELCOME_SETUP_STEPS,
 } from "@/components/welcome/welcome-setup"
 import { useAuth } from "@/context/auth-context"
 import { apiPatchOnboarding } from "@/lib/api/auth"
-import { TRIAL_DAYS } from "@/lib/plans"
 import { markSetupMilestone } from "@/lib/setup-progress"
-import { formatTrialEndDate } from "@/lib/subscription-access"
 import {
   completeWelcomeFlow,
   dismissWelcomeFlow,
@@ -34,39 +30,36 @@ import {
   isWelcomeFlowPending,
   pathMatches,
   queueWelcomeFlow,
+  readWelcomeSetupStep,
+  saveWelcomeSetupStep,
   toAppPath,
   WELCOME_OPEN_EVENT,
+  type WelcomeSetupStep,
 } from "@/lib/welcome-flow"
+import { cn } from "@/lib/utils"
+
+const NAV = [
+  { id: "business", step: 1 as const, labelKey: "businessNav", hintKey: "businessNavHint" },
+  { id: "preferences", step: 2 as const, labelKey: "preferencesNav", hintKey: "preferencesNavHint" },
+  { id: "invoices", step: 3 as const, labelKey: "invoicesNav", hintKey: "invoicesNavHint" },
+] as const
 
 export function WelcomeFlow() {
   const { t } = useTranslation("common")
-  const { access, hydrated, isAuthenticated, user } = useAuth()
+  const { hydrated, isAuthenticated, activeCompany } = useAuth()
   const pathname = usePathname()
   const router = useRouter()
   const [open, setOpen] = useState(false)
-  const [setupStep, setSetupStep] = useState(0)
+  const [setupStep, setSetupStep] = useState<WelcomeSetupStep>(0)
   const [saving, setSaving] = useState(false)
-  const { companyDraft, updateCompany } = useWelcomeCompanyDraft()
-
-  const isOnTrial = access?.status === "TRIAL"
-  const daysLeft = access?.trialEndsAt
-    ? Math.max(
-        0,
-        Math.ceil((new Date(access.trialEndsAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-      )
-    : TRIAL_DAYS
-  const firstName = user?.name?.trim().split(/\s+/)[0]
-  const planName = access?.planName ?? "Starter"
-  const trialEndLabel =
-    isOnTrial && access?.trialEndsAt
-      ? formatTrialEndDate(access.trialEndsAt)
-      : null
-  const isLastStep = setupStep === WELCOME_SETUP_STEPS - 1
+  const { companyDraft, updateCompany, hydrated: draftHydrated } =
+    useWelcomeCompanyDraft()
+  const { user } = useAuth()
 
   useEffect(() => {
     function onOpenRequest() {
       if (isWelcomeFlowCompleted()) return
-      setSetupStep(0)
+      setSetupStep(readWelcomeSetupStep())
       setOpen(true)
     }
     window.addEventListener(WELCOME_OPEN_EVENT, onOpenRequest)
@@ -82,8 +75,8 @@ export function WelcomeFlow() {
       if (fromUrl) queueWelcomeFlow()
     }
     if (isWelcomeFlowPending()) {
+      setSetupStep(readWelcomeSetupStep())
       setOpen(true)
-      setSetupStep(0)
     }
   }, [hydrated, isAuthenticated, open])
 
@@ -92,14 +85,18 @@ export function WelcomeFlow() {
     const url = new URL(window.location.href)
     if (!url.searchParams.has("welcome")) return
     url.searchParams.delete("welcome")
-    const next = `${url.pathname}${url.search}${url.hash}`
-    router.replace(next)
+    router.replace(`${url.pathname}${url.search}${url.hash}`)
+  }
+
+  function goToStep(step: WelcomeSetupStep) {
+    setSetupStep(step)
+    saveWelcomeSetupStep(step)
   }
 
   function finishSetup() {
     completeWelcomeFlow()
     setOpen(false)
-    setSetupStep(0)
+    goToStep(0)
     clearWelcomeQuery()
     if (!pathMatches(pathname, "/home")) {
       router.push(toAppPath("/home"))
@@ -108,23 +105,25 @@ export function WelcomeFlow() {
 
   async function handleContinue() {
     if (setupStep === 0) {
-      toast.success(t("welcome.milestones.welcome"))
-      setSetupStep(1)
+      goToStep(1)
       return
     }
 
     if (setupStep === 1) {
       const name = companyDraft.name.trim()
       if (name.length < 2) {
-        toast.error(t("welcome.guide.companyNameRequired"))
+        toast.error(t("welcome.onboarding.businessNameRequired"))
         return
       }
       setSaving(true)
       try {
         await persistWelcomeCompany({ ...companyDraft, name })
-        void apiPatchOnboarding({ company: true }).catch(() => undefined)
-        toast.success(t("welcome.milestones.company"))
-        setSetupStep(2)
+        void apiPatchOnboarding({ business: true }).catch(() => undefined)
+        goToStep(2)
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : t("welcome.onboarding.saveFailed")
+        )
       } finally {
         setSaving(false)
       }
@@ -132,14 +131,41 @@ export function WelcomeFlow() {
     }
 
     if (setupStep === 2) {
-      toast.success(t("welcome.milestones.term"))
-      setSetupStep(3)
+      setSaving(true)
+      try {
+        await persistWelcomeCompany(companyDraft)
+        void apiPatchOnboarding({ preferences: true }).catch(() => undefined)
+        goToStep(3)
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : t("welcome.onboarding.saveFailed")
+        )
+      } finally {
+        setSaving(false)
+      }
       return
     }
 
-    markSetupMilestone("settings")
-    void apiPatchOnboarding({ company: true }).catch(() => undefined)
-    toast.success(t("welcome.milestones.appearance"))
+    if (setupStep === 3) {
+      setSaving(true)
+      try {
+        await persistWelcomeCompany(companyDraft)
+        void apiPatchOnboarding(
+          { business: true, preferences: true, invoices: true },
+          true
+        ).catch(() => undefined)
+        markSetupMilestone("settings")
+        goToStep(4)
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : t("welcome.onboarding.saveFailed")
+        )
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
     finishSetup()
   }
 
@@ -147,184 +173,199 @@ export function WelcomeFlow() {
     dismissWelcomeFlow()
     clearWelcomeQuery()
     setOpen(false)
-    setSetupStep(0)
     toast.message(t("welcome.skipResumeHint"))
   }
 
-  const setupTitle =
-    setupStep === 1
-      ? t("welcome.guide.companyTitle")
-      : setupStep === 2
-        ? t("welcome.guide.termTitle")
-        : setupStep === 3
-          ? t("welcome.guide.displayTitle")
-          : firstName
-            ? t("welcome.congratulationsName", { name: firstName })
-            : t("welcome.congratulations")
+  const businessName =
+    companyDraft.name.trim() || activeCompany?.name?.trim() || "your business"
 
-  const setupDescription =
-    setupStep === 3
-      ? t("welcome.guide.displayBody")
-      : setupStep === 2
-        ? t("welcome.guide.termLead")
-        : setupStep === 1
-          ? t("welcome.guide.companyLead")
-          : setupStep === 0
-            ? t("welcome.workspaceReady")
-            : null
+  const title =
+    setupStep === 0
+      ? t("welcome.onboarding.welcomeTitle")
+      : setupStep === 1
+        ? t("welcome.onboarding.businessTitle")
+        : setupStep === 2
+          ? t("welcome.onboarding.regionalTitle")
+          : setupStep === 3
+            ? t("welcome.onboarding.invoiceTitle")
+            : t("welcome.onboarding.completeTitle")
 
-  const milestoneSteps = [
-    {
-      id: "welcome",
-      label: t("welcome.milestones.welcomeLabel"),
-      done: setupStep > 0,
-    },
-    {
-      id: "company",
-      label: t("welcome.milestones.companyLabel"),
-      done: setupStep > 1,
-    },
-    {
-      id: "term",
-      label: t("welcome.milestones.termLabel"),
-      done: setupStep > 2,
-    },
-    {
-      id: "look",
-      label: t("welcome.milestones.lookLabel"),
-      done: setupStep > 3,
-    },
-  ]
+  const description =
+    setupStep === 0
+      ? t("welcome.onboarding.welcomeBody", { business: businessName })
+      : setupStep === 1
+        ? t("welcome.onboarding.businessSubtitle")
+        : setupStep === 2
+          ? t("welcome.onboarding.regionalSubtitle")
+          : setupStep === 3
+            ? t("welcome.onboarding.invoiceSubtitle")
+            : t("welcome.onboarding.completeSubtitle")
+
+  const primaryLabel =
+    setupStep === 0
+      ? t("welcome.letsGetStarted")
+      : setupStep === 4
+        ? t("welcome.onboarding.goDashboard")
+        : t("welcome.continue")
+
+  const setupIndex = setupStep >= 1 && setupStep <= 3 ? setupStep : null
 
   return (
     <Dialog open={open}>
       <DialogContent
         showCloseButton={false}
         overlayClassName="bg-zinc-950/45"
-        className="max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-2xl p-0 sm:max-w-[40rem] gap-0 font-sans [font-family:var(--font-poppins),ui-sans-serif,system-ui,sans-serif] [&_*]:[font-family:inherit]"
+        className="max-h-[92vh] w-full max-w-[calc(100%-1.5rem)] overflow-hidden rounded-2xl p-0 sm:max-w-[56rem] gap-0 font-sans [font-family:var(--font-poppins),ui-sans-serif,system-ui,sans-serif] [&_*]:[font-family:inherit]"
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
       >
-        <div className="relative">
-          <div className="relative h-[7.75rem] overflow-hidden bg-gradient-to-b from-primary/45 via-primary/18 to-transparent">
-            <div className="pointer-events-none absolute -top-10 left-1/2 size-52 -translate-x-1/2 rounded-full bg-primary/35 blur-3xl" />
-            <div className="pointer-events-none absolute left-8 top-4 size-24 rounded-full bg-primary/20 blur-2xl" />
-            <div className="pointer-events-none absolute right-10 top-2 size-16 rounded-full bg-primary/25 blur-xl" />
-          </div>
-          <div className="relative z-10 -mt-8 flex justify-center">
-            <div className="flex size-[3.75rem] items-center justify-center rounded-full bg-primary text-primary-foreground shadow-[0_10px_28px_rgba(146,199,32,0.4)]">
-              <BadgeCheck className="size-8" strokeWidth={1.75} aria-hidden />
-            </div>
-          </div>
-        </div>
+        <div className="grid max-h-[92vh] md:grid-cols-[15.5rem_1fr]">
+          <aside className="border-border/70 hidden flex-col border-e bg-[#f6f7f4] px-5 py-6 md:flex dark:bg-zinc-950/40">
+            <p className="text-[11px] font-semibold tracking-[0.16em] text-muted-foreground uppercase">
+              Custoray
+            </p>
+            <h2 className="mt-3 text-lg font-semibold tracking-tight">
+              {t("welcome.onboarding.sidebarTitle")}
+            </h2>
+            <p className="text-muted-foreground mt-1 text-[12px] leading-relaxed">
+              {t("welcome.onboarding.timeHint")}
+            </p>
+            <ol className="mt-8 space-y-4">
+              {NAV.map((item) => {
+                const done = setupStep > item.step || setupStep === 4
+                const current = setupStep === item.step
+                return (
+                  <li key={item.id} className="flex gap-3">
+                    <span
+                      className={cn(
+                        "mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold",
+                        done
+                          ? "bg-primary text-primary-foreground"
+                          : current
+                            ? "bg-primary/15 text-primary ring-1 ring-primary/40"
+                            : "bg-muted text-muted-foreground"
+                      )}
+                    >
+                      {done ? <Check className="size-3.5" strokeWidth={3} /> : item.step}
+                    </span>
+                    <div>
+                      <p
+                        className={cn(
+                          "text-[13px] font-medium",
+                          current || done ? "text-foreground" : "text-muted-foreground"
+                        )}
+                      >
+                        {t(`welcome.onboarding.${item.labelKey}`)}
+                      </p>
+                      <p className="text-muted-foreground text-[11px] leading-snug">
+                        {t(`welcome.onboarding.${item.hintKey}`)}
+                      </p>
+                    </div>
+                  </li>
+                )
+              })}
+            </ol>
+            <p className="text-muted-foreground mt-auto pt-8 text-[11px] leading-relaxed">
+              {t("welcome.onboarding.changeAnytime")}
+            </p>
+          </aside>
 
-        <div className="px-8 pb-9 pt-6 sm:px-10 sm:pb-10 sm:pt-7">
-          <DialogHeader className="gap-3 text-left sm:text-left">
-            <MilestoneStepper steps={milestoneSteps} />
-            <DialogTitle className="text-[1.5rem] leading-snug font-semibold tracking-tight sm:text-[1.625rem]">
-              {setupTitle}
-            </DialogTitle>
-            {setupDescription ? (
-              <DialogDescription className="max-w-[32rem] text-[13px] leading-relaxed">
-                {setupDescription}
-              </DialogDescription>
-            ) : null}
-          </DialogHeader>
-
-          {setupStep === 0 ? (
-            <>
-              <p className="text-foreground/80 mt-3.5 max-w-[32rem] text-[13px] leading-relaxed">
-                {isOnTrial
-                  ? trialEndLabel
-                    ? t("welcome.trialNoticeBody", {
-                        plan: planName,
-                        days: daysLeft,
-                        date: trialEndLabel,
-                      })
-                    : t("welcome.trialBody", { days: daysLeft, total: TRIAL_DAYS })
-                  : t("welcome.paidNoticeBody", { plan: planName })}
+          <div className="flex max-h-[92vh] flex-col overflow-hidden">
+            <div className="border-border/60 flex items-center justify-between border-b px-5 py-3 md:hidden">
+              <p className="text-xs font-medium">
+                {setupIndex
+                  ? t("welcome.onboarding.mobileProgress", {
+                      current: setupIndex,
+                      total: 3,
+                    })
+                  : "Custoray"}
               </p>
-              <dl
-                className={
-                  isOnTrial
-                    ? "border-border/70 mt-7 grid grid-cols-3 gap-6 border-t pt-5 text-left"
-                    : "border-border/70 mt-7 grid grid-cols-2 gap-6 border-t pt-5 text-left"
-                }
-              >
-                <div>
-                  <dt className="text-muted-foreground text-[10px] font-medium tracking-[0.12em] uppercase">
-                    {t("welcome.summaryPlan")}
-                  </dt>
-                  <dd className="mt-1 text-[13px] font-medium">{planName}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground text-[10px] font-medium tracking-[0.12em] uppercase">
-                    {t("welcome.summaryAccess")}
-                  </dt>
-                  <dd className="mt-1 text-[13px] font-medium">
-                    {isOnTrial
-                      ? t("welcome.trialBadge", { days: daysLeft })
-                      : t("welcome.accessFull")}
-                  </dd>
-                </div>
-                {isOnTrial ? (
-                  <div>
-                    <dt className="text-muted-foreground text-[10px] font-medium tracking-[0.12em] uppercase">
-                      {t("welcome.summaryEnds")}
-                    </dt>
-                    <dd className="mt-1 text-[13px] font-medium">
-                      {trialEndLabel ?? "—"}
-                    </dd>
-                  </div>
-                ) : null}
-              </dl>
-            </>
-          ) : null}
-
-          {setupStep >= 1 ? (
-            <div className="mt-4">
-              <WelcomeSetupBody
-                step={setupStep}
-                companyDraft={companyDraft}
-                onCompanyChange={updateCompany}
-              />
+              <p className="text-muted-foreground text-[11px]">
+                {t("welcome.onboarding.timeHint")}
+              </p>
             </div>
-          ) : null}
 
-          <div className="mt-7 flex flex-wrap items-center gap-2">
-            {setupStep > 0 ? (
+            <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-6 sm:px-8 sm:py-7">
+              <DialogHeader className="gap-2 text-left sm:text-left">
+                {setupStep >= 1 && setupStep <= 3 ? (
+                  <p className="text-muted-foreground text-[11px] font-medium tracking-wide">
+                    Business / Preferences / Invoices
+                  </p>
+                ) : null}
+                <DialogTitle className="text-[1.45rem] leading-snug font-semibold tracking-tight sm:text-[1.6rem]">
+                  {title}
+                </DialogTitle>
+                <DialogDescription className="max-w-[36rem] text-[13px] leading-relaxed">
+                  {description}
+                </DialogDescription>
+              </DialogHeader>
+
+              {setupStep === 0 ? (
+                <div className="mt-7 grid gap-3 sm:grid-cols-3">
+                  {NAV.map((item) => (
+                    <div
+                      key={item.id}
+                      className="border-border/80 rounded-xl border bg-background px-3.5 py-3"
+                    >
+                      <p className="text-[13px] font-semibold">
+                        {t(`welcome.onboarding.${item.labelKey}`)}
+                      </p>
+                      <p className="text-muted-foreground mt-1 text-[11px] leading-snug">
+                        {t(`welcome.onboarding.${item.hintKey}`)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+
+              {setupStep >= 1 && draftHydrated ? (
+                <div className="mt-5">
+                  <WelcomeSetupBody
+                    step={setupStep}
+                    companyDraft={companyDraft}
+                    onCompanyChange={updateCompany}
+                    accountEmail={user?.email}
+                  />
+                </div>
+              ) : null}
+            </div>
+
+            <div className="border-border/70 flex flex-wrap items-center justify-between gap-2 border-t px-5 py-4 sm:px-8">
+              <div className="flex items-center gap-2">
+                {setupStep > 0 && setupStep < 4 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-10"
+                    onClick={() => goToStep((setupStep - 1) as WelcomeSetupStep)}
+                    disabled={saving}
+                  >
+                    {t("welcome.back")}
+                  </Button>
+                ) : null}
+                {setupStep < 4 ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-muted-foreground h-10"
+                    onClick={handleSkip}
+                    disabled={saving}
+                  >
+                    {t("welcome.skipForNow")}
+                  </Button>
+                ) : null}
+              </div>
               <Button
                 type="button"
-                variant="ghost"
-                className="text-muted-foreground h-9 px-4 text-[13px]"
-                onClick={() => setSetupStep((prev) => prev - 1)}
-                disabled={saving}
+                className="h-10 rounded-xl px-5 shadow-none"
+                onClick={() => void handleContinue()}
+                disabled={saving || (setupStep >= 1 && !draftHydrated)}
               >
-                {t("welcome.back")}
+                {primaryLabel}
+                <ArrowRight className="size-3.5" />
               </Button>
-            ) : null}
-            <Button
-              type="button"
-              className="h-9 px-6 text-[13px]"
-              onClick={() => void handleContinue()}
-              disabled={saving}
-            >
-              {setupStep === 0
-                ? t("welcome.letsGetStarted")
-                : isLastStep
-                  ? t("welcome.getStarted")
-                  : t("welcome.continue")}
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              className="text-muted-foreground h-9 px-4 text-[13px]"
-              onClick={handleSkip}
-              disabled={saving}
-            >
-              {t("welcome.skipForNow")}
-            </Button>
+            </div>
           </div>
         </div>
       </DialogContent>

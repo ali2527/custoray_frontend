@@ -302,33 +302,67 @@ export async function apiOnboardingProgress() {
   );
 }
 
-export async function apiPatchOnboarding(steps: Record<string, boolean>) {
+export async function apiPatchOnboarding(
+  steps: Record<string, boolean>,
+  completed?: boolean
+) {
   return apiFetch<{ steps: Record<string, boolean>; completedAt: string | null }>(
     "/onboarding/progress",
-    { method: "PATCH", body: JSON.stringify({ steps }) }
+    {
+      method: "PATCH",
+      body: JSON.stringify({ steps, completed }),
+    }
   );
 }
 
 export type CompanySettingsPayload = {
   name?: string;
   tagline?: string;
+  industry?: string;
+  website?: string;
+  country?: string;
   address?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
   phone?: string;
   email?: string;
   logoUrl?: string;
   currency?: string;
+  timezone?: string;
+  dateFormat?: string;
+  invoicePrefix?: string;
+  nextInvoiceNumber?: number;
+  paymentTermsDays?: number;
+  invoiceNote?: string;
+  paymentInstructions?: string;
+};
+
+export type CompanySettingsRemote = {
+  name: string;
+  tagline: string;
+  industry: string;
+  website: string;
+  country: string;
+  address: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  phone: string;
+  email: string;
+  logoUrl: string;
+  currency: string;
+  timezone: string;
+  dateFormat: string;
+  invoicePrefix: string;
+  nextInvoiceNumber: number;
+  paymentTermsDays: number;
+  invoiceNote: string;
+  paymentInstructions: string;
 };
 
 export async function apiGetCompanySettings() {
-  return apiFetch<{
-    name: string;
-    tagline: string;
-    address: string;
-    phone: string;
-    email: string;
-    logoUrl: string;
-    currency: string;
-  } | null>("/settings/company");
+  return apiFetch<CompanySettingsRemote | null>("/settings/company");
 }
 
 export async function apiPatchCompanySettings(data: CompanySettingsPayload) {

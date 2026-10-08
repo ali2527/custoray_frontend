@@ -227,7 +227,7 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
         return
       }
       if ("alreadyVerified" in result && result.alreadyVerified) {
-        window.location.assign("/?notice=verified")
+        window.location.assign("/")
         return
       }
       if ("requiresEmailVerification" in result && result.requiresEmailVerification) {
@@ -236,7 +236,7 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
         window.location.assign(`/?verify=1${pending}`)
         return
       }
-      queueWelcomeFlow()
+      markWelcomeFlow()
       window.location.assign(result.accessAllowed ? "/home/?welcome=1" : "/trial-ended")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("signup.toastFailed"))

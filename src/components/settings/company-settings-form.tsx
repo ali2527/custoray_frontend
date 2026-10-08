@@ -26,13 +26,32 @@ export function CompanySettingsForm() {
         if (cancelled || !remote) return
         const [addressLine1, ...rest] = (remote.address || "").split(", ")
         setSettings({
+          ...DEFAULT_COMPANY_SETTINGS,
           name: remote.name || "",
           tagline: remote.tagline || "",
+          industry: remote.industry || "",
+          website: remote.website || "",
+          country: remote.country || "",
           addressLine1: addressLine1 || "",
           addressLine2: rest.join(", "),
+          city: remote.city || "",
+          state: remote.state || "",
+          postalCode: remote.postalCode || "",
           phone: remote.phone || "",
           email: remote.email || "",
           logoUrl: remote.logoUrl || "",
+          currency: remote.currency || "PKR",
+          timezone: remote.timezone || "Asia/Karachi",
+          dateFormat:
+            remote.dateFormat === "MM/DD/YYYY" || remote.dateFormat === "YYYY-MM-DD"
+              ? remote.dateFormat
+              : "DD/MM/YYYY",
+          invoicePrefix: remote.invoicePrefix || "INV",
+          nextInvoiceNumber: remote.nextInvoiceNumber || 1,
+          paymentTermsDays:
+            typeof remote.paymentTermsDays === "number" ? remote.paymentTermsDays : 30,
+          invoiceNote: remote.invoiceNote || "",
+          paymentInstructions: remote.paymentInstructions || "",
         })
       })
       .catch(() => {

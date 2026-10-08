@@ -162,7 +162,7 @@ function VerifyEmailInner() {
             {t("verifyEmail.successHint")}
           </p>
           <Button asChild className={AUTH_BUTTON}>
-            <Link href="/?notice=ready">{t("verifyEmail.continue")}</Link>
+            <Link href="/">{t("verifyEmail.continue")}</Link>
           </Button>
         </div>
       ) : null}

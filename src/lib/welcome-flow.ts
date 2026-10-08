@@ -1,5 +1,12 @@
-const WELCOME_STORAGE_KEY = "custoray-welcome-v13"
+const WELCOME_STORAGE_KEY = "custoray-welcome-v14"
+const WELCOME_STEP_KEY = "custoray-welcome-step-v14"
 export const WELCOME_OPEN_EVENT = "custoray-welcome-open"
+
+export type WelcomeSetupStep = 0 | 1 | 2 | 3 | 4
+
+export function markWelcomeFlow() {
+  queueWelcomeFlow()
+}
 
 export function queueWelcomeFlow() {
   try {
@@ -36,6 +43,7 @@ export function isWelcomeFlowDismissed() {
 export function completeWelcomeFlow() {
   try {
     localStorage.setItem(WELCOME_STORAGE_KEY, "done")
+    localStorage.removeItem(WELCOME_STEP_KEY)
   } catch {
     /* ignore */
   }
@@ -53,9 +61,28 @@ export function dismissWelcomeFlow() {
 export function resetWelcomeFlow() {
   try {
     localStorage.removeItem(WELCOME_STORAGE_KEY)
+    localStorage.removeItem(WELCOME_STEP_KEY)
   } catch {
     /* ignore */
   }
+}
+
+export function saveWelcomeSetupStep(step: WelcomeSetupStep) {
+  try {
+    localStorage.setItem(WELCOME_STEP_KEY, String(step))
+  } catch {
+    /* ignore */
+  }
+}
+
+export function readWelcomeSetupStep(): WelcomeSetupStep {
+  try {
+    const raw = Number(localStorage.getItem(WELCOME_STEP_KEY) ?? "0")
+    if (raw >= 0 && raw <= 4) return raw as WelcomeSetupStep
+  } catch {
+    /* ignore */
+  }
+  return 0
 }
 
 export function requestWelcomeFlow() {
