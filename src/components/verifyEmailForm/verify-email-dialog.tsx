@@ -1,12 +1,10 @@
 "use client"
 
-import { Inbox, Mail } from "lucide-react"
 import Link from "next/link"
-import { useEffect, useMemo, useState, type FormEvent } from "react"
+import { useEffect, useState, type FormEvent } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
-import { AUTH_BUTTON, AUTH_INPUT } from "@/components/auth/auth-shell"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -22,15 +20,40 @@ import { apiResendVerification } from "@/lib/api/auth"
 
 const RESEND_COOLDOWN_SEC = 60
 
+function inboxShortcut(email: string) {
+  const domain = email.split("@")[1]?.toLowerCase() ?? ""
+  if (domain === "gmail.com" || domain === "googlemail.com") {
+    return {
+      href: "https://mail.google.com/mail/u/0/#search/Custoray",
+      labelKey: "verifyEmail.openGmail" as const,
+    }
+  }
+  if (
+    domain === "outlook.com" ||
+    domain === "hotmail.com" ||
+    domain === "live.com" ||
+    domain === "msn.com"
+  ) {
+    return {
+      href: "https://outlook.live.com/mail/0/",
+      labelKey: "verifyEmail.openOutlook" as const,
+    }
+  }
+  return null
+}
+
 export function VerifyEmailDialog({
   open,
   email,
   onOpenChange,
+  pending = false,
   startCooldown = true,
 }: {
   open: boolean
   email: string
   onOpenChange: (open: boolean) => void
+  /** This address was already waiting, and a new link was just sent. */
+  pending?: boolean
   /** Soft cooldown after a fresh signup send. */
   startCooldown?: boolean
 }) {
@@ -38,6 +61,7 @@ export function VerifyEmailDialog({
   const [emailDraft, setEmailDraft] = useState(email)
   const [resending, setResending] = useState(false)
   const [cooldown, setCooldown] = useState(0)
+  const inbox = inboxShortcut(email)
 
   useEffect(() => {
     if (!open) return
@@ -53,15 +77,6 @@ export function VerifyEmailDialog({
     }, 1000)
     return () => window.clearInterval(id)
   }, [cooldown])
-
-  const tips = useMemo(
-    () => [
-      t("verifyEmail.tipInbox"),
-      t("verifyEmail.tipSpam"),
-      t("verifyEmail.tipLink"),
-    ],
-    [t]
-  )
 
   async function resend(targetEmail: string) {
     const normalized = targetEmail.trim()
@@ -89,104 +104,86 @@ export function VerifyEmailDialog({
     void resend(emailDraft)
   }
 
+  const resendLabel = resending
+    ? t("forgotPassword.sending")
+    : cooldown > 0
+      ? t("verifyEmail.resendIn", { seconds: cooldown })
+      : t("verifyEmail.resend")
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="gap-0 p-0 sm:max-w-md" showCloseButton>
-        <DialogHeader className="space-y-3 border-b border-border/60 px-6 py-5 text-left sm:text-left">
-          <div className="bg-primary/10 text-primary flex size-11 items-center justify-center rounded-full">
-            <Inbox className="size-5" aria-hidden />
-          </div>
-          <div className="space-y-1.5">
-            <DialogTitle className="text-base font-semibold tracking-tight">
-              {t("verifyEmail.title")}
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-xs leading-relaxed">
-              {email
-                ? t("verifyEmail.subtitleModal")
-                : t("verifyEmail.subtitleGeneric")}
-            </DialogDescription>
-          </div>
-          {email ? (
-            <p className="border-border/70 bg-muted/40 text-foreground inline-flex max-w-full items-center gap-1.5 self-start rounded-lg border px-2.5 py-1.5 text-xs font-medium break-all">
-              <Mail className="size-3.5 shrink-0 opacity-70" aria-hidden />
-              {email}
-            </p>
-          ) : null}
+      <DialogContent
+        className="w-full max-w-[34rem] gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-[34rem]"
+        showCloseButton
+      >
+        <DialogHeader className="items-center space-y-0 px-10 pt-10 pb-0 text-center sm:text-center">
+          <img
+            src="/assets/logo-2.png"
+            alt="Custoray"
+            width={140}
+            height={40}
+            className="mb-6 h-8 w-auto"
+          />
+          <DialogTitle className="text-xl font-semibold tracking-tight">
+            {pending ? t("verifyEmail.alreadyWaiting") : t("verifyEmail.checkInbox")}
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground mx-auto mt-2 max-w-sm text-sm leading-relaxed">
+            {email
+              ? t(pending ? "verifyEmail.resentTo" : "verifyEmail.sentTo")
+              : t("verifyEmail.subtitleGeneric")}
+          </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 px-6 py-5">
-          <ol className="space-y-3">
-            {tips.map((tip, index) => (
-              <li key={tip} className="flex items-start gap-3">
-                <span className="bg-primary mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white shadow-sm">
-                  {index + 1}
-                </span>
-                <span className="text-muted-foreground text-xs leading-5">
-                  {tip}
-                </span>
-              </li>
-            ))}
-          </ol>
-
-          <form className="space-y-3" onSubmit={onResendSubmit}>
-            {!email ? (
-              <div className="grid gap-1.5">
-                <Label htmlFor="verify-email-dialog">
-                  {t("verifyEmail.emailLabel")}
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="verify-email-dialog"
-                    type="email"
-                    autoComplete="email"
-                    required
-                    value={emailDraft}
-                    onChange={(e) => setEmailDraft(e.target.value)}
-                    placeholder={t("forgotPassword.emailPlaceholder")}
-                    className={`${AUTH_INPUT} pr-10`}
-                  />
-                  <Mail
-                    className="text-muted-foreground pointer-events-none absolute right-3 top-1/2 size-3.5 -translate-y-1/2"
-                    aria-hidden
-                  />
-                </div>
+        <div className="space-y-5 px-10 pt-5 pb-8">
+          {email ? (
+            <p className="border-border bg-muted/40 text-foreground rounded-xl border px-4 py-3 text-center text-sm font-medium break-all">
+              {email}
+            </p>
+          ) : (
+            <form onSubmit={onResendSubmit}>
+              <div className="grid gap-1.5 text-left">
+                <Label htmlFor="verify-email-dialog">{t("verifyEmail.emailLabel")}</Label>
+                <Input
+                  id="verify-email-dialog"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={emailDraft}
+                  onChange={(e) => setEmailDraft(e.target.value)}
+                  placeholder={t("forgotPassword.emailPlaceholder")}
+                  className="h-11 rounded-xl"
+                />
               </div>
-            ) : null}
+            </form>
+          )}
 
-            <Button
-              type="submit"
-              variant="outline"
-              className={AUTH_BUTTON}
-              disabled={resending || cooldown > 0}
-            >
-              {resending
-                ? t("forgotPassword.sending")
-                : cooldown > 0
-                  ? t("verifyEmail.resendIn", { seconds: cooldown })
-                  : t("verifyEmail.resend")}
-            </Button>
+          <p className="text-muted-foreground text-center text-sm leading-relaxed">
+            {t("verifyEmail.expiresNote")}
+          </p>
+
+          <div className="flex flex-col gap-2.5 sm:flex-row">
+            {inbox ? (
+              <Button asChild className="h-11 flex-1 rounded-xl text-sm font-medium shadow-none">
+                <a href={inbox.href} target="_blank" rel="noreferrer">
+                  {t(inbox.labelKey)}
+                </a>
+              </Button>
+            ) : null}
             <Button
               type="button"
-              className={AUTH_BUTTON}
-              onClick={() => onOpenChange(false)}
+              variant={inbox ? "outline" : "default"}
+              className="h-11 flex-1 rounded-xl text-sm font-medium shadow-none"
+              disabled={resending || cooldown > 0 || (!email && !emailDraft.trim())}
+              onClick={() => void resend(email || emailDraft)}
             >
-              {t("verifyEmail.gotIt")}
+              {resendLabel}
             </Button>
-          </form>
+          </div>
 
-          <p className="text-muted-foreground text-center text-[11px] leading-relaxed">
-            {t("verifyEmail.wrongEmail")}{" "}
-            <Link
-              href="/signup"
-              className="text-primary font-medium hover:underline"
-              onClick={() => onOpenChange(false)}
-            >
-              {t("verifyEmail.useDifferent")}
-            </Link>
-            {" · "}
+          <p className="text-center text-sm">
             <Link
               href="/"
-              className="text-primary font-medium hover:underline"
+              className="text-muted-foreground hover:text-foreground"
               onClick={() => onOpenChange(false)}
             >
               {t("verifyEmail.signIn")}

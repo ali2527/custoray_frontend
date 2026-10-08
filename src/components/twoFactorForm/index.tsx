@@ -58,7 +58,7 @@ export function TwoFactorForm() {
     toast.success(
       result.accessAllowed ? t("login.toastWelcome") : t("login.toastTrialEnded")
     )
-    router.replace(result.accessAllowed ? "/home" : "/trial-ended")
+    window.location.assign(result.accessAllowed ? "/home" : "/trial-ended")
   }
 
   if (!ready) return null

@@ -15,6 +15,10 @@ function LoginPageInner() {
   return (
     <LoginForm
       expiredNotice={params.get("expired") === "1"}
+      openVerify={params.get("verify") === "1"}
+      verifyPending={params.get("pending") === "1"}
+      verifiedNotice={params.get("notice") === "verified"}
+      justVerified={params.get("notice") === "ready"}
       redirectTo={safeNextPath(params.get("redirect"))}
     />
   )

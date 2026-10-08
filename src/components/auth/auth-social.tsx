@@ -76,14 +76,14 @@ export function AuthSocialButtons({
 
       if (result.isNewUser) {
         queueWelcomeFlow()
-        router.replace(result.accessAllowed ? "/home/?welcome=1" : "/trial-ended")
+        window.location.assign(result.accessAllowed ? "/home/?welcome=1" : "/trial-ended")
         return
       }
 
       toast.success(
         result.accessAllowed ? t("login.toastWelcome") : t("login.toastTrialEnded")
       )
-      router.replace(result.accessAllowed ? "/home" : "/trial-ended")
+      window.location.assign(result.accessAllowed ? "/home" : "/trial-ended")
     } catch (err) {
       if (err instanceof Error && err.message === "POPUP_CLOSED") return
       toast.error(err instanceof Error ? err.message : t("social.failed"))

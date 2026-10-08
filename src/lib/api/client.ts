@@ -72,6 +72,17 @@ const REFRESH_LOCK_CHANNEL =
     ? new BroadcastChannel("custoray-auth-refresh")
     : null
 
+/** Bumped when a new login starts so an older 401 cannot sign that login out. */
+let authEpoch = 0
+
+export function beginAuthTransition() {
+  authEpoch += 1
+}
+
+export function currentAuthEpoch() {
+  return authEpoch
+}
+
 function shouldRefresh(path: string, status: number, code: string) {
   if (status !== 401) return false
   if (code === "TRIAL_EXPIRED" || code === "PLAN_EXPIRED") return false
@@ -121,6 +132,7 @@ export async function apiFetch<T>(
   options: RequestInit = {},
   isRetry = false
 ): Promise<T> {
+  const requestEpoch = authEpoch
   const headers = new Headers(options.headers)
   if (!headers.has("Content-Type") && options.body) {
     headers.set("Content-Type", "application/json")
@@ -139,9 +151,11 @@ export async function apiFetch<T>(
   }
 
   const code = json.code ?? "API_ERROR"
+  const stillCurrent = () => requestEpoch === authEpoch
 
   if (!res.ok || json.success === false) {
     if (
+      stillCurrent() &&
       typeof window !== "undefined" &&
       (code === "TRIAL_EXPIRED" || code === "PLAN_EXPIRED")
     ) {
@@ -149,11 +163,19 @@ export async function apiFetch<T>(
     }
 
     if (code === "ACCOUNT_BLOCKED") {
-      emitSessionExpired()
-    } else if (!isRetry && shouldRefresh(path, res.status, code)) {
+      if (stillCurrent()) emitSessionExpired()
+    } else if (!isRetry && shouldRefresh(path, res.status, code) && stillCurrent()) {
       // Missing/expired access cookie is common after 15m idle or token rotation.
       // Always try one refresh before forcing logout (covers product PATCH saves).
       const refreshed = await refreshAccessCookie()
+      if (!stillCurrent()) {
+        throw new ApiClientError(
+          res.status,
+          code,
+          json.message ?? "Request failed",
+          json.errors
+        )
+      }
       if (refreshed) {
         return apiFetch<T>(path, options, true)
       }

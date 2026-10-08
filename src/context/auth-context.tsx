@@ -24,7 +24,7 @@ import {
   type CompanyMembership,
   type SessionPayload,
 } from "@/lib/api/auth"
-import { ApiClientError } from "@/lib/api/client"
+import { ApiClientError, beginAuthTransition, currentAuthEpoch } from "@/lib/api/client"
 import {
   clearTwoFactorChallenge,
   markTwoFactorPending,
@@ -48,6 +48,14 @@ type LoginResult =
       ok: true
       accessAllowed: false
       requiresEmailVerification: true
+      email: string
+      accountStatus?: "created" | "pending"
+    }
+  | {
+      ok: true
+      accessAllowed: false
+      requiresEmailVerification: false
+      alreadyVerified: true
       email: string
     }
   | { ok: true; accessAllowed: false; requiresTwoFactor: true }
@@ -158,9 +166,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   React.useEffect(() => {
+    const epoch = currentAuthEpoch()
     apiMe()
-      .then((me) => applyRemoteSession(me))
+      .then((me) => {
+        if (epoch !== currentAuthEpoch()) return
+        applyRemoteSession(me)
+      })
       .catch(() => {
+        if (epoch !== currentAuthEpoch()) return
         clearSession()
         setSession(null)
         setAccess(null)
@@ -171,6 +184,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = React.useCallback(
     async (redirectTo?: string) => {
       const path = typeof redirectTo === "string" && redirectTo.startsWith("/") ? redirectTo : "/"
+      beginAuthTransition()
       try {
         await apiLogout()
       } catch {
@@ -241,6 +255,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { ok: false, error: "Email and password are required." }
       }
 
+      beginAuthTransition()
       try {
         const data = await apiLogin(trimmedEmail, password)
         if (data.requiresTwoFactor) {
@@ -276,8 +291,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signup = React.useCallback(
     async (input: SignupInput): Promise<LoginResult> => {
+      beginAuthTransition()
       try {
         const data = await apiSignup(input)
+        if (data.accountStatus === "verified") {
+          clearSession()
+          setSession(null)
+          setAccess(null)
+          return {
+            ok: true,
+            accessAllowed: false,
+            requiresEmailVerification: false,
+            alreadyVerified: true,
+            email: data.email || input.email,
+          }
+        }
         if (data.requiresEmailVerification) {
           clearSession()
           setSession(null)
@@ -286,6 +314,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             ok: true,
             accessAllowed: false,
             requiresEmailVerification: true,
+            accountStatus: data.accountStatus === "pending" ? "pending" : "created",
             email: data.email || input.email,
           }
         }
@@ -308,6 +337,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       code?: string
       idToken?: string
     }): Promise<GoogleLoginResult> => {
+      beginAuthTransition()
       try {
         const data = await apiGoogle(input)
         if (data.requiresTwoFactor) {
@@ -341,6 +371,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const completeTwoFactor = React.useCallback(
     async (code: string): Promise<LoginResult> => {
+      beginAuthTransition()
       try {
         // Challenge secret is HttpOnly cookie — not readable by JS.
         await apiVerifyTwoFactor(code)

@@ -68,7 +68,11 @@ export async function apiSignup(input: {
   password: string;
   planCode?: string;
 }) {
-  return apiFetch<{ requiresEmailVerification: boolean; email: string }>(
+  return apiFetch<{
+    requiresEmailVerification: boolean
+    email: string
+    accountStatus?: "created" | "pending" | "verified"
+  }>(
     "/auth/tenant/signup",
     {
       method: "POST",

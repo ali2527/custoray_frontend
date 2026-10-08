@@ -9,10 +9,7 @@ import { toast } from "sonner"
 
 import { PasswordRequirements } from "@/components/auth/password-requirements"
 import { AuthSocialButtons } from "@/components/auth/auth-social"
-import {
-  rememberPendingVerifyEmail,
-  VerifyEmailDialog,
-} from "@/components/verifyEmailForm"
+import { rememberPendingVerifyEmail } from "@/components/verifyEmailForm"
 import {
   AUTH_BUTTON,
   AUTH_INPUT,
@@ -109,8 +106,6 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
   const [step, setStep] = useState<1 | 2>(1)
   const [advancing, setAdvancing] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [verifyOpen, setVerifyOpen] = useState(false)
-  const [verifyEmail, setVerifyEmail] = useState("")
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const [passwordRevealed, setPasswordRevealed] = useState(false)
   const [errors, setErrors] = useState<FieldErrors>({})
@@ -231,14 +226,18 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
         toast.error(result.error)
         return
       }
+      if ("alreadyVerified" in result && result.alreadyVerified) {
+        window.location.assign("/?notice=verified")
+        return
+      }
       if ("requiresEmailVerification" in result && result.requiresEmailVerification) {
         rememberPendingVerifyEmail(result.email)
-        setVerifyEmail(result.email)
-        setVerifyOpen(true)
+        const pending = result.accountStatus === "pending" ? "&pending=1" : ""
+        window.location.assign(`/?verify=1${pending}`)
         return
       }
       queueWelcomeFlow()
-      router.replace(result.accessAllowed ? "/home/?welcome=1" : "/trial-ended")
+      window.location.assign(result.accessAllowed ? "/home/?welcome=1" : "/trial-ended")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("signup.toastFailed"))
     } finally {
@@ -514,12 +513,6 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
           </form>
         </>
       )}
-      <VerifyEmailDialog
-        open={verifyOpen}
-        email={verifyEmail}
-        onOpenChange={setVerifyOpen}
-        startCooldown
-      />
     </AuthShell>
   )
 }

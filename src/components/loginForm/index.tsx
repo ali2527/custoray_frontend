@@ -22,6 +22,10 @@ import { Label } from "@/components/ui/label"
 import { LoadingSpinner } from "@/components/ui/loading-spinner"
 import { PasswordInput } from "@/components/ui/password-input"
 import {
+  clearEmailVerifiedFlag,
+  clearPendingVerifyEmail,
+  hasEmailVerifiedFlag,
+  readPendingVerifyEmail,
   rememberPendingVerifyEmail,
   VerifyEmailDialog,
 } from "@/components/verifyEmailForm"
@@ -30,9 +34,17 @@ import { isTwoFactorPending } from "@/lib/two-factor"
 
 export function LoginForm({
   expiredNotice = false,
+  openVerify = false,
+  verifyPending = false,
+  verifiedNotice = false,
+  justVerified = false,
   redirectTo,
 }: {
   expiredNotice?: boolean
+  openVerify?: boolean
+  verifyPending?: boolean
+  verifiedNotice?: boolean
+  justVerified?: boolean
   redirectTo?: string
 }) {
   const { t } = useTranslation("auth")
@@ -41,9 +53,49 @@ export function LoginForm({
   const [submitting, setSubmitting] = useState(false)
   const [verifyOpen, setVerifyOpen] = useState(false)
   const [verifyEmail, setVerifyEmail] = useState("")
-  const stayOnAuth = useRef(false)
+  const [showReady, setShowReady] = useState(justVerified)
+  const stayOnAuth = useRef(openVerify || verifiedNotice || justVerified)
 
-  const nextPath = access && !access.allowed ? "/trial-ended" : redirectTo || "/home"
+  function closeInboxAfterVerify() {
+    clearPendingVerifyEmail()
+    clearEmailVerifiedFlag()
+    setVerifyOpen(false)
+    setShowReady(true)
+    stayOnAuth.current = true
+    if (window.location.search.includes("verify=1")) {
+      router.replace("/?notice=ready")
+    }
+  }
+
+  useEffect(() => {
+    if (hasEmailVerifiedFlag()) {
+      closeInboxAfterVerify()
+      return
+    }
+    if (!openVerify) return
+    stayOnAuth.current = true
+    const pending = readPendingVerifyEmail()
+    if (!pending) return
+    setVerifyEmail(pending)
+    setVerifyOpen(true)
+  }, [openVerify])
+
+  useEffect(() => {
+    function onVerifiedElsewhere(event: StorageEvent) {
+      if (event.key === "custoray:email-verified" && event.newValue === "1") {
+        closeInboxAfterVerify()
+      }
+    }
+    function onFocus() {
+      if (hasEmailVerifiedFlag()) closeInboxAfterVerify()
+    }
+    window.addEventListener("storage", onVerifiedElsewhere)
+    window.addEventListener("focus", onFocus)
+    return () => {
+      window.removeEventListener("storage", onVerifiedElsewhere)
+      window.removeEventListener("focus", onFocus)
+    }
+  }, [router])
 
   useEffect(() => {
     if (!hydrated || stayOnAuth.current) return
@@ -90,10 +142,11 @@ export function LoginForm({
       return
     }
 
+    stayOnAuth.current = true
     toast.success(
       result.accessAllowed ? t("login.toastWelcome") : t("login.toastTrialEnded")
     )
-    router.replace(result.accessAllowed ? nextPath : "/trial-ended")
+    window.location.assign(result.accessAllowed ? redirectTo || "/home" : "/trial-ended")
   }
 
   return (
@@ -107,6 +160,11 @@ export function LoginForm({
             : t("login.subtitle")
         }
       />
+      {verifiedNotice || justVerified || showReady ? (
+        <p className="border-border bg-muted/50 text-foreground mb-3 rounded-lg border px-3 py-2.5 text-center text-[13px] leading-relaxed">
+          {t(justVerified || showReady ? "verifyEmail.readyNotice" : "verifyEmail.verifiedNotice")}
+        </p>
+      ) : null}
       <form className="space-y-3.5" onSubmit={handleSubmit}>
         <div className="grid gap-1.5">
           <Label htmlFor="email">{t("login.email")}</Label>
@@ -182,7 +240,8 @@ export function LoginForm({
         open={verifyOpen}
         email={verifyEmail}
         onOpenChange={setVerifyOpen}
-        startCooldown={false}
+        pending={verifyPending}
+        startCooldown={openVerify}
       />
     </AuthShell>
   )

@@ -1,4 +1,30 @@
 const PENDING_EMAIL_KEY = "custoray:pending-verify-email"
+const VERIFIED_FLAG_KEY = "custoray:email-verified"
+
+export function markEmailVerified() {
+  try {
+    localStorage.setItem(VERIFIED_FLAG_KEY, "1")
+  } catch {
+    /* ignore quota / private mode */
+  }
+  clearPendingVerifyEmail()
+}
+
+export function hasEmailVerifiedFlag() {
+  try {
+    return localStorage.getItem(VERIFIED_FLAG_KEY) === "1"
+  } catch {
+    return false
+  }
+}
+
+export function clearEmailVerifiedFlag() {
+  try {
+    localStorage.removeItem(VERIFIED_FLAG_KEY)
+  } catch {
+    /* ignore */
+  }
+}
 
 export function readPendingVerifyEmail() {
   if (typeof window === "undefined") return ""

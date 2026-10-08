@@ -3,7 +3,7 @@
 import { CheckCircle2, Loader2, Mail, ShieldCheck } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { Suspense, useEffect, useState, type FormEvent } from "react"
+import { Suspense, useEffect, useRef, useState, type FormEvent } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
@@ -17,14 +17,36 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useAuth } from "@/context/auth-context"
 import { apiResendVerification, apiVerifyEmail } from "@/lib/api/auth"
+
+/** One request per token. A second call consumes the link and looks expired. */
+const verifyInflight = new Map<string, Promise<void>>()
+
+function verifyEmailOnce(token: string) {
+  const existing = verifyInflight.get(token)
+  if (existing) return existing
+  const pending = apiVerifyEmail(token)
+    .then(() => undefined)
+    .catch((error: unknown) => {
+      verifyInflight.delete(token)
+      throw error
+    })
+  verifyInflight.set(token, pending)
+  return pending
+}
 import {
-  clearPendingVerifyEmail,
+  markEmailVerified,
   rememberPendingVerifyEmail,
 } from "@/components/verifyEmailForm/pending-email"
 
-export { rememberPendingVerifyEmail } from "@/components/verifyEmailForm/pending-email"
+export {
+  clearEmailVerifiedFlag,
+  clearPendingVerifyEmail,
+  hasEmailVerifiedFlag,
+  markEmailVerified,
+  readPendingVerifyEmail,
+  rememberPendingVerifyEmail,
+} from "@/components/verifyEmailForm/pending-email"
 export { VerifyEmailDialog } from "@/components/verifyEmailForm/verify-email-dialog"
 
 /**
@@ -37,13 +59,13 @@ function VerifyEmailInner() {
   const params = useSearchParams()
   const token = params.get("token")?.trim() || ""
   const emailFromQuery = params.get("email")?.trim() || ""
-  const { refreshAccess } = useAuth()
 
   const [emailDraft, setEmailDraft] = useState(emailFromQuery)
   const [status, setStatus] = useState<"working" | "done" | "error" | "missing">(
     token ? "working" : "missing"
   )
   const [resending, setResending] = useState(false)
+  const announcedToken = useRef<string | null>(null)
 
   useEffect(() => {
     if (!token) {
@@ -56,22 +78,23 @@ function VerifyEmailInner() {
     let cancelled = false
     ;(async () => {
       try {
-        await apiVerifyEmail(token)
+        await verifyEmailOnce(token)
         if (cancelled) return
-        await refreshAccess()
-        clearPendingVerifyEmail()
+        markEmailVerified()
         setStatus("done")
-        toast.success(t("verifyEmail.success"))
+        if (announcedToken.current !== token) {
+          announcedToken.current = token
+          toast.success(t("verifyEmail.success"))
+        }
       } catch {
         if (cancelled) return
         setStatus("error")
-        toast.error(t("verifyEmail.failed"))
       }
     })()
     return () => {
       cancelled = true
     }
-  }, [token, emailFromQuery, refreshAccess, router, t])
+  }, [token, emailFromQuery, router, t])
 
   async function onResendSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -139,7 +162,7 @@ function VerifyEmailInner() {
             {t("verifyEmail.successHint")}
           </p>
           <Button asChild className={AUTH_BUTTON}>
-            <Link href="/home/?welcome=1">{t("verifyEmail.continue")}</Link>
+            <Link href="/?notice=ready">{t("verifyEmail.continue")}</Link>
           </Button>
         </div>
       ) : null}
