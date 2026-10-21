@@ -4,7 +4,8 @@ import { useEffect, useState, type FormEvent } from "react"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
-import { ActiveSessions } from "@/components/settings/active-sessions"
+import Link from "next/link"
+
 import { TwoFactorSettings } from "@/components/settings/two-factor-settings"
 import { SettingsSection } from "@/components/settings/settings-section"
 import { AuthCodeInput } from "@/components/auth/auth-code-input"
@@ -229,7 +230,11 @@ export default function AccountSettingsPage() {
       </form>
 
       <TwoFactorSettings />
-      <ActiveSessions />
+      <p className="text-muted-foreground text-sm">
+        <Link href="/settings/security" className="text-primary font-medium hover:underline">
+          {t("sessions.manageLink")}
+        </Link>
+      </p>
     </div>
   )
 }

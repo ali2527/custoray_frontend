@@ -43,7 +43,13 @@ import {
 } from "@/lib/employee-permissions"
 
 type LoginResult =
-  | { ok: true; accessAllowed: boolean; requiresTwoFactor?: false; requiresEmailVerification?: false }
+  | {
+      ok: true
+      accessAllowed: boolean
+      needsOnboarding?: boolean
+      requiresTwoFactor?: false
+      requiresEmailVerification?: false
+    }
   | {
       ok: true
       accessAllowed: false
@@ -267,7 +273,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         const me = await apiMe()
         const nextAccess = applyRemoteSession(me)
-        return { ok: true, accessAllowed: nextAccess.allowed }
+        return {
+          ok: true,
+          accessAllowed: nextAccess.allowed,
+          needsOnboarding: !me.onboarding?.completedAt,
+        }
       } catch (err) {
         if (
           err instanceof ApiClientError &&

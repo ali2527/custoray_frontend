@@ -9,7 +9,7 @@ import { toast } from "sonner"
 
 import { PasswordRequirements } from "@/components/auth/password-requirements"
 import { AuthSocialButtons } from "@/components/auth/auth-social"
-import { rememberPendingVerifyEmail } from "@/components/verifyEmailForm"
+import { rememberPendingVerifyEmail, VerifyEmailStep } from "@/components/verifyEmailForm"
 import {
   AUTH_BUTTON,
   AUTH_INPUT,
@@ -41,7 +41,8 @@ import {
   validateSignupPhone,
 } from "@/lib/phone-mask"
 import { generateStrongPassword, isPasswordStrong } from "@/lib/password"
-import { markWelcomeFlow } from "@/lib/welcome-flow"
+import { claimAuthTab } from "@/lib/auth-tab"
+import { queueWelcomeFlow } from "@/lib/welcome-flow"
 import { FALLBACK_PLANS } from "@/lib/subscription-access"
 import { cn } from "@/lib/utils"
 
@@ -62,30 +63,38 @@ function planFromUrl(code: string | null | undefined) {
 function StepBar({
   step,
   onBack,
+  className,
 }: {
-  step: 1 | 2
+  step: 1 | 2 | 3
   onBack: () => void
+  className?: string
 }) {
   const { t } = useTranslation("auth")
   return (
-    <div className="-mt-2 mb-4">
-      <div className="grid grid-cols-2 gap-1.5">
+    <div className={cn("-mt-2 mb-4", className)}>
+      <div className="grid grid-cols-3 gap-1.5">
         <button
           type="button"
           aria-label={t("signup.ariaAccount")}
           className="h-0.5 rounded-full bg-primary"
           onClick={step === 2 ? onBack : undefined}
-          disabled={step === 1}
+          disabled={step !== 2}
         />
         <span
           className={cn(
             "h-0.5 rounded-full",
-            step === 2 ? "bg-primary" : "bg-border"
+            step >= 2 ? "bg-primary" : "bg-border"
+          )}
+        />
+        <span
+          className={cn(
+            "h-0.5 rounded-full",
+            step === 3 ? "bg-primary" : "bg-border"
           )}
         />
       </div>
       <p className="text-muted-foreground mt-1.5 text-right text-[11px]">
-        {t("signup.stepOf", { step })}
+        {t("signup.stepOf", { step, total: 3 })}
       </p>
     </div>
   )
@@ -103,7 +112,8 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
   const plan = planFromUrl(planCode)
   const stayOnSignup = useRef(false)
   const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [step, setStep] = useState<1 | 2>(1)
+  const [step, setStep] = useState<1 | 2 | 3>(1)
+  const [verifyPending, setVerifyPending] = useState(false)
   const [advancing, setAdvancing] = useState(false)
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
@@ -126,6 +136,12 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
   }, [hydrated, session, access, router])
 
   useEffect(() => {
+    if (step !== 3) return
+    return claimAuthTab()
+  }, [step])
+
+  useEffect(() => {
+    if (step === 3) return
     const id = step === 1 ? "ownerName" : "businessName"
     window.setTimeout(() => document.getElementById(id)?.focus(), 0)
   }, [step])
@@ -232,8 +248,8 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
       }
       if ("requiresEmailVerification" in result && result.requiresEmailVerification) {
         rememberPendingVerifyEmail(result.email)
-        const pending = result.accountStatus === "pending" ? "&pending=1" : ""
-        window.location.assign(`/?verify=1${pending}`)
+        setVerifyPending(result.accountStatus === "pending")
+        setStep(3)
         return
       }
       markWelcomeFlow()
@@ -352,7 +368,7 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
             <AuthSwitch prompt={t("signup.haveAccount")} href="/" label={t("signup.signIn")} />
           </form>
         </>
-      ) : (
+      ) : step === 2 ? (
         <>
           <AuthHeading
             title={t("signup.titleCompany")}
@@ -511,6 +527,30 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
               {t("signup.backToAccount")}
             </button>
           </form>
+        </>
+      ) : (
+        <>
+          <StepBar step={3} onBack={() => setStep(1)} className="mt-0 mb-5" />
+          <AuthHeading
+            title={
+              verifyPending
+                ? t("verifyEmail.alreadyWaiting")
+                : t("verifyEmail.checkInbox")
+            }
+            subtitle={
+              verifyPending ? t("verifyEmail.resentTo") : t("verifyEmail.sentTo")
+            }
+          />
+          <VerifyEmailStep
+            email={values.email.trim()}
+            pending={verifyPending}
+            startCooldown
+            showHeading={false}
+            onVerified={() => {
+              window.focus()
+              window.location.assign("/")
+            }}
+          />
         </>
       )}
     </AuthShell>

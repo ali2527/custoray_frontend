@@ -9,6 +9,7 @@ import {
   ChevronDown,
   CreditCard,
   Settings2,
+  Shield,
   UserCircle,
   Users,
   type LucideIcon,
@@ -35,6 +36,7 @@ const GENERAL_ITEMS = [
 
 const TOP_ITEMS = [
   { href: "/settings/account", labelKey: "settingsNav.account" as const, icon: UserCircle },
+  { href: "/settings/security", labelKey: "settingsNav.security" as const, icon: Shield },
   { href: "/settings/team", labelKey: "settingsNav.team" as const, icon: Users },
   { href: "/settings/billing", labelKey: "settingsNav.plansBilling" as const, icon: CreditCard },
   { href: "/settings/notifications", labelKey: "settingsNav.notifications" as const, icon: Bell },

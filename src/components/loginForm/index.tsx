@@ -27,20 +27,24 @@ import {
   hasEmailVerifiedFlag,
   readPendingVerifyEmail,
   rememberPendingVerifyEmail,
-  VerifyEmailDialog,
+  VerifyEmailStep,
 } from "@/components/verifyEmailForm"
 import { useAuth } from "@/context/auth-context"
+import { claimAuthTab } from "@/lib/auth-tab"
+import { queueWelcomeFlow } from "@/lib/welcome-flow"
 import { isTwoFactorPending } from "@/lib/two-factor"
 
 export function LoginForm({
   expiredNotice = false,
   openVerify = false,
   verifyPending = false,
+  verifiedNotice = false,
   redirectTo,
 }: {
   expiredNotice?: boolean
   openVerify?: boolean
   verifyPending?: boolean
+  verifiedNotice?: boolean
   redirectTo?: string
 }) {
   const { t } = useTranslation("auth")
@@ -49,14 +53,16 @@ export function LoginForm({
   const [submitting, setSubmitting] = useState(false)
   const [verifyOpen, setVerifyOpen] = useState(false)
   const [verifyEmail, setVerifyEmail] = useState("")
-  const stayOnAuth = useRef(openVerify)
+  const stayOnAuth = useRef(openVerify || verifiedNotice)
 
   function closeInboxAfterVerify() {
+    window.focus()
     clearPendingVerifyEmail()
     clearEmailVerifiedFlag()
     setVerifyOpen(false)
     stayOnAuth.current = true
-    if (window.location.search.includes("verify=1")) {
+    const search = window.location.search
+    if (search.includes("verify=1") || search.includes("notice=ready")) {
       router.replace("/")
     }
   }
@@ -73,6 +79,11 @@ export function LoginForm({
     setVerifyEmail(pending)
     setVerifyOpen(true)
   }, [openVerify])
+
+  useEffect(() => {
+    if (!verifyOpen) return
+    return claimAuthTab()
+  }, [verifyOpen])
 
   useEffect(() => {
     function onVerifiedElsewhere(event: StorageEvent) {
@@ -115,20 +126,22 @@ export function LoginForm({
 
     setSubmitting(true)
     const result = await login(email, password)
-    setSubmitting(false)
 
     if (!result.ok) {
+      setSubmitting(false)
       toast.error(result.error)
       return
     }
 
     if (result.requiresTwoFactor) {
+      setSubmitting(false)
       stayOnAuth.current = true
       router.replace("/2fa")
       return
     }
 
     if ("requiresEmailVerification" in result && result.requiresEmailVerification) {
+      setSubmitting(false)
       stayOnAuth.current = true
       rememberPendingVerifyEmail(result.email)
       setVerifyEmail(result.email)
@@ -137,14 +150,26 @@ export function LoginForm({
     }
 
     stayOnAuth.current = true
-    toast.success(
-      result.accessAllowed ? t("login.toastWelcome") : t("login.toastTrialEnded")
-    )
-    window.location.assign(result.accessAllowed ? redirectTo || "/home" : "/trial-ended")
+    if (result.needsOnboarding) queueWelcomeFlow()
+    const destination = !result.accessAllowed
+      ? "/trial-ended"
+      : result.needsOnboarding
+        ? "/home/?welcome=1"
+        : redirectTo || "/home"
+    window.location.assign(destination)
   }
 
   return (
     <AuthShell>
+      {verifyOpen ? (
+        <VerifyEmailStep
+          email={verifyEmail}
+          pending={verifyPending}
+          startCooldown={openVerify}
+          onSignIn={() => setVerifyOpen(false)}
+        />
+      ) : (
+      <>
       <AuthHeading
         title={t("login.title")}
         accent="back"
@@ -154,6 +179,11 @@ export function LoginForm({
             : t("login.subtitle")
         }
       />
+      {verifiedNotice ? (
+        <p className="border-border bg-muted/50 text-foreground mb-3 rounded-lg border px-3 py-2.5 text-center text-[13px] leading-relaxed">
+          {t("verifyEmail.verifiedNotice")}
+        </p>
+      ) : null}
       <form className="space-y-3.5" onSubmit={handleSubmit}>
         <div className="grid gap-1.5">
           <Label htmlFor="email">{t("login.email")}</Label>
@@ -225,13 +255,8 @@ export function LoginForm({
           }}
         />
       </form>
-      <VerifyEmailDialog
-        open={verifyOpen}
-        email={verifyEmail}
-        onOpenChange={setVerifyOpen}
-        pending={verifyPending}
-        startCooldown={openVerify}
-      />
+      </>
+      )}
     </AuthShell>
   )
 }

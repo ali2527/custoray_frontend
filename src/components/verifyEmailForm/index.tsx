@@ -1,7 +1,6 @@
 "use client"
 
-import { CheckCircle2, Loader2, Mail, ShieldCheck } from "lucide-react"
-import Link from "next/link"
+import { Loader2, Mail, ShieldCheck } from "lucide-react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Suspense, useEffect, useRef, useState, type FormEvent } from "react"
 import { useTranslation } from "react-i18next"
@@ -18,6 +17,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { apiResendVerification, apiVerifyEmail } from "@/lib/api/auth"
+import { focusAuthTab } from "@/lib/auth-tab"
 
 /** One request per token. A second call consumes the link and looks expired. */
 const verifyInflight = new Map<string, Promise<void>>()
@@ -47,11 +47,11 @@ export {
   readPendingVerifyEmail,
   rememberPendingVerifyEmail,
 } from "@/components/verifyEmailForm/pending-email"
-export { VerifyEmailDialog } from "@/components/verifyEmailForm/verify-email-dialog"
+export { VerifyEmailStep } from "@/components/verifyEmailForm/verify-email-dialog"
 
 /**
  * Landing page for email verification links only.
- * Post-signup / unverified-login "check your inbox" lives in VerifyEmailDialog.
+ * Post-signup / unverified-login "check your inbox" is an inline step.
  */
 function VerifyEmailInner() {
   const { t } = useTranslation("auth")
@@ -59,9 +59,10 @@ function VerifyEmailInner() {
   const params = useSearchParams()
   const token = params.get("token")?.trim() || ""
   const emailFromQuery = params.get("email")?.trim() || ""
+  const landedInAppTab = params.get("land") === "1"
 
   const [emailDraft, setEmailDraft] = useState(emailFromQuery)
-  const [status, setStatus] = useState<"working" | "done" | "error" | "missing">(
+  const [status, setStatus] = useState<"working" | "handed" | "error" | "missing">(
     token ? "working" : "missing"
   )
   const [resending, setResending] = useState(false)
@@ -75,17 +76,31 @@ function VerifyEmailInner() {
       return
     }
 
+    // The signup / sign-in tab is still open. Load the link there and leave
+    // this tab alone — closing it would send the browser back to the email.
+    const handoffKey = `custoray:verify-handed:${token}`
+    if (!landedInAppTab && sessionStorage.getItem(handoffKey) === "1") {
+      setStatus("handed")
+      return
+    }
+    if (!landedInAppTab && focusAuthTab(window.location.href)) {
+      sessionStorage.setItem(handoffKey, "1")
+      setStatus("handed")
+      window.setTimeout(() => {
+        if (document.visibilityState === "visible") router.replace("/")
+      }, 800)
+      return
+    }
+
     let cancelled = false
     ;(async () => {
       try {
         await verifyEmailOnce(token)
         if (cancelled) return
         markEmailVerified()
-        setStatus("done")
-        if (announcedToken.current !== token) {
-          announcedToken.current = token
-          toast.success(t("verifyEmail.success"))
-        }
+        if (announcedToken.current === token) return
+        announcedToken.current = token
+        router.replace("/")
       } catch {
         if (cancelled) return
         setStatus("error")
@@ -94,7 +109,7 @@ function VerifyEmailInner() {
     return () => {
       cancelled = true
     }
-  }, [token, emailFromQuery, router, t])
+  }, [token, emailFromQuery, landedInAppTab, router])
 
   async function onResendSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -134,15 +149,13 @@ function VerifyEmailInner() {
         title={t("verifyEmail.title")}
         accent={t("verifyEmail.accent")}
         subtitle={
-          status === "working"
-            ? t("verifyEmail.subtitleWorking")
-            : status === "done"
-              ? t("verifyEmail.subtitleDone")
-              : t("verifyEmail.subtitleError")
+          status === "error"
+            ? t("verifyEmail.subtitleError")
+            : t("verifyEmail.subtitleWorking")
         }
       />
 
-      {status === "working" ? (
+      {status === "working" || status === "handed" ? (
         <div className="flex flex-col items-center gap-4 py-6 text-center">
           <div className="bg-primary/10 text-primary flex size-14 items-center justify-center rounded-full">
             <Loader2 className="size-6 animate-spin" aria-hidden />
@@ -150,20 +163,6 @@ function VerifyEmailInner() {
           <p className="text-muted-foreground text-xs leading-relaxed">
             {t("verifyEmail.verifying")}
           </p>
-        </div>
-      ) : null}
-
-      {status === "done" ? (
-        <div className="flex flex-col items-center gap-4 py-4 text-center">
-          <div className="flex size-14 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-            <CheckCircle2 className="size-7" aria-hidden />
-          </div>
-          <p className="text-muted-foreground text-xs leading-relaxed">
-            {t("verifyEmail.successHint")}
-          </p>
-          <Button asChild className={AUTH_BUTTON}>
-            <Link href="/">{t("verifyEmail.continue")}</Link>
-          </Button>
         </div>
       ) : null}
 

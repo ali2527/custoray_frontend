@@ -137,6 +137,9 @@ export async function apiFetch<T>(
   if (!headers.has("Content-Type") && options.body) {
     headers.set("Content-Type", "application/json")
   }
+  if (!headers.has("X-Requested-With")) {
+    headers.set("X-Requested-With", "XMLHttpRequest")
+  }
   const res = await fetch(`${getApiBaseUrl()}${path}`, {
     ...options,
     headers,

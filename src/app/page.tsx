@@ -17,6 +17,7 @@ function LoginPageInner() {
       expiredNotice={params.get("expired") === "1"}
       openVerify={params.get("verify") === "1"}
       verifyPending={params.get("pending") === "1"}
+      verifiedNotice={params.get("notice") === "verified"}
       redirectTo={safeNextPath(params.get("redirect"))}
     />
   )

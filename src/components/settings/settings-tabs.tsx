@@ -11,6 +11,7 @@ const TABS = [
   { href: "/settings/documents", labelKey: "settingsNav.documents" as const },
   { href: "/settings/products", labelKey: "settingsNav.products" as const },
   { href: "/settings/account", labelKey: "settingsNav.account" as const },
+  { href: "/settings/security", labelKey: "settingsNav.security" as const },
   { href: "/settings/team", labelKey: "settingsNav.team" as const },
   { href: "/settings/appearance", labelKey: "settingsNav.appearance" as const },
   { href: "/settings/language", labelKey: "settingsNav.languageRegion" as const },

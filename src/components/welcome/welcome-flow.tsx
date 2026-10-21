@@ -68,12 +68,12 @@ export function WelcomeFlow() {
 
   useEffect(() => {
     if (!hydrated || !isAuthenticated) return
-    if (isWelcomeFlowCompleted() || isWelcomeFlowDismissed()) return
     if (open) return
-    if (typeof window !== "undefined") {
-      const fromUrl = new URLSearchParams(window.location.search).get("welcome") === "1"
-      if (fromUrl) queueWelcomeFlow()
-    }
+    const fromUrl =
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("welcome") === "1"
+    if (fromUrl) queueWelcomeFlow()
+    else if (isWelcomeFlowCompleted() || isWelcomeFlowDismissed()) return
     if (isWelcomeFlowPending()) {
       setSetupStep(readWelcomeSetupStep())
       setOpen(true)

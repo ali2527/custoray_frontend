@@ -7,34 +7,49 @@ import { toast } from "sonner"
 import { SettingsSection } from "@/components/settings/settings-section"
 import { Button } from "@/components/ui/button"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   apiListSessions,
   apiRevokeOtherSessions,
   apiRevokeSession,
   type AuthSessionRow,
 } from "@/lib/api/auth"
 
-function summarizeAgent(ua: string | null) {
-  if (!ua) return "Unknown device"
-  if (/Edg\//i.test(ua)) return "Edge"
-  if (/Chrome\//i.test(ua)) return "Chrome"
-  if (/Firefox\//i.test(ua)) return "Firefox"
-  if (/Safari\//i.test(ua)) return "Safari"
-  return "Browser"
+type ConfirmState =
+  | { kind: "one"; id: string; label: string }
+  | { kind: "others" }
+  | null
+
+function formatWhen(value: string) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  return date.toLocaleString()
 }
 
 export function ActiveSessions() {
   const { t } = useTranslation("settings")
   const [sessions, setSessions] = useState<AuthSessionRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
+  const [confirm, setConfirm] = useState<ConfirmState>(null)
 
   async function reload() {
     setLoading(true)
+    setLoadError(false)
     try {
       const data = await apiListSessions()
       setSessions(data.sessions)
-    } catch {
+    } catch (err) {
       setSessions([])
+      setLoadError(true)
+      toast.error(err instanceof Error ? err.message : t("sessions.error"))
     } finally {
       setLoading(false)
     }
@@ -44,20 +59,24 @@ export function ActiveSessions() {
     void reload()
   }, [])
 
-  async function revoke(id: string) {
-    setBusy(id)
-    try {
-      await apiRevokeSession(id)
-      toast.success(t("sessions.revoked"))
-      await reload()
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : t("sessions.error"))
-    } finally {
-      setBusy(null)
+  async function confirmRevoke() {
+    if (!confirm) return
+    const action = confirm
+    setConfirm(null)
+    if (action.kind === "one") {
+      setBusy(action.id)
+      try {
+        await apiRevokeSession(action.id)
+        toast.success(t("sessions.revoked"))
+        await reload()
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t("sessions.error"))
+      } finally {
+        setBusy(null)
+      }
+      return
     }
-  }
 
-  async function revokeOthers() {
     setBusy("others")
     try {
       await apiRevokeOtherSessions()
@@ -70,6 +89,8 @@ export function ActiveSessions() {
     }
   }
 
+  const otherCount = sessions.filter((session) => !session.current).length
+
   return (
     <SettingsSection
       title={t("sessions.title")}
@@ -78,8 +99,8 @@ export function ActiveSessions() {
         <Button
           type="button"
           variant="outline"
-          disabled={busy !== null || sessions.filter((s) => !s.current).length === 0}
-          onClick={() => void revokeOthers()}
+          disabled={busy !== null || otherCount === 0}
+          onClick={() => setConfirm({ kind: "others" })}
         >
           {busy === "others" ? t("sessions.working") : t("sessions.revokeOthers")}
         </Button>
@@ -87,6 +108,13 @@ export function ActiveSessions() {
     >
       {loading ? (
         <p className="text-muted-foreground text-sm">{t("sessions.loading")}</p>
+      ) : loadError ? (
+        <div className="space-y-2">
+          <p className="text-destructive text-sm">{t("sessions.loadError")}</p>
+          <Button type="button" variant="outline" size="sm" onClick={() => void reload()}>
+            {t("sessions.retry")}
+          </Button>
+        </div>
       ) : sessions.length === 0 ? (
         <p className="text-muted-foreground text-sm">{t("sessions.empty")}</p>
       ) : (
@@ -98,7 +126,7 @@ export function ActiveSessions() {
             >
               <div className="min-w-0 space-y-0.5">
                 <p className="text-sm font-medium">
-                  {summarizeAgent(session.userAgent)}
+                  {session.device?.label ?? t("sessions.unknownDevice")}
                   {session.current ? (
                     <span className="text-primary ml-2 text-xs font-normal">
                       {t("sessions.current")}
@@ -106,11 +134,19 @@ export function ActiveSessions() {
                   ) : null}
                 </p>
                 <p className="text-muted-foreground text-xs">
-                  {session.ip ? `${session.ip} · ` : ""}
-                  {t("sessions.lastActive", {
-                    time: new Date(session.lastUsedAt).toLocaleString(),
-                  })}
+                  {t("sessions.created", { time: formatWhen(session.createdAt) })}
                 </p>
+                <p className="text-muted-foreground text-xs">
+                  {t("sessions.lastActive", { time: formatWhen(session.lastUsedAt) })}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {t("sessions.expires", { time: formatWhen(session.expiresAt) })}
+                </p>
+                {session.ip ? (
+                  <p className="text-muted-foreground text-xs">
+                    {t("sessions.network", { ip: session.ip })}
+                  </p>
+                ) : null}
               </div>
               {!session.current ? (
                 <Button
@@ -118,7 +154,13 @@ export function ActiveSessions() {
                   variant="ghost"
                   size="sm"
                   disabled={busy !== null}
-                  onClick={() => void revoke(session.id)}
+                  onClick={() =>
+                    setConfirm({
+                      kind: "one",
+                      id: session.id,
+                      label: session.device?.label ?? t("sessions.unknownDevice"),
+                    })
+                  }
                 >
                   {busy === session.id ? t("sessions.working") : t("sessions.revoke")}
                 </Button>
@@ -127,6 +169,33 @@ export function ActiveSessions() {
           ))}
         </ul>
       )}
+
+      <Dialog open={confirm !== null} onOpenChange={(open) => !open && setConfirm(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {confirm?.kind === "others"
+                ? t("sessions.confirmOthersTitle")
+                : t("sessions.confirmRevokeTitle")}
+            </DialogTitle>
+            <DialogDescription>
+              {confirm?.kind === "others"
+                ? t("sessions.confirmOthersBody")
+                : t("sessions.confirmRevokeBody", {
+                    device: confirm?.kind === "one" ? confirm.label : "",
+                  })}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setConfirm(null)}>
+              {t("sessions.cancel")}
+            </Button>
+            <Button type="button" onClick={() => void confirmRevoke()}>
+              {t("sessions.confirm")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SettingsSection>
   )
 }

@@ -161,10 +161,14 @@ export type AuthSessionRow = {
   id: string;
   current: boolean;
   ip: string | null;
-  userAgent: string | null;
   createdAt: string;
   lastUsedAt: string;
   expiresAt: string;
+  device: {
+    browser: string;
+    os: string;
+    label: string;
+  };
 };
 
 export async function apiListSessions() {

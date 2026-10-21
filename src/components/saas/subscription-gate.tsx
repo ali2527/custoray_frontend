@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 
 import { useAuth } from "@/context/auth-context"
 import { isApiEnabled } from "@/lib/api/client"
+import { PageLoader } from "@/components/ui/page-loader"
 
 export function SubscriptionGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -22,9 +23,9 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
     }
   }, [hydrated, isAuthenticated, access, router, useApi])
 
-  if (useApi && !hydrated) return null
-  if (useApi && !isAuthenticated) return null
-  if (useApi && isAuthenticated && access && !access.allowed) return null
+  if (useApi && !hydrated) return <PageLoader fullScreen />
+  if (useApi && !isAuthenticated) return <PageLoader fullScreen />
+  if (useApi && isAuthenticated && access && !access.allowed) return <PageLoader fullScreen />
 
   return <>{children}</>
 }
