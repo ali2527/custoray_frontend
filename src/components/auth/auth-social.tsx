@@ -13,7 +13,7 @@ import {
   loadGoogleIdentityServices,
   requestGoogleAuthCode,
 } from "@/lib/google-gsi"
-import { queueWelcomeFlow } from "@/lib/welcome-flow"
+import { startWelcomeForUser } from "@/lib/welcome-flow"
 
 function GoogleIcon() {
   return (
@@ -75,7 +75,7 @@ export function AuthSocialButtons({
       }
 
       if (result.isNewUser) {
-        queueWelcomeFlow()
+        startWelcomeForUser(result.userId || "")
         window.location.assign(result.accessAllowed ? "/home/?welcome=1" : "/trial-ended")
         return
       }

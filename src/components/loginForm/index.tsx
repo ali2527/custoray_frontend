@@ -31,7 +31,7 @@ import {
 } from "@/components/verifyEmailForm"
 import { useAuth } from "@/context/auth-context"
 import { claimAuthTab } from "@/lib/auth-tab"
-import { queueWelcomeFlow } from "@/lib/welcome-flow"
+import { startWelcomeForUser } from "@/lib/welcome-flow"
 import { isTwoFactorPending } from "@/lib/two-factor"
 
 export function LoginForm({
@@ -150,7 +150,7 @@ export function LoginForm({
     }
 
     stayOnAuth.current = true
-    if (result.needsOnboarding) queueWelcomeFlow()
+    if (result.needsOnboarding) startWelcomeForUser(result.userId || "")
     const destination = !result.accessAllowed
       ? "/trial-ended"
       : result.needsOnboarding

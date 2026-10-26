@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
-import { ImagePlus, X } from "lucide-react"
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -41,8 +40,9 @@ import { cn } from "@/lib/utils"
 /** Welcome(0) → Business(1) → Preferences(2) → Invoices(3) → Complete(4) */
 export const WELCOME_SETUP_STEPS = 5
 
-const fieldClass = "h-10 rounded-xl"
-const labelClass = "text-[12.5px] font-medium"
+const fieldClass =
+  "h-10 rounded-lg border bg-background text-sm shadow-none"
+const labelClass = "text-xs font-medium"
 
 export async function persistWelcomeCompany(settings: CompanySettings) {
   const address = composeAddress({
@@ -80,7 +80,6 @@ export function WelcomeSetupBody({
   step,
   companyDraft,
   onCompanyChange,
-  accountEmail,
 }: {
   step: number
   companyDraft: CompanySettings
@@ -97,9 +96,13 @@ export function WelcomeSetupBody({
   )
 
   if (step === 1) {
+    const hasName = companyDraft.name.trim().length >= 2
+    const hasIndustry = companyDraft.industry.trim().length >= 2
+    const hasPhone = companyDraft.phone.trim().length > 0
     return (
       <div className="space-y-5">
         <div className="grid gap-3 sm:grid-cols-2">
+          {hasName ? null : (
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="ob-name" className={labelClass}>
               {t("welcome.onboarding.businessName")}
@@ -115,7 +118,9 @@ export function WelcomeSetupBody({
               {t("welcome.onboarding.businessNameHint")}
             </p>
           </div>
+          )}
 
+          {hasIndustry ? null : (
           <div className="space-y-1.5">
             <Label className={labelClass}>{t("welcome.onboarding.industry")}</Label>
             <Select
@@ -134,33 +139,9 @@ export function WelcomeSetupBody({
               </SelectContent>
             </Select>
           </div>
+          )}
 
-          <div className="space-y-1.5">
-            <Label htmlFor="ob-email" className={labelClass}>
-              {t("welcome.onboarding.businessEmail")}
-            </Label>
-            <Input
-              id="ob-email"
-              type="email"
-              value={companyDraft.email}
-              onChange={(e) => onCompanyChange({ email: e.target.value })}
-              className={fieldClass}
-            />
-            {accountEmail ? (
-              <button
-                type="button"
-                className="text-primary text-[11px] font-medium hover:underline"
-                onClick={() => onCompanyChange({ email: accountEmail })}
-              >
-                {t("welcome.onboarding.useAccountEmail")}
-              </button>
-            ) : (
-              <p className="text-muted-foreground text-[11px]">
-                {t("welcome.onboarding.businessEmailHint")}
-              </p>
-            )}
-          </div>
-
+          {hasPhone ? null : (
           <div className="space-y-1.5 sm:col-span-2">
             <Label htmlFor="ob-phone" className={labelClass}>
               {t("welcome.onboarding.phone")}
@@ -172,109 +153,7 @@ export function WelcomeSetupBody({
               className={fieldClass}
             />
           </div>
-        </div>
-
-        <div className="space-y-2">
-          <Label className={labelClass}>{t("welcome.onboarding.logo")}</Label>
-          <p className="text-muted-foreground text-[11px] leading-relaxed">
-            {t("welcome.onboarding.logoHint")}
-          </p>
-          {companyDraft.logoUrl ? (
-            <div className="border-border relative flex items-center gap-3 rounded-xl border p-3">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={companyDraft.logoUrl}
-                alt=""
-                className="size-14 rounded-lg object-contain"
-              />
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium">{t("welcome.onboarding.logoAdded")}</p>
-                <p className="text-muted-foreground text-[11px]">
-                  {t("welcome.onboarding.logoOptional")}
-                </p>
-              </div>
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground rounded-full p-1"
-                onClick={() => onCompanyChange({ logoUrl: "" })}
-                aria-label={t("welcome.onboarding.removeLogo")}
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-          ) : (
-            <label className="border-border hover:bg-muted/40 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border border-dashed px-4 py-8 transition-colors">
-              <ImagePlus className="text-muted-foreground size-6" />
-              <span className="text-sm font-medium">{t("welcome.onboarding.uploadLogo")}</span>
-              <span className="text-muted-foreground text-center text-[11px]">
-                {t("welcome.onboarding.logoSpecs")}
-              </span>
-              <input
-                type="file"
-                accept="image/png,image/jpeg,image/svg+xml,image/webp"
-                className="sr-only"
-                onChange={(e) => {
-                  const file = e.target.files?.[0]
-                  if (!file?.type.startsWith("image/")) return
-                  const reader = new FileReader()
-                  reader.onload = () =>
-                    onCompanyChange({ logoUrl: String(reader.result) })
-                  reader.readAsDataURL(file)
-                }}
-              />
-            </label>
           )}
-        </div>
-
-        <div className="space-y-1.5">
-          <Label htmlFor="ob-website" className={labelClass}>
-            {t("welcome.onboarding.website")}{" "}
-            <span className="text-muted-foreground font-normal">
-              ({t("welcome.onboarding.optional")})
-            </span>
-          </Label>
-          <Input
-            id="ob-website"
-            value={companyDraft.website}
-            onChange={(e) => onCompanyChange({ website: e.target.value })}
-            placeholder="https://"
-            className={fieldClass}
-          />
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <Label className={labelClass}>{t("welcome.onboarding.address")}</Label>
-            <p className="text-muted-foreground mt-0.5 text-[11px] leading-relaxed">
-              {t("welcome.onboarding.addressHint")}
-            </p>
-          </div>
-          <Input
-            value={companyDraft.addressLine1}
-            onChange={(e) => onCompanyChange({ addressLine1: e.target.value })}
-            placeholder={t("welcome.onboarding.street")}
-            className={fieldClass}
-          />
-          <div className="grid gap-3 sm:grid-cols-3">
-            <Input
-              value={companyDraft.city}
-              onChange={(e) => onCompanyChange({ city: e.target.value })}
-              placeholder={t("welcome.onboarding.city")}
-              className={fieldClass}
-            />
-            <Input
-              value={companyDraft.state}
-              onChange={(e) => onCompanyChange({ state: e.target.value })}
-              placeholder={t("welcome.onboarding.state")}
-              className={fieldClass}
-            />
-            <Input
-              value={companyDraft.postalCode}
-              onChange={(e) => onCompanyChange({ postalCode: e.target.value })}
-              placeholder={t("welcome.onboarding.postal")}
-              className={fieldClass}
-            />
-          </div>
         </div>
       </div>
     )
@@ -283,9 +162,7 @@ export function WelcomeSetupBody({
   if (step === 2) {
     return (
       <div className="space-y-4">
-        <p className="text-muted-foreground text-[13px] leading-relaxed">
-          {t("welcome.onboarding.regionalLead")}
-        </p>
+        <div className="grid gap-3 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label className={labelClass}>{t("welcome.onboarding.currency")}</Label>
           <Select
@@ -368,6 +245,7 @@ export function WelcomeSetupBody({
                   ?.example ?? "09/10/2026",
             })}
           </p>
+        </div>
         </div>
       </div>
     )
@@ -592,19 +470,9 @@ export function WelcomeSetupBody({
   }
 
   if (step === 4) {
-    const preview = formatInvoicePreview(
-      companyDraft.invoicePrefix,
-      companyDraft.nextInvoiceNumber
-    )
-    const terms =
-      companyDraft.paymentTermsDays === 0
-        ? t("welcome.onboarding.dueOnReceipt")
-        : t("welcome.onboarding.customDays", {
-            days: companyDraft.paymentTermsDays,
-          })
     return (
       <div className="space-y-4">
-        <div className="border-border rounded-xl border px-4 py-3">
+        <div className="border-border bg-card rounded-xl border px-4 py-3">
           <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.12em] uppercase">
             {t("welcome.onboarding.summaryBusiness")}
           </p>
@@ -618,7 +486,7 @@ export function WelcomeSetupBody({
               .join(" · ")}
           </p>
         </div>
-        <div className="border-border rounded-xl border px-4 py-3">
+        <div className="border-border bg-card rounded-xl border px-4 py-3">
           <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.12em] uppercase">
             {t("welcome.onboarding.summaryRegional")}
           </p>
@@ -626,14 +494,6 @@ export function WelcomeSetupBody({
             {companyDraft.currency} · {companyDraft.timezone} · {prefs.language.toUpperCase()}
           </p>
           <p className="text-muted-foreground text-xs">{companyDraft.dateFormat}</p>
-        </div>
-        <div className="border-border rounded-xl border px-4 py-3">
-          <p className="text-muted-foreground text-[10px] font-semibold tracking-[0.12em] uppercase">
-            {t("welcome.onboarding.summaryInvoices")}
-          </p>
-          <p className="mt-1 text-sm font-medium">
-            {preview} · {terms}
-          </p>
         </div>
       </div>
     )
@@ -690,7 +550,7 @@ export function useWelcomeCompanyDraft() {
             state: remote.state || "",
             postalCode: remote.postalCode || "",
             phone: remote.phone || "",
-            email: remote.email || user?.email || "",
+            email: user?.email || remote.email || "",
             logoUrl: remote.logoUrl || "",
             currency: remote.currency || defaults.currency,
             timezone,
@@ -737,7 +597,11 @@ export function useWelcomeCompanyDraft() {
   }, [activeCompany?.name, user?.email])
 
   function updateCompany(patch: Partial<CompanySettings>) {
-    setCompanyDraft((prev) => ({ ...prev, ...patch }))
+    setCompanyDraft((prev) => ({
+      ...prev,
+      ...patch,
+      email: user?.email || prev.email,
+    }))
   }
 
   return { companyDraft, updateCompany, hydrated }

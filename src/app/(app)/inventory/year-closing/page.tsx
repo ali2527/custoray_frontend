@@ -146,7 +146,13 @@ export default function YearClosingPage() {
             <div className="space-y-2">
               <Label htmlFor="tenure-current">Term length (months)</Label>
               <div className="flex flex-wrap items-end gap-2">
-                <Select value={tenureSelect} onValueChange={setTenureSelect}>
+                <Select
+                  value={tenureSelect}
+                  onValueChange={(value) => {
+                    setTenureSelect(value)
+                    if (value !== "custom") setCustomTenure(value)
+                  }}
+                >
                   <SelectTrigger id="tenure-current" className="w-[180px]">
                     <SelectValue />
                   </SelectTrigger>
@@ -159,17 +165,24 @@ export default function YearClosingPage() {
                     <SelectItem value="custom">Custom…</SelectItem>
                   </SelectContent>
                 </Select>
-                {tenureSelect === "custom" && (
+                <div className="space-y-1">
+                  <Label htmlFor="tenure-custom" className="text-xs">
+                    Custom months
+                  </Label>
                   <Input
+                    id="tenure-custom"
                     type="number"
                     min={1}
                     max={120}
                     className="w-24"
                     value={customTenure}
-                    onChange={(e) => setCustomTenure(e.target.value)}
+                    onChange={(e) => {
+                      setCustomTenure(e.target.value)
+                      setTenureSelect("custom")
+                    }}
                     aria-label="Custom tenure in months"
                   />
-                )}
+                </div>
                 <Button type="button" variant="secondary" onClick={applyCurrentTenure}>
                   Apply
                 </Button>
@@ -196,7 +209,13 @@ export default function YearClosingPage() {
           <CardContent className="space-y-2">
             <Label htmlFor="tenure-next">Tenure for the new term</Label>
             <div className="flex flex-wrap items-end gap-2">
-              <Select value={nextTenureSelect} onValueChange={setNextTenureSelect}>
+              <Select
+                value={nextTenureSelect}
+                onValueChange={(value) => {
+                  setNextTenureSelect(value)
+                  if (value !== "custom") setNextCustomTenure(value)
+                }}
+              >
                 <SelectTrigger id="tenure-next" className="w-[180px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -209,17 +228,24 @@ export default function YearClosingPage() {
                   <SelectItem value="custom">Custom…</SelectItem>
                 </SelectContent>
               </Select>
-              {nextTenureSelect === "custom" && (
+              <div className="space-y-1">
+                <Label htmlFor="tenure-next-custom" className="text-xs">
+                  Custom months
+                </Label>
                 <Input
+                  id="tenure-next-custom"
                   type="number"
                   min={1}
                   max={120}
                   className="w-24"
                   value={nextCustomTenure}
-                  onChange={(e) => setNextCustomTenure(e.target.value)}
+                  onChange={(e) => {
+                    setNextCustomTenure(e.target.value)
+                    setNextTenureSelect("custom")
+                  }}
                   aria-label="Custom next term months"
                 />
-              )}
+              </div>
             </div>
             <p className="text-muted-foreground text-xs pt-2">
               Example: if you pick 12 months, the next term&apos;s planned end is{" "}

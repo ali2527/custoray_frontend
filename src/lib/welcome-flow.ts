@@ -1,8 +1,11 @@
+import { resetSetupProgress } from "@/lib/setup-progress"
+
 const WELCOME_STORAGE_KEY = "custoray-welcome-v14"
-const WELCOME_STEP_KEY = "custoray-welcome-step-v14"
+const WELCOME_STEP_KEY = "custoray-welcome-step-v16"
+const WELCOME_USER_KEY = "custoray-welcome-user-v14"
 export const WELCOME_OPEN_EVENT = "custoray-welcome-open"
 
-export type WelcomeSetupStep = 0 | 1 | 2 | 3 | 4
+export type WelcomeSetupStep = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
 export function markWelcomeFlow() {
   queueWelcomeFlow()
@@ -14,6 +17,31 @@ export function queueWelcomeFlow() {
   } catch {
     /* ignore */
   }
+}
+
+/** A different account starts setup from the first screen, not the last one's progress. */
+export function startWelcomeForUser(userId: string) {
+  const id = userId.trim()
+  if (!id) {
+    queueWelcomeFlow()
+    return
+  }
+  let previous = ""
+  try {
+    previous = localStorage.getItem(WELCOME_USER_KEY) || ""
+  } catch {
+    previous = ""
+  }
+  if (previous !== id) {
+    resetWelcomeFlow()
+    resetSetupProgress()
+    try {
+      localStorage.setItem(WELCOME_USER_KEY, id)
+    } catch {
+      /* ignore */
+    }
+  }
+  queueWelcomeFlow()
 }
 
 export function isWelcomeFlowPending() {
@@ -62,6 +90,7 @@ export function resetWelcomeFlow() {
   try {
     localStorage.removeItem(WELCOME_STORAGE_KEY)
     localStorage.removeItem(WELCOME_STEP_KEY)
+    localStorage.removeItem(WELCOME_USER_KEY)
   } catch {
     /* ignore */
   }
@@ -78,7 +107,7 @@ export function saveWelcomeSetupStep(step: WelcomeSetupStep) {
 export function readWelcomeSetupStep(): WelcomeSetupStep {
   try {
     const raw = Number(localStorage.getItem(WELCOME_STEP_KEY) ?? "0")
-    if (raw >= 0 && raw <= 4) return raw as WelcomeSetupStep
+    if (raw >= 0 && raw <= 6) return raw as WelcomeSetupStep
   } catch {
     /* ignore */
   }

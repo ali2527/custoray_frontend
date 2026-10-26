@@ -42,7 +42,7 @@ import {
 } from "@/lib/phone-mask"
 import { generateStrongPassword, isPasswordStrong } from "@/lib/password"
 import { claimAuthTab } from "@/lib/auth-tab"
-import { queueWelcomeFlow } from "@/lib/welcome-flow"
+import { startWelcomeForUser } from "@/lib/welcome-flow"
 import { FALLBACK_PLANS } from "@/lib/subscription-access"
 import { cn } from "@/lib/utils"
 
@@ -72,23 +72,23 @@ function StepBar({
   const { t } = useTranslation("auth")
   return (
     <div className={cn("-mt-2 mb-4", className)}>
-      <div className="grid grid-cols-3 gap-1.5">
+      <div className="grid grid-cols-3 gap-1.5" aria-label={t("signup.stepOf", { step, total: 3 })}>
         <button
           type="button"
           aria-label={t("signup.ariaAccount")}
-          className="h-0.5 rounded-full bg-primary"
+          className="block h-0.5 w-full rounded-full border-0 bg-primary p-0 disabled:opacity-100"
           onClick={step === 2 ? onBack : undefined}
           disabled={step !== 2}
         />
         <span
           className={cn(
-            "h-0.5 rounded-full",
+            "block h-0.5 w-full rounded-full",
             step >= 2 ? "bg-primary" : "bg-border"
           )}
         />
         <span
           className={cn(
-            "h-0.5 rounded-full",
+            "block h-0.5 w-full rounded-full",
             step === 3 ? "bg-primary" : "bg-border"
           )}
         />
@@ -252,7 +252,7 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
         setStep(3)
         return
       }
-      markWelcomeFlow()
+      startWelcomeForUser(result.userId || "")
       window.location.assign(result.accessAllowed ? "/home/?welcome=1" : "/trial-ended")
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("signup.toastFailed"))
@@ -265,12 +265,12 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
     <AuthShell hero="signup">
       {step === 1 ? (
         <>
+          <StepBar step={step} onBack={() => setStep(1)} />
           <AuthHeading
             title={t("signup.titleAccount")}
             accent="account"
             subtitle={t("signup.subtitleAccount")}
           />
-          <StepBar step={step} onBack={() => setStep(1)} />
           <form className="space-y-3" onSubmit={goToCompany}>
             <div className="grid gap-1.5">
               <Label htmlFor="ownerName">{t("signup.fullName")}</Label>
@@ -370,12 +370,12 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
         </>
       ) : step === 2 ? (
         <>
+          <StepBar step={step} onBack={() => setStep(1)} />
           <AuthHeading
             title={t("signup.titleCompany")}
             accent="company"
             subtitle={t("signup.subtitleCompany")}
           />
-          <StepBar step={step} onBack={() => setStep(1)} />
           <p className="text-muted-foreground -mt-1 mb-3 truncate text-[11px]">
             {values.email}
             {" · "}
@@ -530,7 +530,7 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
         </>
       ) : (
         <>
-          <StepBar step={3} onBack={() => setStep(1)} className="mt-0 mb-5" />
+          <StepBar step={3} onBack={() => setStep(1)} />
           <AuthHeading
             title={
               verifyPending

@@ -24,9 +24,43 @@ const VARIANT_HINT_KEYS: Record<MoneyFormatVariant, string> = {
   uk: "language.priceFormatUkHint",
 }
 
-export function MoneyFormatSettings() {
+export function MoneyFormatSettings({ embedded = false }: { embedded?: boolean }) {
   const { t } = useTranslation("settings")
   const { settings, setVariant } = useMoneyFormatSettings()
+
+  if (embedded) {
+    return (
+      <div className="space-y-1.5">
+        <p className="text-xs font-medium">{t("language.priceFormat")}</p>
+        <div className="grid grid-cols-2 gap-2">
+          {MONEY_FORMAT_VARIANTS.map((variant) => {
+            const selected = settings.variant === variant
+            return (
+              <button
+                key={variant}
+                type="button"
+                aria-pressed={selected}
+                onClick={() => setVariant(variant)}
+                className={cn(
+                  "rounded-lg border px-3 py-2.5 text-start",
+                  selected
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-background hover:border-primary/40"
+                )}
+              >
+                <span className="block font-mono text-sm tabular-nums">
+                  {moneyFormatSample(variant)}
+                </span>
+                <span className="text-muted-foreground mt-0.5 block text-xs">
+                  {t(VARIANT_LABEL_KEYS[variant])}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <section className="flex flex-col gap-4 pt-8">

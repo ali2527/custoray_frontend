@@ -43,7 +43,7 @@ export function AuthShell({
               >
                 <AuthBrand className="mb-4 shrink-0" />
                 <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5 [scrollbar-width:thin]">
-                  <div className="flex min-h-full flex-col justify-center py-0.5">
+                  <div className="flex min-h-full flex-col justify-center-safe py-0.5">
                     {children}
                   </div>
                 </div>

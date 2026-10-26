@@ -47,6 +47,7 @@ type LoginResult =
       ok: true
       accessAllowed: boolean
       needsOnboarding?: boolean
+      userId?: string
       requiresTwoFactor?: false
       requiresEmailVerification?: false
     }
@@ -68,7 +69,7 @@ type LoginResult =
   | { ok: false; error: string }
 
 type GoogleLoginResult =
-  | { ok: true; accessAllowed: boolean; isNewUser: boolean; requiresTwoFactor?: false }
+  | { ok: true; accessAllowed: boolean; isNewUser: boolean; userId?: string; requiresTwoFactor?: false }
   | { ok: true; accessAllowed: false; isNewUser: false; requiresTwoFactor: true }
   | { ok: false; error: string }
 
@@ -277,6 +278,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ok: true,
           accessAllowed: nextAccess.allowed,
           needsOnboarding: !me.onboarding?.completedAt,
+          userId: me.user.id,
         }
       } catch (err) {
         if (
@@ -330,7 +332,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         const me = await apiMe()
         const nextAccess = applyRemoteSession(me)
-        return { ok: true, accessAllowed: nextAccess.allowed }
+        return {
+          ok: true,
+          accessAllowed: nextAccess.allowed,
+          needsOnboarding: true,
+          userId: me.user.id,
+        }
       } catch (err) {
         return {
           ok: false,
@@ -368,6 +375,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           ok: true,
           accessAllowed: nextAccess.allowed,
           isNewUser: Boolean(data.isNewUser),
+          userId: me.user.id,
         }
       } catch (err) {
         return {
