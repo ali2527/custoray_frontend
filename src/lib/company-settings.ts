@@ -2,9 +2,7 @@ import { z } from "zod"
 
 export const companySettingsSchema = z.object({
   name: z.string(),
-  tagline: z.string(),
   industry: z.string(),
-  website: z.string(),
   country: z.string(),
   addressLine1: z.string(),
   addressLine2: z.string(),
@@ -30,9 +28,7 @@ export const COMPANY_SETTINGS_STORAGE_KEY = "custoray-company-settings-v1"
 
 export const DEFAULT_COMPANY_SETTINGS: CompanySettings = {
   name: "",
-  tagline: "",
   industry: "",
-  website: "",
   country: "",
   addressLine1: "",
   addressLine2: "",

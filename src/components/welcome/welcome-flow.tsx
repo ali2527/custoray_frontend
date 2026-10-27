@@ -3,12 +3,24 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import Image from "next/image"
 import { usePathname, useRouter } from "next/navigation"
-import { Check, ChevronLeft, ChevronRight, ImagePlus, Monitor, Moon, Sun } from "lucide-react"
+import {
+  Building2,
+  Calendar,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  ImagePlus,
+  Info,
+  Languages,
+  Package,
+  Receipt,
+} from "lucide-react"
 import { useTheme } from "next-themes"
 import { useTranslation } from "react-i18next"
 import { toast } from "sonner"
 
 import { AUTH_INPUT } from "@/components/auth/auth-shell"
+import { PhoneCodeSelect } from "@/components/signup/phone-code-select"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -26,18 +38,46 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { persistWelcomeCompany, useWelcomeCompanyDraft } from "@/components/welcome/welcome-setup"
 import { useAppearance } from "@/components/theme/appearance-provider"
+import { AccentColorPicker } from "@/components/theme/accent-color-picker"
+import { ThemeModePicker, type ThemeMode } from "@/components/theme/theme-mode-picker"
 import { useAuth } from "@/context/auth-context"
 import { useFiscalTerms } from "@/context/fiscal-term-context"
 import { useMoneyFormatSettings } from "@/hooks/use-money-format-settings"
+import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
+import { useProductSkuSettings } from "@/hooks/use-product-sku-settings"
 import { apiBillingSummary, apiPatchOnboarding, type SessionPayload } from "@/lib/api/auth"
-import { ACCENT_PRESETS, type AppLanguage } from "@/lib/appearance-prefs"
-import { addMonthsIso, clampTenureMonths, formatShortDate } from "@/lib/fiscal-terms"
+import { type AppLanguage } from "@/lib/appearance-prefs"
+import {
+  formatAutoDocumentNumber,
+  loadDocumentNumberSettings,
+  sanitizeNumberPrefixInput,
+  type DocumentNumberMode,
+} from "@/lib/document-number-settings"
+import { clampTenureMonths, formatShortDate } from "@/lib/fiscal-terms"
 import type { MoneyFormatVariant } from "@/lib/money-format-settings"
 import { CURRENCY_OPTIONS, regionalDefaultsForCountry } from "@/lib/onboarding-defaults"
 import { SIGNUP_COUNTRIES } from "@/lib/countries"
+import { statesForCountry } from "@/lib/country-states"
+import {
+  formatAutoSku,
+  sanitizeSkuPrefixInput,
+  type ProductSkuMode,
+} from "@/lib/product-sku-settings"
 import { SIGNUP_INDUSTRIES } from "@/lib/industries"
+import {
+  formatInternationalNumber,
+  formatNationalNumber,
+  isPhoneCountry,
+  phoneProfile,
+  validateSignupPhone,
+} from "@/lib/phone-mask"
 import { PLAN_BLURB, TRIAL_DAYS, formatPlanPrice } from "@/lib/plans"
 import { markSetupMilestone } from "@/lib/setup-progress"
 import { FALLBACK_PLANS, formatTrialEndDate } from "@/lib/subscription-access"
@@ -56,17 +96,55 @@ import {
 } from "@/lib/welcome-flow"
 import { cn } from "@/lib/utils"
 
-const TERM_OPTIONS = [
-  { months: 6 as const, key: "termOption6", recommended: false },
-  { months: 12 as const, key: "termOption12", recommended: true },
-  { months: 24 as const, key: "termOption24", recommended: false },
+const LANGUAGE_ANSWERS: {
+  value: AppLanguage
+  native: string
+  english: string
+  flagSrc: string
+}[] = [
+  { value: "en", native: "English", english: "English", flagSrc: "/assets/flags/gb.svg" },
+  { value: "ar", native: "العربية", english: "Arabic", flagSrc: "/assets/flags/sa.svg" },
+  { value: "ur", native: "اردو", english: "Urdu", flagSrc: "/assets/flags/pk.svg" },
 ]
 
-const LANGUAGE_ANSWERS: { value: AppLanguage; label: string; hintKey: string }[] = [
-  { value: "en", label: "English", hintKey: "languageEnHint" },
-  { value: "ar", label: "العربية", hintKey: "languageArHint" },
-  { value: "ur", label: "اردو", hintKey: "languageUrHint" },
-]
+const optionIdle =
+  "border border-border bg-background text-foreground hover:bg-muted/40"
+const optionSelected =
+  "border border-blue-600 bg-blue-50 text-foreground hover:bg-blue-50 dark:border-blue-400 dark:bg-blue-950/40"
+
+const CURRENCY_SYMBOL: Record<string, string> = {
+  PKR: "₨",
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+  INR: "₹",
+  AED: "د.إ",
+  SAR: "﷼",
+  CAD: "C$",
+  AUD: "A$",
+}
+
+function toDateInput(iso: string) {
+  return iso.slice(0, 10)
+}
+
+function monthsFromEnd(startValue: string, endValue: string) {
+  const start = new Date(`${startValue}T00:00:00.000Z`)
+  const end = new Date(`${endValue}T00:00:00.000Z`)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 12
+  let months =
+    (end.getUTCFullYear() - start.getUTCFullYear()) * 12 + (end.getUTCMonth() - start.getUTCMonth())
+  if (end.getUTCDate() < start.getUTCDate()) months -= 1
+  return clampTenureMonths(Math.max(1, months))
+}
+
+function defaultYearEnd(startValue: string) {
+  const start = new Date(`${startValue}T00:00:00.000Z`)
+  if (Number.isNaN(start.getTime())) return startValue
+  start.setUTCMonth(start.getUTCMonth() + 1, 0)
+  start.setUTCFullYear(start.getUTCFullYear() + 1)
+  return start.toISOString().slice(0, 10)
+}
 
 function moneyVariantForCurrency(code: string): MoneyFormatVariant | null {
   if (code === "PKR") return "pakistani"
@@ -76,70 +154,42 @@ function moneyVariantForCurrency(code: string): MoneyFormatVariant | null {
   return null
 }
 
-function StepDots({ current, total }: { current: number; total: number }) {
-  return (
-    <div className="flex items-center justify-center gap-1.5" aria-hidden>
-      {Array.from({ length: total }).map((_, index) => (
-        <span
-          key={index}
-          className={cn(
-            "size-1.5 rounded-full",
-            index === current ? "bg-foreground" : "bg-foreground/20"
-          )}
-        />
-      ))}
-    </div>
-  )
-}
-
 function TrialTimeline({
-  progress,
   startDate,
-  endDate,
-  dayLabel,
-  daysLabel,
   startedCaption,
-  endsCaption,
+  nowLabel,
+  nowCaption,
+  payLabel,
+  payCaption,
 }: {
-  progress: number
   startDate: string
-  endDate: string
-  dayLabel: string
-  daysLabel: string
   startedCaption: string
-  endsCaption: string
+  nowLabel: string
+  nowCaption: string
+  payLabel: string
+  payCaption: string
 }) {
-  const pct = Math.min(100, Math.max(0, progress * 100))
-  const showNow = pct > 6 && pct < 94
   return (
-    <div className="mt-3.5">
+    <div className="mt-4">
       <div className="relative h-3">
         <div className="bg-primary/15 absolute inset-x-1 top-1/2 h-px -translate-y-1/2 rounded-full" />
-        <div
-          className="bg-primary absolute top-1/2 left-1 h-px -translate-y-1/2 rounded-full"
-          style={{ width: pct <= 0 ? 0 : `max(2px, calc(${pct}% - 0.25rem))` }}
-        />
+        <div className="bg-primary absolute top-1/2 left-1 h-px w-[calc(50%-0.25rem)] -translate-y-1/2 rounded-full" />
         <span className="bg-primary absolute top-1/2 left-0 size-2 -translate-y-1/2 rounded-full" />
-        {showNow ? (
-          <span
-            className="border-primary bg-background absolute top-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2"
-            style={{ left: `${pct}%` }}
-          />
-        ) : null}
-        <span className="border-foreground/20 bg-background absolute top-1/2 right-0 size-2 -translate-y-1/2 rounded-full border" />
+        <span className="border-primary bg-background absolute top-1/2 left-1/2 size-2.5 -translate-x-1/2 -translate-y-1/2 rounded-full border-2" />
+        <span className="border-foreground/25 bg-background absolute top-1/2 right-0 size-2 -translate-y-1/2 rounded-full border" />
       </div>
-      <p className="mt-2 text-[11px] leading-snug">
-        <span className="font-semibold">{dayLabel}</span>
-        <span className="text-muted-foreground"> · {daysLabel}</span>
-      </p>
-      <div className="mt-1.5 flex items-start justify-between gap-3 text-[11px]">
-        <div>
-          <p className="font-semibold">{startDate}</p>
-          <p className="text-muted-foreground mt-0.5">{startedCaption}</p>
+      <div className="mt-2.5 grid grid-cols-3 gap-1.5 text-[10px] sm:gap-2 sm:text-[11px]">
+        <div className="min-w-0">
+          <p className="truncate font-semibold">{startDate}</p>
+          <p className="text-muted-foreground mt-0.5 leading-snug">{startedCaption}</p>
         </div>
-        <div className="text-end">
-          <p className="font-semibold">{endDate}</p>
-          <p className="text-muted-foreground mt-0.5">{endsCaption}</p>
+        <div className="min-w-0 text-center">
+          <p className="truncate font-semibold">{nowLabel}</p>
+          <p className="text-muted-foreground mt-0.5 leading-snug">{nowCaption}</p>
+        </div>
+        <div className="min-w-0 text-end">
+          <p className="truncate font-semibold">{payLabel}</p>
+          <p className="text-muted-foreground mt-0.5 leading-snug">{payCaption}</p>
         </div>
       </div>
     </div>
@@ -150,32 +200,42 @@ function FieldRow({
   label,
   htmlFor,
   className,
+  required,
+  optionalLabel,
   children,
 }: {
   label: string
   htmlFor?: string
   className?: string
+  required?: boolean
+  optionalLabel?: string
   children: ReactNode
 }) {
   return (
-    <div className={cn("grid gap-1.5", className)}>
-      <Label htmlFor={htmlFor}>{label}</Label>
+    <div className={cn("grid gap-2", className)}>
+      <Label htmlFor={htmlFor} className="text-xs font-medium text-muted-foreground">
+        {label}
+        {required ? <span className="text-destructive"> *</span> : null}
+        {optionalLabel ? (
+          <span className="font-normal"> ({optionalLabel})</span>
+        ) : null}
+      </Label>
       {children}
     </div>
   )
 }
 
-function ChoiceCard({
+function CurrencyRow({
   selected,
-  title,
-  hint,
-  mark,
+  symbol,
+  code,
+  name,
   onClick,
 }: {
   selected: boolean
-  title: string
-  hint: string
-  mark: string
+  symbol: string
+  code: string
+  name: string
   onClick: () => void
 }) {
   return (
@@ -184,31 +244,22 @@ function ChoiceCard({
       onClick={onClick}
       aria-pressed={selected}
       className={cn(
-        "flex w-full items-center gap-3 rounded-2xl px-3.5 py-3 text-start transition-colors",
-        selected ? "bg-primary/10" : "bg-muted/50 hover:bg-muted"
+        "flex min-h-[4.25rem] w-full items-center gap-3 rounded-xl px-3.5 py-2.5 text-start transition-colors",
+        selected ? optionSelected : optionIdle
       )}
     >
-      <span
-        className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-xl text-[11px] font-semibold",
-          selected ? "bg-primary/15 text-primary" : "bg-muted text-foreground"
-        )}
-      >
-        {mark}
-      </span>
+      <span className="text-muted-foreground w-7 shrink-0 text-center text-lg leading-none">{symbol}</span>
       <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold tracking-tight">{title}</span>
-        <span className="text-muted-foreground mt-0.5 block text-xs leading-snug">{hint}</span>
+        <span className="block text-sm font-semibold tracking-tight">{code}</span>
+        <span className="text-muted-foreground mt-0.5 block text-xs">{name}</span>
       </span>
       <span
         className={cn(
           "flex size-5 shrink-0 items-center justify-center rounded-full border",
-          selected
-            ? "border-primary bg-primary text-primary-foreground"
-            : "border-muted-foreground/30"
+          selected ? "border-blue-600" : "border-muted-foreground/30"
         )}
       >
-        {selected ? <Check className="size-3" strokeWidth={3} /> : null}
+        {selected ? <span className="size-2.5 rounded-full bg-blue-600" /> : null}
       </span>
     </button>
   )
@@ -225,13 +276,28 @@ export function WelcomeFlow() {
   const [placed, setPlaced] = useState(false)
   const [saving, setSaving] = useState(false)
   const [termMonths, setTermMonths] = useState(12)
-  const [termCustom, setTermCustom] = useState(false)
-  const [customMonths, setCustomMonths] = useState("18")
+  const [businessStarted, setBusinessStarted] = useState("")
+  const [termStart, setTermStart] = useState("")
+  const [termEnd, setTermEnd] = useState("")
   const [shown, setShown] = useState(true)
   const [logoPreview, setLogoPreview] = useState("")
+  const [phoneCountry, setPhoneCountry] = useState("Pakistan")
+  const logoInputRef = useRef<HTMLInputElement | null>(null)
+  const logoEncodeRef = useRef<Promise<string | null> | null>(null)
   const stepTimer = useRef<number | null>(null)
-  const { state: fiscalState, updateActiveTenure } = useFiscalTerms()
+
+  const PROFILE_INPUT =
+    "h-11 w-full min-w-0 rounded-lg border border-border bg-background text-sm shadow-none focus-visible:ring-2 focus-visible:ring-primary/30"
+  const { state: fiscalState, updateActiveTenure, updateActiveStart } = useFiscalTerms()
   const { setVariant } = useMoneyFormatSettings()
+  const { settings: skuSettings, persist: persistSku, setMode: setSkuMode } =
+    useProductSkuSettings()
+  const {
+    settings: numberSettings,
+    persist: persistNumbers,
+    updateEntry: updateNumberEntry,
+    setMode: setNumberMode,
+  } = useDocumentNumberSettings()
   const { prefs, update: updateAppearance } = useAppearance()
   const { theme, setTheme } = useTheme()
   const [themeReady, setThemeReady] = useState(false)
@@ -244,6 +310,23 @@ export function WelcomeFlow() {
   useEffect(() => {
     setThemeReady(true)
   }, [])
+
+  useEffect(() => {
+    if (!draftHydrated) return
+    if (companyDraft.country && isPhoneCountry(companyDraft.country)) {
+      setPhoneCountry(companyDraft.country)
+    }
+  }, [draftHydrated, companyDraft.country])
+
+  useEffect(() => {
+    if (!open || businessStarted) return
+    const start = toDateInput(fiscalState.active.startedAt)
+    const end = defaultYearEnd(start)
+    setBusinessStarted(start)
+    setTermStart(start)
+    setTermEnd(end)
+    setTermMonths(monthsFromEnd(start, end))
+  }, [open, businessStarted, fiscalState.active.startedAt])
 
   useEffect(() => {
     if (!open) return
@@ -293,29 +376,55 @@ export function WelcomeFlow() {
   }
 
   function handleLogoFile(file: File | undefined) {
-    if (!file?.type.startsWith("image/")) return
+    if (!file) return
+    const allowed = ["image/png", "image/jpeg", "image/jpg", "image/webp", "image/svg+xml"]
+    if (!allowed.includes(file.type)) {
+      toast.error(t("welcome.onboarding.logoTypeError"))
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error(t("welcome.onboarding.logoSizeError"))
+      return
+    }
     const preview = URL.createObjectURL(file)
     setLogoPreview((current) => {
       if (current.startsWith("blob:")) URL.revokeObjectURL(current)
       return preview
     })
-    const image = new Image()
-    image.onload = () => {
-      const max = 512
-      const scale = Math.min(1, max / Math.max(image.width, image.height))
-      const canvas = document.createElement("canvas")
-      canvas.width = Math.max(1, Math.round(image.width * scale))
-      canvas.height = Math.max(1, Math.round(image.height * scale))
-      const ctx = canvas.getContext("2d")
-      if (!ctx) return
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
-      const keepPng = file.type === "image/png" || file.type === "image/webp"
-      updateCompany({
-        logoUrl: canvas.toDataURL(keepPng ? "image/png" : "image/jpeg", 0.86),
-      })
-    }
-    image.src = preview
+    logoEncodeRef.current = new Promise((resolve) => {
+      if (file.type === "image/svg+xml") {
+        const reader = new FileReader()
+        reader.onload = () => {
+          const data = typeof reader.result === "string" ? reader.result : null
+          if (data) updateCompany({ logoUrl: data })
+          resolve(data)
+        }
+        reader.onerror = () => resolve(null)
+        reader.readAsDataURL(file)
+        return
+      }
+      const image = new Image()
+      image.onload = () => {
+        const max = 512
+        const scale = Math.min(1, max / Math.max(image.width, image.height))
+        const canvas = document.createElement("canvas")
+        canvas.width = Math.max(1, Math.round(image.width * scale))
+        canvas.height = Math.max(1, Math.round(image.height * scale))
+        const ctx = canvas.getContext("2d")
+        if (!ctx) {
+          resolve(null)
+          return
+        }
+        ctx.clearRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height)
+        const keepPng = file.type === "image/png" || file.type === "image/webp"
+        const data = canvas.toDataURL(keepPng ? "image/png" : "image/jpeg", 0.86)
+        updateCompany({ logoUrl: data })
+        resolve(data)
+      }
+      image.onerror = () => resolve(null)
+      image.src = preview
+    })
   }
 
   function goToStep(step: WelcomeSetupStep) {
@@ -384,17 +493,32 @@ export function WelcomeFlow() {
         toast.error(t("welcome.onboarding.industryRequired"))
         return
       }
-      if (!companyDraft.phone.trim()) {
+      const phoneIssue = validateSignupPhone(phoneCountry, companyDraft.phone)
+      if (phoneIssue === "required") {
         toast.error(t("welcome.onboarding.phoneRequired"))
         return
       }
+      if (phoneIssue === "invalid") {
+        toast.error(t("welcome.onboarding.phoneRequired"))
+        return
+      }
+      const phone = formatInternationalNumber(phoneCountry, companyDraft.phone)
       setSaving(true)
       try {
+        // Wait for in-flight logo encode so Continue never drops a just-picked logo.
+        const encodedLogo = logoEncodeRef.current
+          ? await logoEncodeRef.current
+          : null
+        logoEncodeRef.current = null
+        const logoUrl = encodedLogo?.trim() || companyDraft.logoUrl.trim()
         await persistWelcomeCompany({
           ...companyDraft,
           name,
+          phone,
+          logoUrl,
           email: user?.email?.trim() || companyDraft.email,
         })
+        if (logoUrl) updateCompany({ logoUrl })
         void apiPatchOnboarding({ business: true }).catch(() => undefined)
         goToStep(2)
       } catch (error) {
@@ -407,12 +531,12 @@ export function WelcomeFlow() {
       return
     }
 
-    if (setupStep === 2 || setupStep === 3) {
-      goToStep((setupStep + 1) as WelcomeSetupStep)
+    if (setupStep === 2) {
+      goToStep(3)
       return
     }
 
-    if (setupStep === 4) {
+    if (setupStep === 3) {
       if (!companyDraft.currency.trim()) {
         toast.error(t("welcome.onboarding.currencyRequired"))
         return
@@ -426,6 +550,37 @@ export function WelcomeFlow() {
         const variant = moneyVariantForCurrency(companyDraft.currency)
         if (variant) setVariant(variant)
         void apiPatchOnboarding({ business: true, preferences: true }).catch(() => undefined)
+        goToStep(4)
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : t("welcome.onboarding.saveFailed")
+        )
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
+    if (setupStep === 4) {
+      setSaving(true)
+      try {
+        const skuMode = skuSettings.mode === "custom" ? "custom" : "auto"
+        const skuPrefix = sanitizeSkuPrefixInput(skuSettings.prefix) || "SKU"
+        persistSku({ mode: skuMode, prefix: skuPrefix })
+
+        const numbers = loadDocumentNumberSettings()
+        persistNumbers(numbers)
+
+        const salesPrefix =
+          sanitizeNumberPrefixInput(numbers.sales.prefix) ||
+          companyDraft.invoicePrefix ||
+          "INV"
+        await persistWelcomeCompany({
+          ...companyDraft,
+          email: user?.email?.trim() || companyDraft.email,
+          invoicePrefix: salesPrefix,
+        })
+        updateCompany({ invoicePrefix: salesPrefix })
         goToStep(5)
       } catch (error) {
         toast.error(
@@ -438,7 +593,19 @@ export function WelcomeFlow() {
     }
 
     if (setupStep === 5) {
-      updateActiveTenure(termMonths)
+      if (!businessStarted || !termStart || !termEnd) {
+        toast.error(t("welcome.onboarding.accountingDatesRequired"))
+        return
+      }
+      if (termEnd <= termStart) {
+        toast.error(t("welcome.onboarding.accountingDatesOrder"))
+        return
+      }
+      const months = monthsFromEnd(termStart, termEnd)
+      // Apply start then tenure so both land in the same React batch.
+      updateActiveStart(termStart)
+      updateActiveTenure(months)
+      setTermMonths(months)
       void apiPatchOnboarding(
         { business: true, preferences: true, invoices: true },
         true
@@ -469,12 +636,14 @@ export function WelcomeFlow() {
         : setupStep === 2
           ? t("welcome.onboarding.colorQuestion")
           : setupStep === 3
-            ? t("welcome.onboarding.languageQuestion")
+            ? t("welcome.onboarding.regionalQuestion")
             : setupStep === 4
-              ? t("welcome.onboarding.currencyQuestion")
+              ? t("welcome.onboarding.skuQuestion")
               : setupStep === 5
                 ? t("welcome.onboarding.termQuestion")
-                : t("welcome.onboarding.completeTitle")
+                : firstName
+                  ? t("welcome.onboarding.completeTitleNamed", { name: firstName })
+                  : t("welcome.onboarding.completeTitle")
 
   const description =
     setupStep === 0
@@ -484,12 +653,20 @@ export function WelcomeFlow() {
         : setupStep === 2
           ? t("welcome.onboarding.colorQuestionLead")
           : setupStep === 3
-            ? t("welcome.onboarding.languageQuestionLead")
+            ? t("welcome.onboarding.regionalQuestionLead")
             : setupStep === 4
-              ? t("welcome.onboarding.currencyQuestionLead")
+              ? t("welcome.onboarding.skuQuestionLead")
               : setupStep === 5
                 ? t("welcome.onboarding.termQuestionLead")
-                : t("welcome.onboarding.completeSubtitle")
+                : t("welcome.onboarding.completeSubtitle", { business: businessName })
+
+  const readyLanguageLabel =
+    LANGUAGE_ANSWERS.find((item) => item.value === prefs.language)?.native ??
+    prefs.language
+  const readyTermLabel =
+    termStart && termEnd && termEnd > termStart
+      ? `${formatShortDate(`${termStart}T00:00:00.000Z`)} → ${formatShortDate(`${termEnd}T00:00:00.000Z`)}`
+      : t("welcome.guide.termMonths", { months: termMonths })
 
   const primaryLabel =
     setupStep === 0
@@ -526,8 +703,6 @@ export function WelcomeFlow() {
   const startMs = endMs != null ? endMs - spanDays * dayMs : null
   const elapsedMs =
     startMs != null && endMs != null ? Math.min(Math.max(Date.now() - startMs, 0), endMs - startMs) : 0
-  const trialProgress =
-    startMs != null && endMs != null && endMs > startMs ? elapsedMs / (endMs - startMs) : 0
   const elapsedDays = Math.min(spanDays, Math.floor(elapsedMs / dayMs))
   const trialDay = Math.min(spanDays, elapsedDays + 1)
   const daysRemaining = Math.max(0, spanDays - elapsedDays)
@@ -544,10 +719,6 @@ export function WelcomeFlow() {
     (planCode === "enterprise" ? "The full workspace, with room to grow." : "")
 
   const showBack = placed && setupStep > 0
-  const flowSteps = [0, 1, 2, 3, 4, 5] as const
-  const flowIndex = flowSteps.indexOf(setupStep as (typeof flowSteps)[number])
-  const progressCurrent = flowIndex === -1 ? flowSteps.length : flowIndex + 1
-  const progressTotal = flowSteps.length
 
   const logo = (
     <>
@@ -575,43 +746,61 @@ export function WelcomeFlow() {
       <DialogContent
         showCloseButton={false}
         className={cn(
-          "bg-background text-foreground flex max-h-[92vh] w-full max-w-[calc(100%-1.5rem)] flex-col gap-0 rounded-[1.75rem] border-0 p-0 shadow-[0_24px_80px_rgba(15,23,42,0.14)] ring-0 outline-none [font-family:var(--font-poppins),ui-sans-serif,system-ui,sans-serif] focus:ring-0 focus-visible:ring-0 sm:max-w-[42rem]",
-          setupStep === 1 ? "h-auto overflow-y-auto" : setupStep === 0 || setupStep === 6 ? "h-auto overflow-hidden" : "h-[36rem] overflow-hidden",
+          "bg-background text-foreground flex h-[100dvh] max-h-[100dvh] w-full max-w-none flex-col gap-0 overflow-hidden rounded-none border-0 p-0 shadow-none ring-0 outline-none [font-family:var(--font-poppins),ui-sans-serif,system-ui,sans-serif] focus:ring-0 focus-visible:ring-0 sm:max-h-[92vh] sm:rounded-[1.75rem] sm:shadow-[0_24px_80px_rgba(15,23,42,0.14)] sm:transition-[max-width,height,padding] sm:duration-500 sm:ease-[cubic-bezier(0.22,1,0.36,1)]",
+          setupStep === 0
+            ? "sm:h-[min(36rem,90vh)] sm:max-w-[43rem]"
+            : "sm:h-[min(40rem,92vh)] sm:max-w-[46rem]"
         )}
         onPointerDownOutside={(event) => event.preventDefault()}
         onEscapeKeyDown={(event) => event.preventDefault()}
         onInteractOutside={(event) => event.preventDefault()}
       >
-        <div className={cn("flex flex-col px-8 py-8 sm:px-12", setupStep === 0 || setupStep === 1 || setupStep === 6 ? "" : "min-h-0 flex-1")}>
-          <div className="flex h-8 shrink-0">{logo}</div>
-          <div className={cn("pt-8", setupStep === 0 || setupStep === 1 || setupStep === 6 ? "" : "hide-scrollbar min-h-0 flex-1 overflow-y-auto")}>
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 flex-col px-5 pt-[max(1.25rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:transition-[padding] sm:duration-500 sm:ease-[cubic-bezier(0.22,1,0.36,1)]",
+            setupStep === 0 ? "sm:px-10 sm:py-8" : "sm:px-12 sm:py-8"
+          )}
+        >
+          <div className="flex h-7 shrink-0 justify-start sm:h-8">{logo}</div>
+          <div
+            className={cn(
+              "hide-scrollbar min-h-0 flex-1 overscroll-contain",
+              setupStep === 0
+                ? "flex flex-col overflow-y-auto pt-3 sm:pt-4"
+                : setupStep === 6
+                  ? "flex flex-col overflow-hidden pt-2 sm:pt-3"
+                : setupStep === 3
+                  ? "flex flex-col overflow-hidden pt-5 sm:pt-8"
+                  : "overflow-y-auto pt-5 sm:pt-8"
+            )}
+          >
             <div
               className={cn(
                 "transition duration-200 ease-out",
-                shown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-1 opacity-0"
+                shown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-1 opacity-0",
+                setupStep === 0 && "my-auto w-full",
+                setupStep === 6 && "my-auto flex min-h-0 w-full flex-col",
+                setupStep === 3 && "flex min-h-0 flex-1 flex-col"
               )}
             >
-              <DialogHeader className="gap-0 text-left sm:text-left">
-                <DialogTitle
-                  className={cn(
-                    "leading-tight tracking-tight",
-                    setupStep === 0 || setupStep === 6 ? "text-foreground/80 text-[2.05rem] font-bold" : "text-[1.7rem] font-semibold"
-                  )}
-                >
-                  {placed ? title : t("welcome.onboarding.welcomeTitle")}
-                </DialogTitle>
-                <DialogDescription
-                  className={cn(
-                    "text-muted-foreground leading-relaxed",
-                    setupStep === 0 || setupStep === 6 ? "mt-4 max-w-none text-[0.95rem]" : "mt-2 max-w-xl text-sm"
-                  )}
-                >
-                  {placed ? description : "\u00a0"}
-                </DialogDescription>
-              </DialogHeader>
+              {setupStep !== 6 ? (
+                <DialogHeader className="gap-0 text-left sm:text-left">
+                  <DialogTitle className="text-foreground text-[1.35rem] leading-snug font-semibold tracking-tight sm:text-[1.6875rem]">
+                    {placed ? title : t("welcome.onboarding.welcomeTitle")}
+                  </DialogTitle>
+                  <DialogDescription className="text-muted-foreground mt-2 max-w-none text-[13px] leading-relaxed sm:text-sm">
+                    {placed ? description : "\u00a0"}
+                  </DialogDescription>
+                </DialogHeader>
+              ) : (
+                <DialogHeader className="sr-only">
+                  <DialogTitle>{title}</DialogTitle>
+                  <DialogDescription>{description}</DialogDescription>
+                </DialogHeader>
+              )}
 
               {placed && setupStep === 0 ? (
-                <div className="mt-6 rounded-xl bg-primary/[0.05] px-3.5 py-3">
+                <div className="mt-5 rounded-xl border border-border bg-primary/[0.04] px-3.5 py-3 sm:mt-7 sm:px-4 sm:py-3.5">
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-semibold tracking-tight">{planName}</p>
                     <span className="bg-primary/10 text-primary rounded-full px-1.5 py-px text-[10px] font-medium">
@@ -629,73 +818,123 @@ export function WelcomeFlow() {
                   ) : null}
                   {onTrial && startMs != null && endsAt ? (
                     <TrialTimeline
-                      progress={trialProgress}
                       startDate={formatTrialEndDate(new Date(startMs).toISOString())}
-                      endDate={formatTrialEndDate(endsAt)}
-                      dayLabel={trialDayLabel}
-                      daysLabel={daysLabel}
                       startedCaption={t("welcome.onboarding.trialStarted")}
-                      endsCaption={t("welcome.onboarding.trialEndsMark")}
+                      nowLabel={daysLabel}
+                      nowCaption={trialDayLabel}
+                      payLabel={
+                        planPrice
+                          ? `${planPrice}${tBilling("billing.perMonth")}`
+                          : formatTrialEndDate(endsAt)
+                      }
+                      payCaption={
+                        planPrice
+                          ? t("welcome.onboarding.payFrom", { date: formatTrialEndDate(endsAt) })
+                          : t("welcome.onboarding.trialEndsMark")
+                      }
                     />
                   ) : null}
                 </div>
               ) : null}
 
               {placed && setupStep === 1 ? (
-                <div className="mt-5 grid items-start gap-5 sm:grid-cols-[10.5rem_minmax(0,1fr)]">
+                <div className="mt-5 grid items-start gap-5 sm:mt-7 sm:grid-cols-[10.5rem_minmax(0,1fr)] sm:gap-7">
                   <div className="mx-auto w-36 sm:mx-0 sm:w-full">
-                    <label className="bg-muted/40 relative flex aspect-square w-full cursor-pointer items-center justify-center overflow-hidden rounded-2xl">
+                    <div
+                      className={cn(
+                        "group relative flex aspect-square w-full flex-col items-center justify-center overflow-hidden rounded-2xl border border-dashed bg-muted/20 transition-colors",
+                        "hover:border-[#92c720] hover:bg-[#92c720]/[0.06]"
+                      )}
+                    >
                       {logoPreview || companyDraft.logoUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={logoPreview || companyDraft.logoUrl}
-                          alt=""
-                          className="size-full object-contain p-3"
-                        />
+                        <>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={logoPreview || companyDraft.logoUrl}
+                            alt=""
+                            className="size-full object-contain p-4"
+                          />
+                          <button
+                            type="button"
+                            className="absolute inset-x-3 bottom-3 rounded-lg border border-border bg-background/95 px-2 py-1.5 text-[11px] font-medium shadow-sm"
+                            onClick={() => logoInputRef.current?.click()}
+                          >
+                            {t("welcome.onboarding.changeLogo")}
+                          </button>
+                        </>
                       ) : (
-                        <span className="text-muted-foreground flex flex-col items-center gap-2 px-3 text-center">
-                          <ImagePlus className="size-5" strokeWidth={1.75} />
-                          <span className="text-xs font-medium">{t("welcome.onboarding.uploadLogo")}</span>
-                        </span>
+                        <button
+                          type="button"
+                          aria-label={t("welcome.onboarding.uploadCompanyLogo")}
+                          className="text-muted-foreground hover:text-foreground flex h-full w-full flex-col items-center justify-center gap-2 transition-colors"
+                          onClick={() => logoInputRef.current?.click()}
+                        >
+                          <span className="bg-background flex size-14 items-center justify-center rounded-full border border-border shadow-sm">
+                            <Building2 className="size-6" strokeWidth={1.5} />
+                          </span>
+                          <span className="inline-flex items-center gap-1 text-[11px] font-medium">
+                            <ImagePlus className="size-3.5" strokeWidth={2} />
+                            {t("welcome.onboarding.uploadLogo")}
+                          </span>
+                        </button>
                       )}
                       <input
+                        ref={logoInputRef}
                         type="file"
-                        accept="image/*"
+                        accept="image/png,image/jpeg,image/jpg,image/webp,image/svg+xml"
                         className="sr-only"
                         onChange={(event) => {
                           handleLogoFile(event.target.files?.[0])
                           event.target.value = ""
                         }}
                       />
-                    </label>
+                    </div>
                     <p className="text-muted-foreground mt-2 text-center text-[11px] leading-snug">
                       {t("welcome.onboarding.logoSpecs")}
                     </p>
                   </div>
-                  <div className="grid grid-cols-1 content-start gap-3 sm:grid-cols-2">
-                    <FieldRow label={t("welcome.onboarding.businessName")} htmlFor="ob-name">
+                  <div className="grid grid-cols-1 content-start gap-4 sm:grid-cols-2 sm:gap-5">
+                    <FieldRow label={t("welcome.onboarding.businessName")} htmlFor="ob-name" required>
                       <Input
                         id="ob-name"
                         value={companyDraft.name}
                         onChange={(event) => updateCompany({ name: event.target.value })}
-                        className={AUTH_INPUT}
+                        className={PROFILE_INPUT}
                       />
                     </FieldRow>
-                    <FieldRow label={t("welcome.onboarding.phone")} htmlFor="ob-phone">
-                      <Input
-                        id="ob-phone"
-                        value={companyDraft.phone}
-                        onChange={(event) => updateCompany({ phone: event.target.value })}
-                        className={AUTH_INPUT}
-                      />
+                    <FieldRow label={t("welcome.onboarding.phone")} htmlFor="ob-phone" required>
+                      <div className={cn(PROFILE_INPUT, "flex items-center overflow-hidden px-0")}>
+                        <PhoneCodeSelect
+                          value={phoneCountry}
+                          onValueChange={(value) => {
+                            setPhoneCountry(value)
+                            updateCompany({
+                              phone: formatNationalNumber(value, companyDraft.phone),
+                            })
+                          }}
+                        />
+                        <Input
+                          id="ob-phone"
+                          type="tel"
+                          inputMode="numeric"
+                          value={formatNationalNumber(phoneCountry, companyDraft.phone)}
+                          onChange={(event) =>
+                            updateCompany({
+                              phone: formatNationalNumber(phoneCountry, event.target.value),
+                            })
+                          }
+                          placeholder={phoneProfile(phoneCountry).placeholder}
+                          className="h-full min-w-0 flex-1 rounded-none border-0 bg-transparent px-3 text-sm shadow-none focus-visible:ring-0"
+                        />
+                      </div>
                     </FieldRow>
                     {companyDraft.industry.trim().length >= 2 ? null : (
-                      <FieldRow label={t("welcome.onboarding.industry")} className="sm:col-span-2">
+                      <FieldRow label={t("welcome.onboarding.industry")} className="sm:col-span-2" required>
                         <Select
                           value={companyDraft.industry || undefined}
                           onValueChange={(value) => updateCompany({ industry: value })}
                         >
-                          <SelectTrigger className={cn(AUTH_INPUT, "w-full justify-between px-3 font-normal shadow-none data-[size=default]:h-10")}>
+                          <SelectTrigger className={cn(PROFILE_INPUT, "w-full justify-between px-3 font-normal data-[size=default]:h-11")}>
                             <SelectValue placeholder={t("welcome.onboarding.industryPlaceholder")} />
                           </SelectTrigger>
                           <SelectContent>
@@ -708,49 +947,36 @@ export function WelcomeFlow() {
                         </Select>
                       </FieldRow>
                     )}
-                    <FieldRow label={t("welcome.onboarding.tagline")} htmlFor="ob-tagline">
-                      <Input
-                        id="ob-tagline"
-                        value={companyDraft.tagline}
-                        onChange={(event) => updateCompany({ tagline: event.target.value })}
-                        className={AUTH_INPUT}
-                      />
-                    </FieldRow>
-                    <FieldRow label={t("welcome.onboarding.website")} htmlFor="ob-website">
-                      <Input
-                        id="ob-website"
-                        value={companyDraft.website}
-                        onChange={(event) => updateCompany({ website: event.target.value })}
-                        className={AUTH_INPUT}
-                      />
-                    </FieldRow>
                     <FieldRow label={t("welcome.onboarding.street")} htmlFor="ob-street" className="sm:col-span-2">
                       <Input
                         id="ob-street"
                         value={companyDraft.addressLine1}
                         onChange={(event) => updateCompany({ addressLine1: event.target.value })}
-                        className={AUTH_INPUT}
+                        className={PROFILE_INPUT}
                       />
                     </FieldRow>
-                    <FieldRow label={t("welcome.onboarding.country")}>
+                    <FieldRow label={t("welcome.onboarding.country")} required>
                       <Select
                         value={companyDraft.country || undefined}
                         onValueChange={(value) => {
                           const defaults = regionalDefaultsForCountry(value)
+                          const nextStates = statesForCountry(value)
                           updateCompany({
                             country: value,
+                            state: nextStates.includes(companyDraft.state) ? companyDraft.state : "",
                             currency: defaults.currency,
                             timezone: defaults.timezone,
                             dateFormat: defaults.dateFormat,
                           })
+                          if (isPhoneCountry(value)) setPhoneCountry(value)
                         }}
                       >
-                        <SelectTrigger className={cn(AUTH_INPUT, "w-full justify-between px-3 font-normal shadow-none data-[size=default]:h-10")}>
+                        <SelectTrigger className={cn(PROFILE_INPUT, "w-full justify-between px-3 font-normal data-[size=default]:h-11")}>
                           <SelectValue placeholder={t("welcome.onboarding.country")} />
                         </SelectTrigger>
                         <SelectContent>
                           {SIGNUP_COUNTRIES.map((country) => (
-                            <SelectItem key={country} value={country} className="text-xs">
+                            <SelectItem key={country} value={country} className="text-sm">
                               {country}
                             </SelectItem>
                           ))}
@@ -758,19 +984,37 @@ export function WelcomeFlow() {
                       </Select>
                     </FieldRow>
                     <FieldRow label={t("welcome.onboarding.state")} htmlFor="ob-state">
-                      <Input
-                        id="ob-state"
-                        value={companyDraft.state}
-                        onChange={(event) => updateCompany({ state: event.target.value })}
-                        className={AUTH_INPUT}
-                      />
+                      {statesForCountry(companyDraft.country).length > 0 ? (
+                        <Select
+                          value={companyDraft.state || undefined}
+                          onValueChange={(value) => updateCompany({ state: value })}
+                        >
+                          <SelectTrigger className={cn(PROFILE_INPUT, "w-full justify-between px-3 font-normal data-[size=default]:h-11")}>
+                            <SelectValue placeholder={t("welcome.onboarding.statePlaceholder")} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {statesForCountry(companyDraft.country).map((state) => (
+                              <SelectItem key={state} value={state} className="text-sm">
+                                {state}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Input
+                          id="ob-state"
+                          value={companyDraft.state}
+                          onChange={(event) => updateCompany({ state: event.target.value })}
+                          className={PROFILE_INPUT}
+                        />
+                      )}
                     </FieldRow>
                     <FieldRow label={t("welcome.onboarding.city")} htmlFor="ob-city">
                       <Input
                         id="ob-city"
                         value={companyDraft.city}
                         onChange={(event) => updateCompany({ city: event.target.value })}
-                        className={AUTH_INPUT}
+                        className={PROFILE_INPUT}
                       />
                     </FieldRow>
                     <FieldRow label={t("welcome.onboarding.postal")} htmlFor="ob-postal">
@@ -778,7 +1022,7 @@ export function WelcomeFlow() {
                         id="ob-postal"
                         value={companyDraft.postalCode}
                         onChange={(event) => updateCompany({ postalCode: event.target.value })}
-                        className={AUTH_INPUT}
+                        className={PROFILE_INPUT}
                       />
                     </FieldRow>
                   </div>
@@ -786,243 +1030,477 @@ export function WelcomeFlow() {
               ) : null}
 
               {placed && setupStep === 2 ? (
-                <div className="mt-6 space-y-6">
+                <div className="mt-5 space-y-5 sm:mt-7 sm:space-y-7">
                   <div>
-                    <p className="text-sm font-medium">{t("welcome.onboarding.themeLabel")}</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {(
-                        [
-                          { id: "light", label: t("welcome.onboarding.themeLight"), icon: Sun },
-                          { id: "dark", label: t("welcome.onboarding.themeDark"), icon: Moon },
-                          { id: "system", label: t("welcome.onboarding.themeSystem"), icon: Monitor },
-                        ] as const
-                      ).map((item) => {
-                        const Icon = item.icon
-                        const selected = appearanceMode === item.id
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => setTheme(item.id)}
-                            className={cn(
-                              "inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm",
-                              selected ? "bg-primary/10 font-medium" : "bg-muted/50"
-                            )}
-                          >
-                            <Icon className="size-4" strokeWidth={1.75} />
-                            {item.label}
-                          </button>
-                        )
-                      })}
-                    </div>
+                    <p className="text-xs font-medium text-muted-foreground">{t("welcome.onboarding.themeLabel")}</p>
+                    <ThemeModePicker
+                      className="mt-3"
+                      value={appearanceMode as ThemeMode}
+                      onChange={(next) => setTheme(next)}
+                      size="sm"
+                      labels={{
+                        light: t("welcome.onboarding.themeLight"),
+                        dark: t("welcome.onboarding.themeDark"),
+                        system: t("welcome.onboarding.themeSystem"),
+                      }}
+                    />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">{t("welcome.onboarding.colorLabel")}</p>
-                    <div className="mt-3 flex flex-wrap gap-3">
-                      {ACCENT_PRESETS.map((item) => {
-                        const selected = prefs.colorTheme === item.id
-                        return (
-                          <button
-                            key={item.id}
-                            type="button"
-                            onClick={() => updateAppearance({ colorTheme: item.id, customColor: item.color })}
-                            className={cn(
-                              "flex w-16 flex-col items-center gap-2 rounded-2xl px-2 py-2.5 text-xs",
-                              selected ? "bg-primary/10 font-medium" : "bg-muted/50"
-                            )}
-                          >
-                            <span
-                              className={cn(
-                                "size-9 rounded-full",
-                                selected && "ring-2 ring-foreground/20 ring-offset-2 ring-offset-background"
-                              )}
-                              style={{ backgroundColor: item.color }}
-                            />
-                            {item.label}
-                          </button>
-                        )
-                      })}
-                    </div>
+                    <p className="text-xs font-medium text-muted-foreground">{t("welcome.onboarding.colorLabel")}</p>
+                    <AccentColorPicker
+                      className="mt-3"
+                      colorTheme={prefs.colorTheme}
+                      customColor={prefs.customColor}
+                      onChange={(next) => updateAppearance(next)}
+                    />
                   </div>
                 </div>
               ) : null}
 
               {placed && setupStep === 3 ? (
-                <div className="mt-6 flex gap-2">
-                  {LANGUAGE_ANSWERS.map((answer) => {
-                    const selected = prefs.language === answer.value
-                    return (
-                      <button
-                        key={answer.value}
-                        type="button"
-                        onClick={() => updateAppearance({ language: answer.value })}
-                        className={cn(
-                          "inline-flex h-10 min-w-0 flex-1 items-center justify-center rounded-full px-3 text-sm",
-                          selected ? "bg-primary/10 font-medium" : "bg-muted/50"
-                        )}
-                      >
-                        {answer.label}
-                      </button>
-                    )
-                  })}
+                <div className="mt-5 flex min-h-0 flex-1 flex-col gap-5 sm:mt-7 sm:gap-6">
+                  <div className="shrink-0">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      {t("welcome.onboarding.language")}
+                    </p>
+                    <div className="mt-2.5 grid grid-cols-3 gap-2 sm:gap-3">
+                      {LANGUAGE_ANSWERS.map((answer) => {
+                        const selected = prefs.language === answer.value
+                        return (
+                          <button
+                            key={answer.value}
+                            type="button"
+                            onClick={() => updateAppearance({ language: answer.value })}
+                            className={cn(
+                              "rounded-xl px-3 py-3.5 text-start transition-colors sm:px-4 sm:py-4",
+                              selected ? optionSelected : optionIdle
+                            )}
+                          >
+                            <span className="flex items-center gap-2.5">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={answer.flagSrc}
+                                alt=""
+                                width={28}
+                                height={20}
+                                className="h-5 w-7 shrink-0 rounded-[3px] object-cover shadow-sm ring-1 ring-black/10"
+                                aria-hidden
+                              />
+                              <span className="min-w-0">
+                                <span className="block text-sm font-semibold leading-5 sm:text-[15px]">
+                                  {answer.native}
+                                </span>
+                                <span className="text-muted-foreground mt-1 block text-xs leading-4 sm:text-[13px]">
+                                  {answer.english}
+                                </span>
+                              </span>
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                  <div className="flex min-h-0 flex-1 flex-col">
+                    <p className="shrink-0 text-xs font-medium text-muted-foreground">
+                      {t("welcome.onboarding.currency")}
+                    </p>
+                    <div
+                      className="hide-scrollbar mt-2.5 flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain"
+                      onWheel={(event) => event.stopPropagation()}
+                      onTouchMove={(event) => event.stopPropagation()}
+                    >
+                      {CURRENCY_OPTIONS.map((item) => {
+                        const name = item.label.split(" — ")[1] ?? item.label
+                        return (
+                          <CurrencyRow
+                            key={item.code}
+                            selected={companyDraft.currency === item.code}
+                            symbol={CURRENCY_SYMBOL[item.code] ?? item.code}
+                            code={item.code}
+                            name={name}
+                            onClick={() => {
+                              updateCompany({ currency: item.code })
+                              const variant = moneyVariantForCurrency(item.code)
+                              if (variant) setVariant(variant)
+                            }}
+                          />
+                        )
+                      })}
+                    </div>
+                  </div>
                 </div>
               ) : null}
 
               {placed && setupStep === 4 ? (
-                <div className="mt-6 flex flex-col gap-2">
-                  {CURRENCY_OPTIONS.map((item) => {
-                    const name = item.label.split(" — ")[1] ?? item.label
+                <div className="mt-5 space-y-4 sm:mt-7 sm:space-y-5">
+                  {(
+                    [
+                      {
+                        id: "products" as const,
+                        label: t("welcome.onboarding.idProducts"),
+                        mode: skuSettings.mode,
+                        prefix: skuSettings.prefix,
+                        sample: (n: number) => formatAutoSku(skuSettings.prefix, n),
+                        setMode: (mode: ProductSkuMode) => setSkuMode(mode),
+                        setPrefix: (prefix: string) =>
+                          persistSku({
+                            ...skuSettings,
+                            prefix: sanitizeSkuPrefixInput(prefix),
+                          }),
+                      },
+                      {
+                        id: "sales" as const,
+                        label: t("welcome.onboarding.idSales"),
+                        mode: numberSettings.sales.mode,
+                        prefix: numberSettings.sales.prefix,
+                        sample: (n: number) =>
+                          formatAutoDocumentNumber(
+                            numberSettings.sales.prefix,
+                            n,
+                            "INV"
+                          ),
+                        setMode: (mode: DocumentNumberMode) =>
+                          setNumberMode("sales", mode),
+                        setPrefix: (prefix: string) =>
+                          updateNumberEntry("sales", {
+                            prefix: sanitizeNumberPrefixInput(prefix),
+                          }),
+                      },
+                      {
+                        id: "customers" as const,
+                        label: t("welcome.onboarding.idCustomers"),
+                        mode: numberSettings.customerPayments.mode,
+                        prefix: numberSettings.customerPayments.prefix,
+                        sample: (n: number) =>
+                          formatAutoDocumentNumber(
+                            numberSettings.customerPayments.prefix,
+                            n,
+                            "CP"
+                          ),
+                        setMode: (mode: DocumentNumberMode) =>
+                          setNumberMode("customerPayments", mode),
+                        setPrefix: (prefix: string) =>
+                          updateNumberEntry("customerPayments", {
+                            prefix: sanitizeNumberPrefixInput(prefix),
+                          }),
+                      },
+                      {
+                        id: "purchases" as const,
+                        label: t("welcome.onboarding.idPurchases"),
+                        mode: numberSettings.purchases.mode,
+                        prefix: numberSettings.purchases.prefix,
+                        sample: (n: number) =>
+                          formatAutoDocumentNumber(
+                            numberSettings.purchases.prefix,
+                            n,
+                            "PO"
+                          ),
+                        setMode: (mode: DocumentNumberMode) =>
+                          setNumberMode("purchases", mode),
+                        setPrefix: (prefix: string) =>
+                          updateNumberEntry("purchases", {
+                            prefix: sanitizeNumberPrefixInput(prefix),
+                          }),
+                      },
+                    ] as const
+                  ).map((item) => {
+                    const hint =
+                      item.mode === "auto"
+                        ? t("welcome.onboarding.skuPrefixHint", {
+                            first: item.sample(1),
+                            second: item.sample(2),
+                          })
+                        : t("welcome.onboarding.skuCustomHint")
                     return (
-                      <ChoiceCard
-                        key={item.code}
-                        selected={companyDraft.currency === item.code}
-                        title={name}
-                        hint={item.code}
-                        mark={item.code}
-                        onClick={() => {
-                          updateCompany({ currency: item.code })
-                          const variant = moneyVariantForCurrency(item.code)
-                          if (variant) setVariant(variant)
-                        }}
-                      />
+                      <div key={item.id}>
+                        <div className="flex items-center gap-1.5">
+                          <Label className="text-xs font-medium text-muted-foreground">
+                            {item.label}
+                          </Label>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                className="text-muted-foreground hover:text-foreground inline-flex size-4 shrink-0 items-center justify-center rounded-full"
+                                aria-label={hint}
+                              >
+                                <Info className="size-3.5" strokeWidth={2} />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent
+                              side="top"
+                              sideOffset={6}
+                              className="max-w-[16rem] text-pretty"
+                            >
+                              {hint}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        <div className="mt-2 flex w-full items-center gap-2">
+                          {(
+                            [
+                              {
+                                mode: "auto" as const,
+                                label: t("welcome.onboarding.skuAutoTitle"),
+                              },
+                              {
+                                mode: "custom" as const,
+                                label: t("welcome.onboarding.skuCustomTitle"),
+                              },
+                            ] as const
+                          ).map((option) => {
+                            const selected = item.mode === option.mode
+                            return (
+                              <button
+                                key={option.mode}
+                                type="button"
+                                onClick={() => item.setMode(option.mode)}
+                                aria-pressed={selected}
+                                className={cn(
+                                  "h-10 min-w-0 flex-1 rounded-lg px-3 text-center text-xs font-semibold transition-colors sm:text-[13px]",
+                                  selected ? optionSelected : optionIdle
+                                )}
+                              >
+                                {option.label}
+                              </button>
+                            )
+                          })}
+                          <Input
+                            id={`ob-id-prefix-${item.id}`}
+                            value={item.prefix}
+                            onChange={(event) => item.setPrefix(event.target.value)}
+                            disabled={item.mode === "auto"}
+                            className={cn(AUTH_INPUT, "h-10 min-w-0 flex-1")}
+                            autoComplete="off"
+                            aria-label={t("welcome.onboarding.skuPrefix")}
+                            placeholder={t("welcome.onboarding.skuPrefix")}
+                          />
+                        </div>
+                      </div>
                     )
                   })}
                 </div>
               ) : null}
 
               {placed && setupStep === 5 ? (
-                <div className="mt-6">
-                  <div className="flex flex-wrap gap-2">
-                    {TERM_OPTIONS.map((option) => {
-                      const selected = !termCustom && termMonths === option.months
-                      return (
-                        <button
-                          key={option.months}
-                          type="button"
-                          onClick={() => {
-                            setTermCustom(false)
-                            setTermMonths(option.months)
-                          }}
-                          className={cn(
-                            "inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm",
-                            selected ? "bg-primary/10" : "bg-muted/50"
-                          )}
-                        >
-                          {t("welcome.guide.termMonths", { months: option.months })}
-                          {option.recommended ? (
-                            <span className="text-primary text-xs font-medium">
-                              {t("welcome.guide.termRecommended")}
-                            </span>
-                          ) : null}
-                        </button>
-                      )
-                    })}
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setTermCustom(true)
-                        const n = clampTenureMonths(Number(customMonths))
-                        setTermMonths(n)
-                      }}
-                      className={cn(
-                        "inline-flex items-center rounded-full px-3 py-2 text-sm",
-                        termCustom ? "bg-primary/10 font-semibold" : "bg-muted/50"
-                      )}
-                    >
-                      {t("welcome.onboarding.termCustom")}
-                    </button>
-                  </div>
-                  {termCustom ? (
-                    <div className="mt-4 flex items-center gap-3">
-                      <Label htmlFor="ob-term-months" className="text-sm">
-                        {t("welcome.onboarding.termCustomMonths")}
+                <div className="mt-5 space-y-5 sm:mt-7 sm:space-y-6">
+                  {(
+                    [
+                      {
+                        id: "ob-business-started",
+                        label: t("welcome.onboarding.businessStartedLabel"),
+                        hint: t("welcome.onboarding.businessStartedHint"),
+                        value: businessStarted,
+                        onChange: (value: string) => {
+                          setBusinessStarted(value)
+                          if (!value) return
+                          const nextEnd = defaultYearEnd(value)
+                          setTermStart(value)
+                          setTermEnd(nextEnd)
+                          setTermMonths(monthsFromEnd(value, nextEnd))
+                        },
+                      },
+                      {
+                        id: "ob-term-start",
+                        label: t("welcome.onboarding.termStartLabel"),
+                        hint: t("welcome.onboarding.termStartHint"),
+                        value: termStart,
+                        onChange: (value: string) => {
+                          setTermStart(value)
+                          if (!value) return
+                          if (!termEnd || termEnd <= value) {
+                            const nextEnd = defaultYearEnd(value)
+                            setTermEnd(nextEnd)
+                            setTermMonths(monthsFromEnd(value, nextEnd))
+                            return
+                          }
+                          setTermMonths(monthsFromEnd(value, termEnd))
+                        },
+                      },
+                      {
+                        id: "ob-term-end",
+                        label: t("welcome.onboarding.termEndLabel"),
+                        hint: t("welcome.onboarding.termEndHint"),
+                        value: termEnd,
+                        onChange: (value: string) => {
+                          setTermEnd(value)
+                          if (value && termStart) setTermMonths(monthsFromEnd(termStart, value))
+                        },
+                      },
+                    ] as const
+                  ).map((field) => (
+                    <div key={field.id}>
+                      <Label htmlFor={field.id} className="text-xs font-medium text-muted-foreground">
+                        {field.label}{" "}
+                        <span className="text-destructive">*</span>
                       </Label>
-                      <Input
-                        id="ob-term-months"
-                        type="number"
-                        min={1}
-                        max={120}
-                        value={customMonths}
-                        onChange={(event) => {
-                          const raw = event.target.value
-                          setCustomMonths(raw)
-                          const n = Number(raw)
-                          if (Number.isFinite(n) && n >= 1) setTermMonths(clampTenureMonths(n))
-                        }}
-                        className={cn(AUTH_INPUT, "w-24")}
-                      />
+                      <div className="relative mt-2">
+                        <Input
+                          id={field.id}
+                          type="date"
+                          required
+                          value={field.value}
+                          onChange={(event) => field.onChange(event.target.value)}
+                          className={cn(AUTH_INPUT, "pe-10")}
+                        />
+                        <Calendar
+                          className="pointer-events-none absolute end-3 top-1/2 size-4 -translate-y-1/2 text-blue-600"
+                          strokeWidth={1.75}
+                        />
+                      </div>
+                      <p className="text-muted-foreground mt-2 text-xs leading-relaxed">{field.hint}</p>
                     </div>
-                  ) : null}
-                  <p className="text-muted-foreground mt-3 text-xs">{t("welcome.onboarding.termCustomHint")}</p>
-                  <div className="bg-primary/[0.05] mt-4 rounded-xl px-3.5 py-3">
-                    <p className="text-sm font-semibold">
+                  ))}
+                  {termStart && termEnd && termEnd > termStart ? (
+                    <p className="text-muted-foreground text-xs">
+                      {formatShortDate(`${termStart}T00:00:00.000Z`)}
+                      {" → "}
+                      {formatShortDate(`${termEnd}T00:00:00.000Z`)}
+                      {" · "}
                       {t("welcome.guide.termMonths", { months: termMonths })}
                     </p>
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      {t("welcome.guide.termSummary", {
-                        start: formatShortDate(fiscalState.active.startedAt),
-                        end: formatShortDate(addMonthsIso(fiscalState.active.startedAt, termMonths)),
-                      })}
-                    </p>
-                  </div>
+                  ) : null}
                 </div>
               ) : null}
 
               {placed && setupStep === 6 ? (
-                <div className="bg-primary/[0.05] mt-6 rounded-xl px-3.5 py-3">
-                  <p className="text-sm font-semibold">{businessName}</p>
-                  <p className="text-muted-foreground mt-1 text-xs leading-relaxed">
-                    {t("welcome.guide.termMonths", { months: termMonths })}
-                    {" · "}
-                    {t("welcome.guide.termSummary", {
-                      start: formatShortDate(fiscalState.active.startedAt),
-                      end: formatShortDate(addMonthsIso(fiscalState.active.startedAt, termMonths)),
-                    })}
+                <div className="flex w-full flex-col items-center text-center">
+                  <div className="relative flex size-[6.25rem] shrink-0 items-center justify-center sm:size-[6.75rem]">
+                    <div className="welcome-ready-pop bg-primary/12 text-primary relative z-[1] flex size-14 items-center justify-center rounded-full sm:size-16">
+                      <CheckCircle2 className="size-7 sm:size-8" strokeWidth={1.75} />
+                    </div>
+                    {(
+                      [
+                        {
+                          Icon: Package,
+                          className: "start-0 top-1",
+                          delay: "0s",
+                        },
+                        {
+                          Icon: Receipt,
+                          className: "end-0 top-2",
+                          delay: "0.35s",
+                        },
+                        {
+                          Icon: Languages,
+                          className: "bottom-0 start-1",
+                          delay: "0.7s",
+                        },
+                        {
+                          Icon: Calendar,
+                          className: "bottom-1 end-0",
+                          delay: "1.05s",
+                        },
+                      ] as const
+                    ).map(({ Icon, className, delay }) => (
+                      <span
+                        key={className}
+                        className={cn(
+                          "welcome-ready-float border-border bg-background text-primary absolute flex size-8 items-center justify-center rounded-full border shadow-sm",
+                          className
+                        )}
+                        style={{ animationDelay: delay }}
+                      >
+                        <Icon className="size-3.5" strokeWidth={1.75} />
+                      </span>
+                    ))}
+                  </div>
+                  <h2 className="welcome-ready-fade-up text-foreground mt-3 text-[1.25rem] leading-snug font-semibold tracking-tight sm:text-[1.5rem]">
+                    {title}
+                  </h2>
+                  <p
+                    className="welcome-ready-fade-up text-muted-foreground mt-1.5 max-w-md text-[13px] leading-snug sm:text-sm"
+                    style={{ animationDelay: "0.08s" }}
+                  >
+                    {description}
+                  </p>
+                  <div
+                    className="welcome-ready-fade-up mt-4 grid w-full max-w-md grid-cols-2 gap-2 text-start"
+                    style={{ animationDelay: "0.16s" }}
+                  >
+                    {(
+                      [
+                        {
+                          Icon: Building2,
+                          label: t("welcome.onboarding.readyBusiness"),
+                          value: businessName,
+                        },
+                        {
+                          Icon: Languages,
+                          label: t("welcome.onboarding.readyLanguage"),
+                          value: readyLanguageLabel,
+                        },
+                        {
+                          Icon: Receipt,
+                          label: t("welcome.onboarding.readyCurrency"),
+                          value: companyDraft.currency || "—",
+                        },
+                        {
+                          Icon: Calendar,
+                          label: t("welcome.onboarding.readyTerm"),
+                          value: readyTermLabel,
+                        },
+                      ] as const
+                    ).map((row) => (
+                      <div
+                        key={row.label}
+                        className="rounded-xl border border-border bg-background px-2.5 py-2.5"
+                      >
+                        <span className="text-primary bg-primary/10 mb-1.5 inline-flex size-6 items-center justify-center rounded-full">
+                          <row.Icon className="size-3" strokeWidth={1.75} />
+                        </span>
+                        <p className="text-muted-foreground text-[10px] leading-none">
+                          {row.label}
+                        </p>
+                        <p className="mt-1 truncate text-xs font-medium tracking-tight sm:text-[13px]">
+                          {row.value}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                  <p
+                    className="welcome-ready-fade-up text-muted-foreground mt-3 max-w-md text-[11px] leading-snug sm:text-xs"
+                    style={{ animationDelay: "0.24s" }}
+                  >
+                    {t("welcome.onboarding.readyNext")}
                   </p>
                 </div>
               ) : null}
             </div>
           </div>
 
-          {setupStep === 0 ? (
-            <div className="flex shrink-0 justify-end pt-8">
+          <div
+            className={cn(
+              "flex w-full shrink-0 flex-col gap-3 border-t border-border/60 pt-4 sm:border-0",
+              setupStep === 6 ? "sm:pt-5" : "sm:gap-5 sm:pt-7"
+            )}
+          >
+            <div className="flex items-center justify-between gap-2 sm:gap-3">
               <Button
                 type="button"
-                className="h-11 rounded-lg px-6 text-sm font-medium shadow-none"
-                onClick={() => void handleContinue()}
-                disabled={!placed || saving || !shown}
+                variant="outline"
+                className={cn(
+                  "h-10 min-w-0 rounded-lg border-border bg-background px-3 text-[13px] font-semibold shadow-none sm:px-4",
+                  (!showBack || setupStep === 6) && "invisible"
+                )}
+                onClick={() => goToStep(previousStep(setupStep))}
+                disabled={saving || !showBack || !shown || setupStep === 6}
+                tabIndex={showBack && setupStep !== 6 ? 0 : -1}
               >
-                {t("welcome.continue")}
+                <ChevronLeft className="size-4 shrink-0 rtl:rotate-180" />
+                <span className="truncate">{t("welcome.back")}</span>
               </Button>
-            </div>
-          ) : (
-          <div className="flex w-full shrink-0 flex-col gap-5 pt-6">
-            <StepDots current={Math.max(0, progressCurrent - 1)} total={progressTotal} />
-            <div className={cn("flex items-center gap-3", showBack ? "w-full justify-between" : "justify-center")}>
-              {showBack ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="text-foreground h-10 rounded-lg bg-muted px-5 text-sm font-medium shadow-none hover:bg-muted/80"
-                  onClick={() => goToStep(previousStep(setupStep))}
-                  disabled={saving || !shown}
-                >
-                  <ChevronLeft className="size-4" />
-                  {t("welcome.back")}
-                </Button>
-              ) : null}
               <Button
                 type="button"
-                className="h-10 rounded-lg px-5 text-sm font-medium shadow-none"
+                className="h-10 min-w-0 rounded-lg px-3 text-[13px] font-semibold shadow-none sm:px-5"
                 onClick={() => void handleContinue()}
                 disabled={!placed || saving || !shown}
               >
-                {primaryLabel}
-                <ChevronRight className="size-4" />
+                <span className="truncate">{setupStep === 0 ? t("welcome.continue") : primaryLabel}</span>
+                <ChevronRight className="size-4 shrink-0 rtl:rotate-180" />
               </Button>
             </div>
           </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>

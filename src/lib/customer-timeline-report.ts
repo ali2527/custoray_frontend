@@ -294,7 +294,6 @@ export function buildCustomerTimelineReportHtml(options: {
         <img class="logo" src="${escapeHtml(logoSrc)}" alt="" />
         <div>
           <h1>${escapeHtml(company.name || "Custoray")}</h1>
-          ${company.tagline ? `<p>${escapeHtml(company.tagline)}</p>` : ""}
           <div class="company">${companyLines(company)}</div>
         </div>
       </div>

@@ -54,9 +54,7 @@ export async function persistWelcomeCompany(settings: CompanySettings) {
   })
   await apiPatchCompanySettings({
     name: settings.name.trim(),
-    tagline: settings.tagline.trim(),
     industry: settings.industry.trim(),
-    website: settings.website.trim(),
     country: settings.country.trim(),
     address,
     city: settings.city.trim(),
@@ -525,8 +523,8 @@ export function useWelcomeCompanyDraft() {
               ? browserTz
               : defaults.timezone)
 
-          // Legacy: industry/country may still live in tagline/address from older signups.
-          const industry = remote.industry || remote.tagline || ""
+          // Legacy: country may still live in address from older signups.
+          const industry = remote.industry || ""
           const legacyCountry =
             remote.country ||
             (!remote.city && !remote.state ? remote.address : "") ||
@@ -535,9 +533,7 @@ export function useWelcomeCompanyDraft() {
           setCompanyDraft({
             ...DEFAULT_COMPANY_SETTINGS,
             name: remote.name || activeCompany?.name || "",
-            tagline: remote.tagline && remote.tagline !== industry ? remote.tagline : "",
             industry,
-            website: remote.website || "",
             country: legacyCountry,
             addressLine1:
               remote.city || remote.state || remote.postalCode

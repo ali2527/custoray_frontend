@@ -1,10 +1,11 @@
 import { resetSetupProgress } from "@/lib/setup-progress"
 
 const WELCOME_STORAGE_KEY = "custoray-welcome-v14"
-const WELCOME_STEP_KEY = "custoray-welcome-step-v16"
+const WELCOME_STEP_KEY = "custoray-welcome-step-v18"
 const WELCOME_USER_KEY = "custoray-welcome-user-v14"
 export const WELCOME_OPEN_EVENT = "custoray-welcome-open"
 
+/** 0 welcome · 1 profile · 2 appearance · 3 language+currency · 4 SKUs · 5 accounting · 6 done */
 export type WelcomeSetupStep = 0 | 1 | 2 | 3 | 4 | 5 | 6
 
 export function markWelcomeFlow() {

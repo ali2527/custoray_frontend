@@ -7,29 +7,10 @@ import { useTranslation } from "react-i18next"
 
 import { Switch } from "@/components/ui/switch"
 import { useAppearance } from "@/components/theme/appearance-provider"
-import {
-  ACCENT_PRESETS,
-  presetColor,
-} from "@/lib/appearance-prefs"
+import { AccentColorPicker } from "@/components/theme/accent-color-picker"
+import { ThemeModePicker, type ThemeMode } from "@/components/theme/theme-mode-picker"
+import { presetColor } from "@/lib/appearance-prefs"
 import { cn } from "@/lib/utils"
-
-function MiniUi({ dark }: { dark?: boolean }) {
-  return (
-    <div className={cn("flex h-full min-h-[8.5rem]", dark ? "bg-zinc-900" : "bg-zinc-100")}>
-      <div className={cn("w-[22%]", dark ? "bg-zinc-800" : "bg-white")} />
-      <div className="flex flex-1 flex-col gap-1.5 p-2.5">
-        <div className="bg-primary/80 h-2 w-1/2 rounded-sm" />
-        <div className={cn("h-1.5 w-full rounded-sm", dark ? "bg-zinc-700" : "bg-zinc-200")} />
-        <div className={cn("h-1.5 w-4/5 rounded-sm", dark ? "bg-zinc-700" : "bg-zinc-200")} />
-        <div className="mt-auto grid grid-cols-3 gap-1">
-          <div className="bg-primary/25 h-7 rounded" />
-          <div className={cn("h-7 rounded", dark ? "bg-zinc-700" : "bg-zinc-200")} />
-          <div className={cn("h-7 rounded", dark ? "bg-zinc-700" : "bg-zinc-200")} />
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function TablePreview({ compact }: { compact?: boolean }) {
   const rows = compact ? 5 : 3
@@ -92,13 +73,6 @@ function ChoiceCard({
   )
 }
 
-const PRESET_I18N_KEY: Record<string, "green" | "red" | "blue" | "purple" | "navy"> = {
-  green: "green",
-  red: "red",
-  blue: "blue",
-  purple: "purple",
-  violet: "navy",
-}
 
 export function AppearanceSettings() {
   const { t } = useTranslation("settings")
@@ -121,35 +95,12 @@ export function AppearanceSettings() {
         <p className="text-muted-foreground mt-1 text-sm">
           {t("appearance.themesDescription")}
         </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-          <ChoiceCard
-            selected={mode === "light"}
-            onClick={() => setTheme("light")}
-            label={t("appearance.lightMode")}
-            description={t("appearance.lightModeDesc")}
-          >
-            <MiniUi />
-          </ChoiceCard>
-          <ChoiceCard
-            selected={mode === "dark"}
-            onClick={() => setTheme("dark")}
-            label={t("appearance.darkMode")}
-            description={t("appearance.darkModeDesc")}
-          >
-            <MiniUi dark />
-          </ChoiceCard>
-          <ChoiceCard
-            selected={mode === "system"}
-            onClick={() => setTheme("system")}
-            label={t("appearance.systemPreferences")}
-            description={t("appearance.systemPreferencesDesc")}
-          >
-            <div className="grid min-h-[8.5rem] grid-cols-2 overflow-hidden">
-              <MiniUi />
-              <MiniUi dark />
-            </div>
-          </ChoiceCard>
-        </div>
+        <ThemeModePicker
+          className="mt-4"
+          value={mode as ThemeMode}
+          onChange={(next) => setTheme(next)}
+          size="md"
+        />
       </section>
 
       <section className="py-8">
@@ -157,50 +108,12 @@ export function AppearanceSettings() {
         <p className="text-muted-foreground mt-1 text-sm">
           {t("appearance.accentColorsDescription")}
         </p>
-        <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex flex-wrap items-center gap-3">
-            {ACCENT_PRESETS.map((item) => {
-              const selected = prefs.colorTheme === item.id
-              const label = t(`appearance.presets.${PRESET_I18N_KEY[item.id] ?? item.id}`)
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  title={label}
-                  aria-label={label}
-                  onClick={() =>
-                    update({ colorTheme: item.id, customColor: item.color })
-                  }
-                  className={cn(
-                    "size-8 rounded-full ring-2 ring-offset-2 ring-offset-background transition-shadow",
-                    selected ? "ring-foreground" : "ring-transparent hover:ring-border"
-                  )}
-                  style={{ backgroundColor: item.color }}
-                />
-              )
-            })}
-          </div>
-          <label className="flex items-center gap-2.5">
-            <span className="text-muted-foreground text-sm">{t("appearance.customColor")}</span>
-            <input
-              value={customHex}
-              onChange={(event) => {
-                const value = event.target.value
-                update({
-                  customColor: value,
-                  colorTheme: /^#([0-9a-fA-F]{6})$/.test(value) ? "custom" : prefs.colorTheme,
-                })
-              }}
-              className="border-input h-9 w-[7.5rem] rounded-md border bg-transparent px-2.5 font-mono text-sm outline-none focus-visible:ring-2"
-              spellCheck={false}
-              aria-label={t("appearance.customAccentHex")}
-            />
-            <span
-              className="size-8 rounded-full border"
-              style={{ backgroundColor: customHex }}
-            />
-          </label>
-        </div>
+        <AccentColorPicker
+          className="mt-4"
+          colorTheme={prefs.colorTheme}
+          customColor={customHex}
+          onChange={(next) => update(next)}
+        />
       </section>
 
       <section className="flex items-start justify-between gap-6 py-8">

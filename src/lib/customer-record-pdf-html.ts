@@ -367,7 +367,7 @@ export function buildCustomerRecordPdfHtml(
   const template = resolveInvoiceTemplate(templateId, colorOverrides)
   const config = builder ?? defaultInvoiceBuilderConfig()
   const companyName = config.companyNameOverride.trim() || company.name
-  const companyTagline = config.companyTaglineOverride.trim() || company.tagline
+  const companyTagline = config.companyTaglineOverride.trim()
   const companyAddress = config.companyAddressOverride.trim()
     ? escapeHtml(config.companyAddressOverride.trim()).replace(/\n/g, "<br />")
     : `${escapeHtml(company.addressLine1)}<br />${escapeHtml(company.addressLine2)}`

@@ -351,7 +351,7 @@ export function CustomerRecordPreview({
   const companyMetaColor = headerOnPanel ? "rgba(255,255,255,0.75)" : "#4b5563"
 
   const companyName = config.companyNameOverride.trim() || company.name
-  const companyTagline = config.companyTaglineOverride.trim() || company.tagline
+  const companyTagline = config.companyTaglineOverride.trim()
   const companyAddress = config.companyAddressOverride.trim() || `${company.addressLine1}\n${company.addressLine2}`
   const companyContact = config.companyContactOverride.trim() || `${company.phone} · ${company.email}`
   const logo = config.logoUrlOverride.trim().startsWith("data:")

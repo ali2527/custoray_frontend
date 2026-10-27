@@ -293,7 +293,7 @@ export function InvoiceBuilder({
                 <div className="flex flex-col gap-1.5">
                   <Label className="text-xs" style={{ color: "#374151" }}>{t("builder.tagline")}</Label>
                   <Input
-                    placeholder={company.tagline || "{{company_tagline}}"}
+                    placeholder="{{company_tagline}}"
                     value={builder.companyTaglineOverride}
                     onChange={(e) => patchBuilder({ companyTaglineOverride: e.target.value })}
                     className="bg-white"

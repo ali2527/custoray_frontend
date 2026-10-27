@@ -328,7 +328,7 @@ export function buildInvoicePdfHtml(
   const lineTableHtml = showLineTable ? lineRows(visibleOrder, show, labels) : ""
 
   const companyName = config.companyNameOverride.trim() || company.name
-  const companyTagline = config.companyTaglineOverride.trim() || company.tagline
+  const companyTagline = config.companyTaglineOverride.trim()
   const companyAddress = config.companyAddressOverride.trim()
     ? config.companyAddressOverride.trim()
     : `${company.addressLine1}<br />${company.addressLine2}`

@@ -35,10 +35,12 @@ export function useDocumentNumberSettings() {
   }
 
   function updateEntry(key: DocumentNumberKey, patch: Partial<DocumentNumberEntry>) {
+    // Read latest from storage so rapid mode/prefix edits don't overwrite each other.
+    const current = loadDocumentNumberSettings()
     persist({
-      ...settings,
+      ...current,
       [key]: {
-        ...settings[key],
+        ...current[key],
         ...patch,
       },
     })

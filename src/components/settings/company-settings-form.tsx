@@ -28,9 +28,7 @@ export function CompanySettingsForm() {
         setSettings({
           ...DEFAULT_COMPANY_SETTINGS,
           name: remote.name || "",
-          tagline: remote.tagline || "",
           industry: remote.industry || "",
-          website: remote.website || "",
           country: remote.country || "",
           addressLine1: addressLine1 || "",
           addressLine2: rest.join(", "),
@@ -80,7 +78,6 @@ export function CompanySettingsForm() {
       .join(", ")
     void apiPatchCompanySettings({
       name: settings.name.trim(),
-      tagline: settings.tagline.trim(),
       phone: settings.phone.trim(),
       email: settings.email.trim(),
       address,
@@ -156,14 +153,6 @@ export function CompanySettingsForm() {
             id="company-name"
             value={settings.name}
             onChange={(e) => update({ name: e.target.value })}
-          />
-        </div>
-        <div className="space-y-1.5 sm:col-span-2">
-          <Label htmlFor="company-tagline">{t("company.tagline")}</Label>
-          <Input
-            id="company-tagline"
-            value={settings.tagline}
-            onChange={(e) => update({ tagline: e.target.value })}
           />
         </div>
         <div className="space-y-1.5 sm:col-span-2">

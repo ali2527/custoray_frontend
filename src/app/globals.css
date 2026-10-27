@@ -663,6 +663,60 @@ html:has([data-font='xl']) {
   animation: setup-connector-fill 0.6s ease-out forwards;
 }
 
+@keyframes welcome-ready-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.72);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.08);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes welcome-ready-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes welcome-ready-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.welcome-ready-pop {
+  animation: welcome-ready-pop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.welcome-ready-float {
+  animation: welcome-ready-float 2.4s ease-in-out infinite;
+}
+
+.welcome-ready-fade-up {
+  animation: welcome-ready-fade-up 0.45s ease-out both;
+}
+
+html[data-reduce-motion="true"] .welcome-ready-pop,
+html[data-reduce-motion="true"] .welcome-ready-float,
+html[data-reduce-motion="true"] .welcome-ready-fade-up {
+  animation: none;
+}
+
 [dir="rtl"] .setup-connector-run {
   transform-origin: right;
 }

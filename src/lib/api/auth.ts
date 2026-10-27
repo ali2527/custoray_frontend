@@ -321,9 +321,7 @@ export async function apiPatchOnboarding(
 
 export type CompanySettingsPayload = {
   name?: string;
-  tagline?: string;
   industry?: string;
-  website?: string;
   country?: string;
   address?: string;
   city?: string;
@@ -344,9 +342,7 @@ export type CompanySettingsPayload = {
 
 export type CompanySettingsRemote = {
   name: string;
-  tagline: string;
   industry: string;
-  website: string;
   country: string;
   address: string;
   city: string;

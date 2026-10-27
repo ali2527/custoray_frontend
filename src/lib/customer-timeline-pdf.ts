@@ -161,7 +161,6 @@ export async function downloadCustomerTimelinePdf(options: {
   doc.setFontSize(8)
   doc.setTextColor(...MUTED)
   const companyMeta = [
-    company.tagline,
     [company.addressLine1, company.addressLine2].filter((line) => line.trim()).join(", "),
     [company.phone, company.email].filter(Boolean).join("  ·  "),
   ].filter((line) => line.trim())
