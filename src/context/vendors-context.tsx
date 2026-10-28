@@ -11,6 +11,7 @@ import {
   toApiVendorWrite,
   type VendorRow,
 } from "@/lib/vendors"
+import { isInactiveRow } from "@/lib/row-status"
 
 type VendorsContextValue = {
   vendors: VendorRow[]
@@ -103,7 +104,7 @@ function VendorsProviderLive({
   const duplicateVendor = React.useCallback(
     async (id: number) => {
       const source = vendorsRef.current.find((v) => v.id === id)
-      if (!source) return null
+      if (!source || isInactiveRow(source)) return null
       return addVendor({
         name: `${source.name} (copy)`,
         description: source.description,
@@ -111,7 +112,7 @@ function VendorsProviderLive({
         totalPurchases: "0.00",
         totalPayments: "0.00",
         phone: source.phone,
-        status: source.status,
+        status: "active",
         imageUrl: "",
       })
     },

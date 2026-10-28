@@ -29,7 +29,12 @@ export function clearEmailVerifiedFlag() {
 export function readPendingVerifyEmail() {
   if (typeof window === "undefined") return ""
   try {
-    return sessionStorage.getItem(PENDING_EMAIL_KEY)?.trim() || ""
+    // localStorage so the email-link tab can resend with the signup address.
+    return (
+      localStorage.getItem(PENDING_EMAIL_KEY)?.trim() ||
+      sessionStorage.getItem(PENDING_EMAIL_KEY)?.trim() ||
+      ""
+    )
   } catch {
     return ""
   }
@@ -39,6 +44,7 @@ export function rememberPendingVerifyEmail(email: string) {
   const value = email.trim()
   if (!value || typeof window === "undefined") return
   try {
+    localStorage.setItem(PENDING_EMAIL_KEY, value)
     sessionStorage.setItem(PENDING_EMAIL_KEY, value)
   } catch {
     /* ignore quota / private mode */
@@ -47,6 +53,7 @@ export function rememberPendingVerifyEmail(email: string) {
 
 export function clearPendingVerifyEmail() {
   try {
+    localStorage.removeItem(PENDING_EMAIL_KEY)
     sessionStorage.removeItem(PENDING_EMAIL_KEY)
   } catch {
     /* ignore */

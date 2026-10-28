@@ -19,7 +19,9 @@ export type SessionPayload = {
   subscription: {
     status: string;
     trialEndsAt: string | null;
+    currentPeriodStart: string | null;
     currentPeriodEnd: string | null;
+    createdAt?: string | null;
   };
   access: { allowed: boolean; status: string };
   trialRequest: { id: string; status: "pending" } | null;
@@ -71,7 +73,7 @@ export async function apiSignup(input: {
   return apiFetch<{
     requiresEmailVerification: boolean
     email: string
-    accountStatus?: "created" | "pending" | "verified"
+    accountStatus?: "created" | "pending"
   }>(
     "/auth/tenant/signup",
     {
@@ -93,7 +95,11 @@ export async function apiVerifyEmail(token: string) {
 }
 
 export async function apiResendVerification(email: string) {
-  return apiFetch<null>("/auth/resend-verification", {
+  return apiFetch<{
+    sent: boolean;
+    reason?: "sent" | "not_found" | "already_verified" | "smtp_failed";
+    verifyUrl?: string;
+  }>("/auth/resend-verification", {
     method: "POST",
     body: JSON.stringify({ email }),
   });

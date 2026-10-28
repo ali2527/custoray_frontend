@@ -108,10 +108,24 @@ export function VerifyEmailStep({
 
     setResending(true)
     try {
-      await apiResendVerification(normalized)
+      const result = await apiResendVerification(normalized)
       rememberPendingVerifyEmail(normalized)
-      setCooldown(RESEND_COOLDOWN_SEC)
-      toast.success(t("verifyEmail.resent"))
+      if (result.verifyUrl) {
+        console.info("[dev] verification link:", result.verifyUrl)
+      }
+      if (result.sent) {
+        setCooldown(RESEND_COOLDOWN_SEC)
+        toast.success(t("verifyEmail.resentToInbox"))
+      } else if (result.reason === "already_verified") {
+        toast.message(t("verifyEmail.alreadyVerifiedHint"))
+      } else if (result.reason === "smtp_failed") {
+        toast.error(t("verifyEmail.smtpFailed"))
+        if (result.verifyUrl) {
+          toast.message(t("verifyEmail.devLinkReady"))
+        }
+      } else {
+        toast.error(t("verifyEmail.noAccount"))
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("signup.toastFailed"))
     } finally {

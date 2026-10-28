@@ -107,6 +107,7 @@ export function ConfirmDialogHost() {
       <DialogContent
         showCloseButton={false}
         overlayClassName="z-[80]"
+        data-confirm-dialog=""
         className="z-[80] gap-5 rounded-xl sm:max-w-[26rem]"
         onOpenAutoFocus={(event) => {
           if (request?.input) return

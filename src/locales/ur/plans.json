@@ -12,6 +12,7 @@
   "planStatus": "{{plan}} · {{status}}",
   "trialEndsToday": "ٹرائل آج ختم ہوتا ہے",
   "dayOf": "دن {{day}} از {{total}}",
+  "startsDate": "شروع {{date}}",
   "endsDate": "ختم {{date}}",
   "extensionPending": "توسیع کی درخواست زیر التوا ہے",
   "banner": {

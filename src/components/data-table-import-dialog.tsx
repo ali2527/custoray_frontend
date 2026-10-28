@@ -30,6 +30,20 @@ import {
 } from "@/components/ui/dialog"
 import { downloadTextFile, csvRecordFromLine, parseCsvLine, splitCsvLines, projectCsvRecord } from "@/lib/csv"
 import {
+  clearImportDraft,
+  loadImportDraft,
+  saveImportDraft,
+} from "@/lib/import-draft"
+import {
+  getBulkProgress,
+  subscribeBulkProgress,
+  type BulkProgressState,
+} from "@/lib/bulk-progress"
+import {
+  normalizeImportOutcome,
+  type ImportRowsOutcome,
+} from "@/lib/import-result"
+import {
   Table,
   TableBody,
   TableCell,
@@ -56,9 +70,28 @@ function lookupSelectOptions(
   return match?.[1]
 }
 
+function isBlankSelectPlaceholder(raw: string): boolean {
+  const value = raw.trim().toLowerCase()
+  if (!value) return true
+  return (
+    value === "-" ||
+    value === "—" ||
+    value === "–" ||
+    value === "_" ||
+    value === "." ||
+    value === "n/a" ||
+    value === "na" ||
+    value === "n.a." ||
+    value === "n.a" ||
+    value === "none" ||
+    value === "null" ||
+    value === "nil"
+  )
+}
+
 function matchSelectOption(raw: string, options: string[]): string {
+  if (isBlankSelectPlaceholder(raw)) return ""
   const value = raw.trim()
-  if (!value) return ""
   return (
     options.find(
       (option) => option.trim().toLowerCase() === value.toLowerCase()
@@ -97,6 +130,10 @@ function resolveSelectCells(
     const options = lookupSelectOptions(key, columns)
     if (!options) continue
     const raw = next[key] ?? ""
+    if (isBlankSelectPlaceholder(raw)) {
+      next[key] = ""
+      continue
+    }
     const matched = matchSelectOption(raw, options)
     if (matched) {
       next[key] = matched
@@ -115,13 +152,17 @@ type Props = {
   onOpenChange: (open: boolean) => void
   sampleCsvContent: string
   sampleFilename?: string
-  onComplete: (rows: Record<string, string>[]) => void
+  onComplete: (
+    rows: Record<string, string>[]
+  ) => void | ImportRowsOutcome | Promise<void | ImportRowsOutcome>
   /** Columns that should render as dropdowns of existing options. */
   selectColumns?: ImportSelectColumns
   /** Select columns that must have a matched value. Omitted = every select column. */
   requiredSelectColumns?: string[]
   /** When set, only these columns are kept from the uploaded file. */
   columns?: string[]
+  /** Persist in-progress import to sessionStorage under this key. */
+  storageKey?: string
 }
 
 type CsvPreviewRow = {
@@ -138,6 +179,7 @@ export function DataTableImportDialog({
   selectColumns,
   requiredSelectColumns,
   columns,
+  storageKey,
 }: Props) {
   const { t } = useTranslation()
   const [step, setStep] = React.useState(1)
@@ -148,16 +190,31 @@ export function DataTableImportDialog({
   const [isReadingFile, setIsReadingFile] = React.useState(false)
   const [readPercent, setReadPercent] = React.useState<number | null>(null)
   const [parseTotal, setParseTotal] = React.useState(0)
+  const [rowErrors, setRowErrors] = React.useState<Record<string, string>>({})
+  const [importing, setImporting] = React.useState(false)
+  const [importProgress, setImportProgress] =
+    React.useState<BulkProgressState | null>(null)
   const fileRef = React.useRef<HTMLInputElement>(null)
   const previewIdRef = React.useRef(0)
   const parseGenRef = React.useRef(0)
   const liveTableRef = React.useRef<HTMLDivElement>(null)
+  const skipPersistRef = React.useRef(false)
+  const restoredRef = React.useRef(false)
 
   const steps = [
     { n: 1, title: t("importDialog.stepSample"), short: t("importDialog.stepSampleShort") },
     { n: 2, title: t("importDialog.stepUpload"), short: t("importDialog.stepUploadShort") },
     { n: 3, title: t("importDialog.stepReview"), short: t("importDialog.stepReviewShort") },
   ]
+
+  React.useEffect(() => {
+    const sync = () => {
+      const next = getBulkProgress()
+      setImportProgress(next?.kind === "import" ? next : null)
+    }
+    sync()
+    return subscribeBulkProgress(sync)
+  }, [])
 
   const reset = React.useCallback(() => {
     setStep(1)
@@ -168,13 +225,65 @@ export function DataTableImportDialog({
     setIsReadingFile(false)
     setReadPercent(null)
     setParseTotal(0)
+    setRowErrors({})
+    setImporting(false)
     parseGenRef.current += 1
     if (fileRef.current) fileRef.current.value = ""
   }, [])
 
   React.useEffect(() => {
-    if (!open) reset()
-  }, [open, reset])
+    if (!open) {
+      restoredRef.current = false
+      return
+    }
+    if (restoredRef.current) return
+    restoredRef.current = true
+    skipPersistRef.current = true
+    if (storageKey) {
+      const draft = loadImportDraft(storageKey)
+      if (draft && (draft.previewRows.length > 0 || draft.step > 1)) {
+        setStep(draft.step)
+        setUploadName(draft.uploadName)
+        setPreviewKeys(draft.previewKeys)
+        setPreviewRows(draft.previewRows)
+        setSelectedIds(new Set(draft.selectedIds))
+        const maxId = draft.previewRows.reduce((max, row) => {
+          const match = /^import-(\d+)$/.exec(row.id)
+          return match ? Math.max(max, Number(match[1])) : max
+        }, 0)
+        previewIdRef.current = Math.max(previewIdRef.current, maxId)
+        toast.message(t("importDialog.toastDraftRestored"))
+        queuePersistRef.current = false
+        return
+      }
+    }
+    reset()
+    skipPersistRef.current = false
+  }, [open, reset, storageKey, t])
+
+  React.useEffect(() => {
+    if (!storageKey || !open || isReadingFile || skipPersistRef.current) return
+    if (step === 1 && previewRows.length === 0 && !uploadName) {
+      clearImportDraft(storageKey)
+      return
+    }
+    saveImportDraft(storageKey, {
+      step: step === 2 || step === 3 ? step : 1,
+      uploadName,
+      previewKeys,
+      previewRows,
+      selectedIds: Array.from(selectedIds),
+    })
+  }, [
+    storageKey,
+    open,
+    isReadingFile,
+    step,
+    uploadName,
+    previewKeys,
+    previewRows,
+    selectedIds,
+  ])
 
   const handleDownloadSample = () => {
     downloadTextFile(
@@ -275,6 +384,12 @@ export function DataTableImportDialog({
       next.delete(id)
       return next
     })
+    setRowErrors((prev) => {
+      if (!(id in prev)) return prev
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
   }
 
   const toggleRowSelected = (id: string, checked: boolean) => {
@@ -339,16 +454,24 @@ export function DataTableImportDialog({
           : row
       )
     )
+    setRowErrors((prev) => {
+      if (!(id in prev)) return prev
+      const next = { ...prev }
+      delete next[id]
+      return next
+    })
   }
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    if (importing) return
     if (incompleteSelectedCount > 0) {
       toast.error(t("importDialog.toastRequiredSelects"))
       return
     }
-    const rows = previewRows
-      .filter((r) => selectedIds.has(r.id))
-      .map((r) => resolveSelectCells(r.cells, selectColumns, requiredSelectColumns))
+    const selected = previewRows.filter((r) => selectedIds.has(r.id))
+    const rows = selected.map((r) =>
+      resolveSelectCells(r.cells, selectColumns, requiredSelectColumns)
+    )
     const incomplete = rows.filter((cells) =>
       previewKeys.some((key) => {
         const options = lookupSelectOptions(key, selectColumns)
@@ -365,13 +488,51 @@ export function DataTableImportDialog({
       toast.error(t("importDialog.toastRequiredSelects"))
       return
     }
-    onComplete(rows)
-    onOpenChange(false)
-    reset()
+
+    setImporting(true)
+    try {
+      const outcome = normalizeImportOutcome(await onComplete(rows))
+      const failedRows = outcome?.failedRows ?? []
+      if (failedRows.length > 0) {
+        const nextRows: CsvPreviewRow[] = failedRows.map((cells) => ({
+          id: `import-${++previewIdRef.current}`,
+          cells,
+        }))
+        const nextErrors: Record<string, string> = {}
+        nextRows.forEach((row, index) => {
+          const message = outcome?.failedMessages?.[index]?.trim()
+          if (message) nextErrors[row.id] = message
+        })
+        skipPersistRef.current = true
+        setPreviewRows(nextRows)
+        setSelectedIds(new Set(nextRows.map((row) => row.id)))
+        setRowErrors(nextErrors)
+        setStep(3)
+        skipPersistRef.current = false
+        return
+      }
+
+      if (storageKey) clearImportDraft(storageKey)
+      skipPersistRef.current = true
+      onOpenChange(false)
+      reset()
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : t("importDialog.toastCouldNotRead")
+      )
+    } finally {
+      setImporting(false)
+    }
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        if (importing && !next) return
+        onOpenChange(next)
+      }}
+    >
       <DialogContent className={cn(dataTableDialogContentClassName, "gap-0")}>
         <DataTableDialogHeaderSection>
           <DialogTitle className="text-xl font-semibold tracking-tight sm:text-2xl">
@@ -434,18 +595,6 @@ export function DataTableImportDialog({
                   {t("importDialog.step1Body")}
                 </p>
               </div>
-              {columns && columns.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {columns.map((column) => (
-                    <span
-                      key={column}
-                      className="bg-background text-foreground/80 inline-flex rounded-md border px-2 py-1 font-mono text-[11px]"
-                    >
-                      {column}
-                    </span>
-                  ))}
-                </div>
-              ) : null}
               <Button type="button" size="lg" onClick={handleDownloadSample}>
                 {t("importDialog.downloadSample")}
               </Button>
@@ -620,6 +769,61 @@ export function DataTableImportDialog({
                   {t("importDialog.step3Body")}
                 </p>
               </div>
+              {Object.keys(rowErrors).length > 0 ? (
+                <div className="border-destructive/30 bg-destructive/5 text-destructive rounded-xl border px-4 py-3 text-sm">
+                  {t("importDialog.fixFailedBanner", {
+                    count: Object.keys(rowErrors).length,
+                  })}
+                </div>
+              ) : null}
+              {importing ? (
+                <div className="space-y-2 rounded-xl border bg-muted/40 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3 text-sm">
+                    <span className="text-foreground font-medium">
+                      {importProgress
+                        ? t("importDialog.importingProgress", {
+                            done: importProgress.done,
+                            total: importProgress.total,
+                          })
+                        : t("importDialog.importing")}
+                    </span>
+                    {importProgress && importProgress.total > 0 ? (
+                      <span className="text-muted-foreground tabular-nums">
+                        {Math.min(
+                          100,
+                          Math.round(
+                            (importProgress.done / importProgress.total) * 100
+                          )
+                        )}
+                        %
+                      </span>
+                    ) : null}
+                  </div>
+                  <div
+                    className="bg-muted h-2 overflow-hidden rounded-full"
+                    role="progressbar"
+                    aria-valuemin={0}
+                    aria-valuemax={importProgress?.total ?? 100}
+                    aria-valuenow={importProgress?.done ?? 0}
+                    aria-label={t("importDialog.importingAria")}
+                  >
+                    <div
+                      className="bg-primary h-full rounded-full transition-[width] duration-300 ease-out"
+                      style={{
+                        width: `${
+                          importProgress && importProgress.total > 0
+                            ? Math.min(
+                                100,
+                                (importProgress.done / importProgress.total) *
+                                  100
+                              )
+                            : 15
+                        }%`,
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : null}
               <div className="max-h-[min(50vh,420px)] overflow-auto rounded-xl border bg-card shadow-inner [&_[data-slot=table-container]]:overflow-visible">
                 <Table>
                   <TableHeader>
@@ -650,6 +854,11 @@ export function DataTableImportDialog({
                           {k}
                         </TableHead>
                       ))}
+                      {Object.keys(rowErrors).length > 0 ? (
+                        <TableHead className="text-foreground whitespace-nowrap font-semibold">
+                          {t("importDialog.errorColumn")}
+                        </TableHead>
+                      ) : null}
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -762,6 +971,14 @@ export function DataTableImportDialog({
                               </TableCell>
                             )
                           })}
+                          {Object.keys(rowErrors).length > 0 ? (
+                            <TableCell
+                              className="text-destructive max-w-[16rem] text-xs leading-snug"
+                              title={rowErrors[row.id]}
+                            >
+                              {rowErrors[row.id] ?? "—"}
+                            </TableCell>
+                          ) : null}
                         </TableRow>
                       ))
                     )}
@@ -791,6 +1008,7 @@ export function DataTableImportDialog({
               type="button"
               variant="outline"
               className="sm:min-w-[7rem]"
+              disabled={importing}
               onClick={() => onOpenChange(false)}
             >
               {t("actions.cancel")}
@@ -800,6 +1018,7 @@ export function DataTableImportDialog({
                 <Button
                   type="button"
                   variant="outline"
+                  disabled={importing}
                   onClick={() => setStep((s) => Math.max(1, s - 1))}
                 >
                   {t("actions.back")}
@@ -824,10 +1043,22 @@ export function DataTableImportDialog({
                 <Button
                   type="button"
                   size="lg"
-                  disabled={!canFinish}
-                  onClick={handleFinish}
+                  disabled={!canFinish || importing}
+                  onClick={() => void handleFinish()}
                 >
-                  {t("importDialog.importRows", { count: selectedCount })}
+                  {importing ? (
+                    <span className="flex items-center gap-2">
+                      <LoadingSpinner size="sm" />
+                      {importProgress
+                        ? t("importDialog.importingProgress", {
+                            done: importProgress.done,
+                            total: importProgress.total,
+                          })
+                        : t("importDialog.importing")}
+                    </span>
+                  ) : (
+                    t("importDialog.importRows", { count: selectedCount })
+                  )}
                 </Button>
               )}
             </div>

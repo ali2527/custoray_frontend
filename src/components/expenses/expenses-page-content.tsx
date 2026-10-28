@@ -48,6 +48,7 @@ import {
 } from "@/lib/confirm-action"
 import { buildSampleCsv } from "@/lib/csv"
 import { runBatchedBulkCreate } from "@/lib/import-batch"
+import { collectFailedImportRows } from "@/lib/import-result"
 import {
   DEFAULT_DOCUMENT_NUMBER_SETTINGS,
   resolveDocumentNumber,
@@ -395,44 +396,68 @@ export function ExpensesPageContent() {
 
   const handleImportRows = useCallback(
     async (rows: Record<string, string>[]) => {
-      const payload = rows
-        .map((row, index) => {
-          const write = mapImportedExpenseWrite(row, importTypes)
-          if (!write) return null
-          if (numberSettings.expenses.mode === "auto") {
-            const existing = [
-              ...expenses.map((item) => item.expenseNumber),
-              ...rows.slice(0, index).map((item) => item.expenseNumber ?? ""),
-            ]
-            write.expenseNumber = resolveDocumentNumber({
-              settings: numberSettings.expenses,
-              fallbackPrefix: DEFAULT_DOCUMENT_NUMBER_SETTINGS.expenses.prefix,
-              existing,
-              value: "",
-              isNew: true,
-            })
-          } else if (!write.expenseNumber?.trim()) {
-            return null
-          }
-          return write
+      const acceptedIndexes: number[] = []
+      const payload = rows.flatMap((row, index) => {
+        const write = mapImportedExpenseWrite(row, importTypes)
+        if (!write) return []
+        if (numberSettings.expenses.mode === "auto") {
+          const existing = [
+            ...expenses.map((item) => item.expenseNumber),
+            ...rows.slice(0, index).map((item) => item.expenseNumber ?? ""),
+          ]
+          write.expenseNumber = resolveDocumentNumber({
+            settings: numberSettings.expenses,
+            fallbackPrefix: DEFAULT_DOCUMENT_NUMBER_SETTINGS.expenses.prefix,
+            existing,
+            value: "",
+            isNew: true,
+          })
+        } else if (!write.expenseNumber?.trim()) {
+          return []
+        }
+        acceptedIndexes.push(index)
+        return [write]
+      })
+      if (payload.length === 0) {
+        const failed = collectFailedImportRows(rows, {
+          acceptedIndexes: [],
+          invalidMessage: t("toasts.saveFailed"),
         })
-        .filter((row): row is NonNullable<typeof row> => row != null)
-      if (payload.length === 0) return 0
+        toastFailure(
+          t("toasts.importPartial", {
+            added: 0,
+            failed: failed.failedRows.length,
+          })
+        )
+        return { added: 0, ...failed }
+      }
       try {
         const res = await runBatchedBulkCreate(payload, (batch) => bulkCreate(batch))
         const added = res.added
-        const failed = rows.length - payload.length + res.errors.length
-        if (failed > 0) {
+        const failed = collectFailedImportRows(rows, {
+          acceptedIndexes,
+          errors: res.errors,
+          matchKeys: ["expenseNumber", "name"],
+          invalidMessage: t("toasts.saveFailed"),
+        })
+        if (failed.failedRows.length > 0) {
           toastFailure(
-            t("toasts.importPartial", { added, failed }),
+            t("toasts.importPartial", {
+              added,
+              failed: failed.failedRows.length,
+            }),
             uniqueErrorMessages(res.errors)
           )
-          return added > 0 ? added : null
         }
-        return added
+        return {
+          added,
+          failedRows: failed.failedRows,
+          failedMessages: failed.failedMessages,
+          detail: uniqueErrorMessages(res.errors),
+        }
       } catch (error) {
         toast.error(expenseErrorMessage(error, t("toasts.saveFailed")))
-        return 0
+        return { added: 0, failedRows: rows }
       }
     },
     [importTypes, bulkCreate, expenses, numberSettings.expenses, t]

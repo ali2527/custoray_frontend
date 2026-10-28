@@ -11,6 +11,7 @@ import {
   apiUpdatePayment,
 } from "@/lib/api/business"
 import { settledErrorMessage } from "@/lib/api/client"
+import { mapAllSettled } from "@/lib/async-pool"
 import { invalidatePayments, paymentKeys } from "@/lib/payments-query"
 import {
   cachePayments,
@@ -80,7 +81,7 @@ export function usePaymentsQuery(active: boolean) {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const results = await Promise.allSettled(ids.map((id) => apiDeletePayment(id)))
+      const results = await mapAllSettled(ids, (id) => apiDeletePayment(id))
       return {
         deleted: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,

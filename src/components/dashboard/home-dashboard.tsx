@@ -5,6 +5,9 @@ import Link from "next/link"
 import { useTranslation } from "react-i18next"
 import { CartesianGrid, Line, LineChart, XAxis, YAxis } from "recharts"
 
+import { EmptyInvoicesIllustration } from "@/components/dashboard/empty-invoices-illustration"
+import { EmptyPurchasesIllustration } from "@/components/dashboard/empty-purchases-illustration"
+import { HomeDashboardSkeleton } from "@/components/dashboard/home-dashboard-skeleton"
 import { SectionCards, type DashboardStat } from "@/components/section-cards"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -307,8 +310,11 @@ function RecentSales({ orders }: { orders: OrderRow[] }) {
             {orders.length === 0 ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={5} className="p-0">
-                  <div className="text-muted-foreground flex min-h-[14rem] items-center justify-center px-5 text-center text-sm">
-                    {t("dashboard.noInvoices")}
+                  <div className="flex min-h-[14rem] flex-col items-center justify-center gap-3 px-5 py-8 text-center">
+                    <EmptyInvoicesIllustration className="h-[5.5rem] w-auto" />
+                    <p className="text-muted-foreground text-sm">
+                      {t("dashboard.noInvoices")}
+                    </p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -410,8 +416,11 @@ function RecentPurchases({ purchases }: { purchases: PurchaseRow[] }) {
             {purchases.length === 0 ? (
               <TableRow className="hover:bg-transparent">
                 <TableCell colSpan={5} className="p-0">
-                  <div className="text-muted-foreground flex min-h-[14rem] items-center justify-center px-5 text-center text-sm">
-                    {t("dashboard.noPurchases")}
+                  <div className="flex min-h-[14rem] flex-col items-center justify-center gap-3 px-5 py-8 text-center">
+                    <EmptyPurchasesIllustration className="h-[5.5rem] w-auto" />
+                    <p className="text-muted-foreground text-sm">
+                      {t("dashboard.noPurchases")}
+                    </p>
                   </div>
                 </TableCell>
               </TableRow>
@@ -455,10 +464,11 @@ function RecentPurchases({ purchases }: { purchases: PurchaseRow[] }) {
 
 export function HomeDashboard() {
   const { t, i18n } = useTranslation("common")
-  const { orders } = useOrders()
+  const { orders, loading: ordersLoading } = useOrders()
   const { purchases } = usePurchases()
-  const { returns } = useReturns()
-  const { expenses } = useExpenses()
+  const { returns, loading: returnsLoading } = useReturns()
+  const { expenses, loading: expensesLoading } = useExpenses()
+  const dataLoading = ordersLoading || returnsLoading || expensesLoading
 
   const filter = React.useMemo(() => createDefaultSalesReportFilter(), [])
   const purchaseFilter = filter as PurchaseReportFilter
@@ -570,6 +580,10 @@ export function HomeDashboard() {
       footerHint: t("dashboard.netHint"),
     },
   ]
+
+  if (dataLoading) {
+    return <HomeDashboardSkeleton />
+  }
 
   return (
     <div key={i18n.language} className="flex flex-col gap-4">

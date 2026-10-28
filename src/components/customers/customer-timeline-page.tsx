@@ -1020,6 +1020,7 @@ export function StatementTimelinePage({
         }}
         requiredSelectColumns={[]}
         onComplete={handleImport}
+        storageKey="customer-timeline-import"
       />
       <DataTableExportDialog
         open={exportOpen}

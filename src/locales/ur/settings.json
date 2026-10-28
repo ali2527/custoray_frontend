@@ -83,6 +83,12 @@
     "tagline": "ٹیگ لائن",
     "addressLine1": "پتہ سطر 1",
     "addressLine2": "پتہ سطر 2",
+    "city": "شہر",
+    "state": "ریاست / علاقہ",
+    "postalCode": "پوسٹل کوڈ",
+    "country": "ملک",
+    "currency": "کرنسی",
+    "timezone": "ٹائم زون",
     "phone": "فون",
     "email": "ای میل",
     "toastSaved": "کمپنی کی ترتیبات محفوظ ہو گئیں۔"

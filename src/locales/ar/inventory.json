@@ -100,6 +100,8 @@
   },
   "viewSheet": {
     "details": "التفاصيل",
+    "inventory": "المخزون",
+    "catalog": "الكتالوج",
     "pricing": "الأسعار",
     "margin": "الهامش",
     "noImage": "لا توجد صورة للمنتج"
@@ -191,6 +193,68 @@
     "set": "تعيين",
     "quantity": "الكمية",
     "both": "السعر والكمية"
+  },
+  "stockHistory": {
+    "title": "سجل المخزون",
+    "open": "عرض سجل المخزون",
+    "back": "العودة إلى المنتجات",
+    "notFound": "المنتج غير موجود.",
+    "missingId": "لا يوجد معرّف خادم لهذا المنتج بعد.",
+    "loadFailed": "تعذّر تحميل سجل المخزون.",
+    "currentStock": "المتوفر",
+    "stockIn": "وارد",
+    "stockOut": "صادر",
+    "search": "ابحث عن عميل أو فاتورة أو أمر شراء…",
+    "showing": "عرض {{shown}} من {{total}} حدث",
+    "eventCount": "{{count}} أحداث",
+    "stockPath": "{{before}} ← {{after}} متوفر",
+    "emptyTitle": "لا توجد حركات مخزون بعد",
+    "emptyDescription": "ستظهر هنا مبيعات ومشتريات ومرتجعات وتسويات هذا المنتج.",
+    "emptyFiltered": "لا توجد أحداث مطابقة",
+    "emptyFilteredHint": "جرّب فلترًا آخر أو امسح البحث.",
+    "filters": {
+      "all": "الكل",
+      "in": "وارد",
+      "out": "صادر",
+      "sales": "مبيعات",
+      "purchases": "مشتريات",
+      "returns": "مرتجعات",
+      "adjustments": "تسويات"
+    },
+    "columns": {
+      "date": "التاريخ",
+      "event": "ما حدث",
+      "document": "فاتورة / أمر شراء",
+      "party": "عميل / مورّد",
+      "change": "تغيير الكمية",
+      "stockAfter": "المخزون بعد",
+      "type": "النوع"
+    },
+    "kinds": {
+      "sale": "بيع",
+      "pos_sale": "بيع نقطة البيع",
+      "purchase": "شراء",
+      "return_in": "مرتجع وارد",
+      "return_out": "مرتجع صادر",
+      "adjustment": "تسوية",
+      "storefront": "المتجر",
+      "other": "أخرى"
+    },
+    "summary": {
+      "saleWithParty": "{{party}} اشترى {{qty}}",
+      "sale": "بيع {{qty}}",
+      "storefront": "بيع المتجر · {{qty}}",
+      "purchaseWithParty": "استلام {{qty}} من {{party}}",
+      "purchase": "شراء مستلم · {{qty}}",
+      "returnInWithParty": "مرتجع من {{party}} · +{{qty}}",
+      "returnIn": "مرتجع مبيعات · +{{qty}}",
+      "returnOutWithParty": "مرتجع إلى {{party}} · −{{qty}}",
+      "returnOut": "مرتجع شراء · −{{qty}}",
+      "adjustmentIn": "تسوية يدوية · +{{qty}}",
+      "adjustmentOut": "تسوية يدوية · −{{qty}}",
+      "stockIn": "وارد مخزون · +{{qty}}",
+      "stockOut": "صادر مخزون · −{{qty}}"
+    }
   },
   "noDescription": "لا يوجد وصف",
   "images": {

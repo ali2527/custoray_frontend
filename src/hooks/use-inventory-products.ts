@@ -33,8 +33,11 @@ import {
 } from "@/lib/inventory-product-rows"
 import { markSetupMilestone } from "@/lib/setup-progress"
 import type { ProductSkuSettings } from "@/lib/product-sku-settings"
+import { isInactiveRow } from "@/lib/row-status"
 import type { CatalogTablesSettings } from "@/lib/catalog-field-settings"
+import { mapAllSettled } from "@/lib/async-pool"
 import { runBatchedBulkCreate } from "@/lib/import-batch"
+import { collectFailedImportRows } from "@/lib/import-result"
 
 export type ProductLookupType = "brand" | "category" | "variant"
 
@@ -130,7 +133,7 @@ export function useInventoryProducts() {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const results = await Promise.allSettled(ids.map((id) => apiDeleteProduct(id)))
+      const results = await mapAllSettled(ids, (id) => apiDeleteProduct(id))
       return {
         deletedIds: ids.filter((_, index) => results[index]?.status === "fulfilled"),
         failed: results.filter((result) => result.status === "rejected").length,
@@ -155,8 +158,10 @@ export function useInventoryProducts() {
       ids: string[]
       lifecycle: ProductRow["lifecycle"]
     }) => {
-      const results = await Promise.allSettled(
-        ids.map((id) => apiUpdateProduct(id, { lifecycle }))
+      const results = await mapAllSettled(
+        ids,
+        (id) => apiUpdateProduct(id, { lifecycle }),
+        { progress: "update" }
       )
       return {
         updatedIds: ids.filter((_, index) => results[index]?.status === "fulfilled"),
@@ -187,6 +192,9 @@ export function useInventoryProducts() {
       source: ProductRow
       skuSettings: ProductSkuSettings
     }) => {
+      if (isInactiveRow(source)) {
+        throw new Error("Inactive products can't be duplicated.")
+      }
       const current =
         queryClient.getQueryData<ProductRow[]>(inventoryKeys.products(tenantId)) ??
         []
@@ -227,40 +235,55 @@ export function useInventoryProducts() {
       }
       let acc = [...current]
       const payload: ApiProductWrite[] = []
+      const acceptedIndexes: number[] = []
       const unmatched = new Set<string>()
-      let skipped = 0
       const seenSkus = new Set(
         current.map((row) => row.sku.trim().toLowerCase()).filter(Boolean)
       )
-      for (const row of rows) {
+      for (let index = 0; index < rows.length; index++) {
+        const row = rows[index]!
         const mapped = mapImportedProduct(row, acc, skuSettings, catalog, (name) =>
           unmatched.add(name)
         )
-        if (!mapped) {
-          skipped += 1
-          continue
-        }
+        if (!mapped) continue
         const skuKey = mapped.sku.trim().toLowerCase()
-        if (!skuKey || seenSkus.has(skuKey)) {
-          skipped += 1
-          continue
-        }
+        if (!skuKey || seenSkus.has(skuKey)) continue
         seenSkus.add(skuKey)
+        acceptedIndexes.push(index)
         acc = [...acc, mapped]
         payload.push(toApiProductWrite(mapped))
       }
       if (payload.length === 0) {
-        return { created: [] as ProductRow[], failed: skipped, unmatched }
+        const failedInfo = collectFailedImportRows(rows, {
+          acceptedIndexes: [],
+          matchKeys: ["sku", "name"],
+          invalidMessage: "Invalid, incomplete, or duplicate SKU",
+        })
+        return {
+          created: [] as ProductRow[],
+          failed: failedInfo.failedRows.length,
+          unmatched,
+          failedRows: failedInfo.failedRows,
+          failedMessages: failedInfo.failedMessages,
+        }
       }
       const res = await runBatchedBulkCreate(payload, (batch) =>
         apiBulkCreateProducts(batch)
       )
       const created = (res.items ?? []).map(mapApiProductToRow)
-      const failed = skipped + (res.errors?.length ?? 0)
-      if ((res.errors?.length ?? 0) > 0 && created.length === 0) {
-        throw new Error(res.errors[0]?.message || "Import failed")
+      const failedInfo = collectFailedImportRows(rows, {
+        acceptedIndexes,
+        errors: res.errors,
+        matchKeys: ["sku", "name"],
+        invalidMessage: "Invalid, incomplete, or duplicate SKU",
+      })
+      return {
+        created,
+        failed: failedInfo.failedRows.length,
+        unmatched,
+        failedRows: failedInfo.failedRows,
+        failedMessages: failedInfo.failedMessages,
       }
-      return { created, failed, unmatched }
     },
     onSuccess: ({ created }) => {
       if (created.length === 0) return

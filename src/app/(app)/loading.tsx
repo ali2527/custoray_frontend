@@ -1,5 +1,5 @@
-import { PageLoader } from "@/components/ui/page-loader"
+import { AppContentSkeleton } from "@/components/dashboard/app-content-skeleton"
 
 export default function DashboardLoading() {
-  return <PageLoader message="Loading…" />
+  return <AppContentSkeleton />
 }

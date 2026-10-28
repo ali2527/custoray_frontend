@@ -1,16 +1,32 @@
-import type { VisibilityState } from "@tanstack/react-table"
+import type { SortingState, VisibilityState } from "@tanstack/react-table"
 
 export type DataTableLayoutView = "list" | "grid"
 
 export type StoredTableSettings = {
   columnVisibility?: VisibilityState
   layoutView?: DataTableLayoutView
+  sorting?: SortingState
 }
 
 const STORAGE_PREFIX = "custoray-table-settings-v1:"
 
 export function tableSettingsStorageKey(id: string) {
   return `${STORAGE_PREFIX}${id}`
+}
+
+function parseSorting(value: unknown): SortingState | undefined {
+  if (!Array.isArray(value)) return undefined
+  const sorting: SortingState = []
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") continue
+    const id = "id" in entry ? String((entry as { id?: unknown }).id ?? "") : ""
+    if (!id) continue
+    sorting.push({
+      id,
+      desc: Boolean((entry as { desc?: unknown }).desc),
+    })
+  }
+  return sorting
 }
 
 export function loadTableSettings(id: string): StoredTableSettings {
@@ -27,7 +43,8 @@ export function loadTableSettings(id: string): StoredTableSettings {
       parsed.columnVisibility && typeof parsed.columnVisibility === "object"
         ? parsed.columnVisibility
         : undefined
-    return { columnVisibility, layoutView }
+    const sorting = parseSorting(parsed.sorting)
+    return { columnVisibility, layoutView, sorting }
   } catch {
     return {}
   }
@@ -41,6 +58,7 @@ export function saveTableSettings(id: string, next: StoredTableSettings) {
     JSON.stringify({
       columnVisibility: next.columnVisibility ?? current.columnVisibility,
       layoutView: next.layoutView ?? current.layoutView,
+      sorting: next.sorting ?? current.sorting,
     })
   )
 }

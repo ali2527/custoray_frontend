@@ -11,49 +11,31 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { apiGetCompanySettings, apiPatchCompanySettings } from "@/lib/api/auth"
 import {
+  companySettingsFromRemote,
   DEFAULT_COMPANY_SETTINGS,
+  loadCompanySettings,
+  saveCompanySettings,
   type CompanySettings,
 } from "@/lib/company-settings"
+import { composeAddress } from "@/lib/onboarding-defaults"
 
 export function CompanySettingsForm() {
   const { t } = useTranslation("settings")
-  const [settings, setSettings] = useState<CompanySettings>(DEFAULT_COMPANY_SETTINGS)
+  const [settings, setSettings] = useState<CompanySettings>(() =>
+    typeof window === "undefined" ? DEFAULT_COMPANY_SETTINGS : loadCompanySettings()
+  )
 
   useEffect(() => {
     let cancelled = false
     apiGetCompanySettings()
       .then((remote) => {
         if (cancelled || !remote) return
-        const [addressLine1, ...rest] = (remote.address || "").split(", ")
-        setSettings({
-          ...DEFAULT_COMPANY_SETTINGS,
-          name: remote.name || "",
-          industry: remote.industry || "",
-          country: remote.country || "",
-          addressLine1: addressLine1 || "",
-          addressLine2: rest.join(", "),
-          city: remote.city || "",
-          state: remote.state || "",
-          postalCode: remote.postalCode || "",
-          phone: remote.phone || "",
-          email: remote.email || "",
-          logoUrl: remote.logoUrl || "",
-          currency: remote.currency || "PKR",
-          timezone: remote.timezone || "Asia/Karachi",
-          dateFormat:
-            remote.dateFormat === "MM/DD/YYYY" || remote.dateFormat === "YYYY-MM-DD"
-              ? remote.dateFormat
-              : "DD/MM/YYYY",
-          invoicePrefix: remote.invoicePrefix || "INV",
-          nextInvoiceNumber: remote.nextInvoiceNumber || 1,
-          paymentTermsDays:
-            typeof remote.paymentTermsDays === "number" ? remote.paymentTermsDays : 30,
-          invoiceNote: remote.invoiceNote || "",
-          paymentInstructions: remote.paymentInstructions || "",
-        })
+        const next = companySettingsFromRemote(remote)
+        setSettings(next)
+        saveCompanySettings(next)
       })
       .catch(() => {
-        if (!cancelled) setSettings(DEFAULT_COMPANY_SETTINGS)
+        if (!cancelled) setSettings(loadCompanySettings())
       })
     return () => {
       cancelled = true
@@ -72,18 +54,55 @@ export function CompanySettingsForm() {
   }
 
   const handleSave = () => {
-    const address = [settings.addressLine1, settings.addressLine2]
-      .map((part) => part.trim())
-      .filter(Boolean)
-      .join(", ")
-    void apiPatchCompanySettings({
+    const next: CompanySettings = {
+      ...settings,
       name: settings.name.trim(),
+      industry: settings.industry.trim(),
+      country: settings.country.trim(),
+      addressLine1: settings.addressLine1.trim(),
+      addressLine2: settings.addressLine2.trim(),
+      city: settings.city.trim(),
+      state: settings.state.trim(),
+      postalCode: settings.postalCode.trim(),
       phone: settings.phone.trim(),
       email: settings.email.trim(),
-      address,
-      logoUrl: settings.logoUrl.trim() || undefined,
+      logoUrl: settings.logoUrl.trim(),
+      invoicePrefix: settings.invoicePrefix.trim() || "INV",
+      invoiceNote: settings.invoiceNote.trim(),
+      paymentInstructions: settings.paymentInstructions.trim(),
+    }
+    const address = composeAddress({
+      street: [next.addressLine1, next.addressLine2].filter(Boolean).join(", "),
+      city: next.city,
+      state: next.state,
+      postalCode: next.postalCode,
+      country: next.country,
     })
-      .then(() => toast.success(t("company.toastSaved")))
+    void apiPatchCompanySettings({
+      name: next.name,
+      industry: next.industry,
+      country: next.country,
+      address,
+      city: next.city,
+      state: next.state,
+      postalCode: next.postalCode,
+      phone: next.phone,
+      email: next.email,
+      logoUrl: next.logoUrl || "",
+      currency: next.currency,
+      timezone: next.timezone,
+      dateFormat: next.dateFormat,
+      invoicePrefix: next.invoicePrefix,
+      nextInvoiceNumber: next.nextInvoiceNumber,
+      paymentTermsDays: next.paymentTermsDays,
+      invoiceNote: next.invoiceNote,
+      paymentInstructions: next.paymentInstructions,
+    })
+      .then(() => {
+        setSettings(next)
+        saveCompanySettings(next)
+        toast.success(t("company.toastSaved"))
+      })
       .catch((error: unknown) => {
         toast.error(error instanceof Error ? error.message : "Could not save company settings")
       })
@@ -172,6 +191,38 @@ export function CompanySettingsForm() {
           />
         </div>
         <div className="space-y-1.5">
+          <Label htmlFor="company-city">{t("company.city")}</Label>
+          <Input
+            id="company-city"
+            value={settings.city}
+            onChange={(e) => update({ city: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="company-state">{t("company.state")}</Label>
+          <Input
+            id="company-state"
+            value={settings.state}
+            onChange={(e) => update({ state: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="company-postal">{t("company.postalCode")}</Label>
+          <Input
+            id="company-postal"
+            value={settings.postalCode}
+            onChange={(e) => update({ postalCode: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="company-country">{t("company.country")}</Label>
+          <Input
+            id="company-country"
+            value={settings.country}
+            onChange={(e) => update({ country: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
           <Label htmlFor="company-phone">{t("company.phone")}</Label>
           <Input
             id="company-phone"
@@ -186,6 +237,22 @@ export function CompanySettingsForm() {
             type="email"
             value={settings.email}
             onChange={(e) => update({ email: e.target.value })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="company-currency">{t("company.currency")}</Label>
+          <Input
+            id="company-currency"
+            value={settings.currency}
+            onChange={(e) => update({ currency: e.target.value.toUpperCase() })}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="company-timezone">{t("company.timezone")}</Label>
+          <Input
+            id="company-timezone"
+            value={settings.timezone}
+            onChange={(e) => update({ timezone: e.target.value })}
           />
         </div>
       </div>

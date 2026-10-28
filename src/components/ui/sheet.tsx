@@ -4,15 +4,8 @@ import * as React from "react"
 import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { XIcon } from "lucide-react"
 
+import { shouldIgnoreOutsideDismiss } from "@/lib/dismiss-outside"
 import { cn } from "@/lib/utils"
-
-function isNestedPopoverTarget(target: EventTarget | null) {
-  if (!(target instanceof Element)) return false
-  return Boolean(
-    target.closest('[data-slot="popover-content"]') ||
-      target.closest("[data-radix-popper-content-wrapper]")
-  )
-}
 
 function Sheet({ ...props }: React.ComponentProps<typeof SheetPrimitive.Root>) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />
@@ -69,19 +62,19 @@ function SheetContent({
       <SheetPrimitive.Content
         data-slot="sheet-content"
         onPointerDownOutside={(event) => {
-          if (isNestedPopoverTarget(event.target)) {
+          if (shouldIgnoreOutsideDismiss(event.target, event.currentTarget)) {
             event.preventDefault()
           }
           onPointerDownOutside?.(event)
         }}
         onInteractOutside={(event) => {
-          if (isNestedPopoverTarget(event.target)) {
+          if (shouldIgnoreOutsideDismiss(event.target, event.currentTarget)) {
             event.preventDefault()
           }
           onInteractOutside?.(event)
         }}
         onFocusOutside={(event) => {
-          if (isNestedPopoverTarget(event.target)) {
+          if (shouldIgnoreOutsideDismiss(event.target, event.currentTarget)) {
             event.preventDefault()
           }
           onFocusOutside?.(event)

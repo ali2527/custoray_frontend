@@ -267,6 +267,26 @@ export async function apiListProductStockValueHistory(id: string) {
   )
 }
 
+export type ApiProductStockLedgerItem = {
+  id: string
+  type: string
+  quantityDelta: number
+  stockAfter: number
+  createdAt: string
+  referenceType: string | null
+  referenceId: string | null
+  documentNumber: string | null
+  partyName: string | null
+  kind: string
+}
+
+export async function apiListProductStockLedger(id: string) {
+  return apiFetch<{
+    product: { id: string; name: string; sku: string; stock: number }
+    items: ApiProductStockLedgerItem[]
+  }>(`/products/${assertProductId(id)}/stock-ledger`)
+}
+
 export async function apiDeleteProduct(id: string) {
   return apiFetch<null>(`/products/${assertProductId(id)}`, { method: "DELETE" })
 }

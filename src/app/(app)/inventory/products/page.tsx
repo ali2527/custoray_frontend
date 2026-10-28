@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import Link from "next/link"
 import { ColumnDef } from "@tanstack/react-table"
 import {
   IconAlertTriangleFilled,
@@ -73,7 +74,6 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { LookupFormSheet, type LookupType } from "@/components/inventory/lookup-form-sheet"
 import { ProductPriceTimeline } from "@/components/inventory/product-price-timeline"
-import { ProductStockValueTimeline } from "@/components/inventory/product-stock-value-timeline"
 import { formatMoney } from "@/lib/customers"
 import { productStockValue } from "@/lib/product-stock-value"
 import { buildSampleCsv } from "@/lib/csv"
@@ -87,6 +87,7 @@ import {
   type ProductSkuSettings,
 } from "@/lib/product-sku-settings"
 import { ApiClientError } from "@/lib/api/client"
+import { isInactiveRow } from "@/lib/row-status"
 import { cn } from "@/lib/utils"
 import { useInventoryProducts } from "@/hooks/use-inventory-products"
 import { useCatalogFieldSettings } from "@/hooks/use-catalog-field-settings"
@@ -111,12 +112,36 @@ function ProductViewDetail({
   children: ReactNode
 }) {
   return (
-    <div className="bg-muted/20 flex flex-col gap-1 rounded-lg border px-3 py-2.5">
+    <div className="bg-muted/20 flex min-w-0 flex-col gap-1 rounded-xl border px-3 py-2.5">
       <dt className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
         {label}
       </dt>
-      <dd className="text-foreground min-w-0 text-sm font-medium">{children}</dd>
+      <dd className="text-foreground min-w-0 truncate text-sm font-medium">
+        {children}
+      </dd>
     </div>
+  )
+}
+
+function ProductViewSection({
+  title,
+  children,
+  action,
+}: {
+  title: string
+  children: ReactNode
+  action?: ReactNode
+}) {
+  return (
+    <section className="space-y-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-foreground text-sm font-semibold tracking-tight">
+          {title}
+        </h3>
+        {action}
+      </div>
+      {children}
+    </section>
   )
 }
 
@@ -265,13 +290,22 @@ function ProductViewSidebarBody({ item }: { item: ProductRow }) {
   const sale = Number(item.salePrice) || 0
   const margin = sale - cost
   const marginPct = sale > 0 ? (margin / sale) * 100 : 0
-  const archived = item.lifecycle === "archived"
+  const lifecycle = item.lifecycle || "active"
+  const catalogFields = [
+    tables.brand ? { label: t("fields.brand"), value: item.brand || "—" } : null,
+    tables.category
+      ? { label: t("fields.category"), value: item.category || "—" }
+      : null,
+    tables.variant
+      ? { label: t("fields.variant"), value: item.variant || "—" }
+      : null,
+  ].filter(Boolean) as { label: string; value: string }[]
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       {imgs.length > 0 ? (
         <div className="flex flex-col gap-2">
-          <div className="bg-muted aspect-[16/9] overflow-hidden rounded-xl border">
+          <div className="bg-muted aspect-[16/10] overflow-hidden rounded-2xl border">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={imgs[0]} alt="" className="size-full object-cover" />
           </div>
@@ -290,7 +324,7 @@ function ProductViewSidebarBody({ item }: { item: ProductRow }) {
           ) : null}
         </div>
       ) : (
-        <div className="bg-muted/40 text-muted-foreground flex aspect-[16/9] flex-col items-center justify-center gap-2 rounded-xl border border-dashed">
+        <div className="bg-muted/40 text-muted-foreground flex aspect-[16/10] flex-col items-center justify-center gap-2 rounded-2xl border border-dashed">
           <IconPhoto className="size-8 opacity-70" />
           <span className="text-xs font-medium">{t("viewSheet.noImage")}</span>
         </div>
@@ -303,28 +337,69 @@ function ProductViewSidebarBody({ item }: { item: ProductRow }) {
         <Badge
           variant="outline"
           className={
-            archived
-              ? "border-border text-foreground/80"
-              : "border-emerald-500/30 text-emerald-700 dark:text-emerald-400"
+            lifecycle === "active"
+              ? "border-emerald-500/25 text-emerald-700 dark:text-emerald-400"
+              : lifecycle === "inactive"
+                ? "border-amber-500/25 text-amber-700 dark:text-amber-400"
+                : "border-border text-muted-foreground"
           }
         >
-          {archived ? t("tabs.archived") : t("tabs.active")}
+          {t(`tabs.${lifecycle}`)}
         </Badge>
         <Badge variant="outline" className="text-muted-foreground">
           {stockLevelLabel(t, item.status)}
         </Badge>
       </div>
 
-      <div>
-        <h3 className="mb-2 text-sm font-semibold tracking-tight">
-          {t("viewSheet.pricing")}
-        </h3>
+      <ProductViewSection title={t("viewSheet.inventory")}>
+        <dl className="grid grid-cols-3 gap-2">
+          <ProductViewDetail label={t("fields.qty")}>
+            <span className="tabular-nums text-base">{item.stock}</span>
+          </ProductViewDetail>
+          <ProductViewDetail label={t("fields.stockValue")}>
+            <span className="tabular-nums">
+              {formatMoney(productStockValue(item.salePrice, item.stock))}
+            </span>
+          </ProductViewDetail>
+          <ProductViewDetail label={t("fields.orders")}>
+            <span className="tabular-nums">{item.orders}</span>
+          </ProductViewDetail>
+        </dl>
+        {item.id ? (
+          <Button asChild variant="secondary" className="mt-1 w-full justify-center">
+            <Link
+              href={`/inventory/products/history?id=${encodeURIComponent(item.id)}`}
+            >
+              {t("stockHistory.open")}
+            </Link>
+          </Button>
+        ) : null}
+      </ProductViewSection>
+
+      {catalogFields.length > 0 ? (
+        <ProductViewSection title={t("viewSheet.catalog")}>
+          <dl
+            className={cn(
+              "grid gap-2",
+              catalogFields.length === 1 ? "grid-cols-1" : "grid-cols-2"
+            )}
+          >
+            {catalogFields.map((field) => (
+              <ProductViewDetail key={field.label} label={field.label}>
+                {field.value}
+              </ProductViewDetail>
+            ))}
+          </dl>
+        </ProductViewSection>
+      ) : null}
+
+      <ProductViewSection title={t("viewSheet.pricing")}>
         <div className="grid grid-cols-3 gap-2">
           <div className="rounded-xl border px-3 py-3">
             <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
               {t("fields.costPrice")}
             </p>
-            <p className="mt-1 text-sm font-semibold tabular-nums">
+            <p className="mt-1.5 text-sm font-semibold tabular-nums">
               {formatMoney(item.costPrice)}
             </p>
           </div>
@@ -332,7 +407,7 @@ function ProductViewSidebarBody({ item }: { item: ProductRow }) {
             <p className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">
               {t("fields.salePrice")}
             </p>
-            <p className="mt-1 text-sm font-semibold tabular-nums">
+            <p className="mt-1.5 text-sm font-semibold tabular-nums">
               {formatMoney(item.salePrice)}
             </p>
           </div>
@@ -341,9 +416,12 @@ function ProductViewSidebarBody({ item }: { item: ProductRow }) {
               {t("viewSheet.margin")}
             </p>
             <p
-              className={`mt-1 text-sm font-semibold tabular-nums ${
-                margin >= 0 ? "text-emerald-700 dark:text-emerald-400" : "text-red-600"
-              }`}
+              className={cn(
+                "mt-1.5 text-sm font-semibold tabular-nums",
+                margin >= 0
+                  ? "text-emerald-700 dark:text-emerald-400"
+                  : "text-rose-700 dark:text-rose-400"
+              )}
             >
               {formatMoney(margin.toFixed(2))}
               <span className="text-muted-foreground ms-1 text-[11px] font-medium">
@@ -352,52 +430,13 @@ function ProductViewSidebarBody({ item }: { item: ProductRow }) {
             </p>
           </div>
         </div>
-      </div>
-
-      <div>
-        <h3 className="mb-2 text-sm font-semibold tracking-tight">
-          {t("viewSheet.details")}
-        </h3>
-        <dl className="grid grid-cols-2 gap-2">
-          {tables.brand ? (
-            <ProductViewDetail label={t("fields.brand")}>
-              {item.brand || "—"}
-            </ProductViewDetail>
-          ) : null}
-          {tables.category ? (
-            <ProductViewDetail label={t("fields.category")}>
-              {item.category || "—"}
-            </ProductViewDetail>
-          ) : null}
-          {tables.variant ? (
-            <ProductViewDetail label={t("fields.variant")}>
-              {item.variant || "—"}
-            </ProductViewDetail>
-          ) : null}
-          <ProductViewDetail label={t("fields.qty")}>{item.stock}</ProductViewDetail>
-          <ProductViewDetail label={t("fields.stockValue")}>
-            {formatMoney(productStockValue(item.salePrice, item.stock))}
-          </ProductViewDetail>
-          <ProductViewDetail label={t("fields.orders")}>{item.orders}</ProductViewDetail>
-          <ProductViewDetail label={t("fields.sku")}>
-            <span className="font-mono">{item.sku || "—"}</span>
-          </ProductViewDetail>
-          <ProductViewDetail label={t("fields.status")}>
-            {t(`tabs.${item.lifecycle}`)}
-          </ProductViewDetail>
-        </dl>
-      </div>
+      </ProductViewSection>
 
       <ProductPriceTimeline
         productId={item.id}
         sku={item.sku}
         salePrice={item.salePrice}
         costPrice={item.costPrice}
-      />
-      <ProductStockValueTimeline
-        productId={item.id}
-        salePrice={item.salePrice}
-        stock={item.stock}
       />
     </div>
   )
@@ -963,6 +1002,7 @@ function getProductColumns(
             {t("actions.edit")}
           </DropdownMenuItem>
           <DropdownMenuItem
+            disabled={isInactiveRow(row.original)}
             onClick={() => onDuplicate(row.original)}
           >
             <IconCopy />
@@ -1140,6 +1180,10 @@ export default function ProductsPage() {
   }
 
   const handleDuplicateProduct = useCallback(async (row: ProductRow) => {
+    if (isInactiveRow(row)) {
+      toast.error(t("toast.cannotDuplicateInactive", { ns: "common" }))
+      return
+    }
     try {
       await duplicate({ source: row, skuSettings })
       toast.success(t("toasts.created"))
@@ -1173,7 +1217,11 @@ export default function ProductsPage() {
           })
         )
       }
-      return result.created.length
+      return {
+        added: result.created.length,
+        failedRows: result.failedRows,
+        failedMessages: result.failedMessages,
+      }
     } finally {
       setIsMutating(false)
     }
@@ -1399,7 +1447,7 @@ export default function ProductsPage() {
         mapImportedProduct(row, existing, skuSettings, catalogRef.current)
       }
       importSelectColumns={{
-        lifecycle: [...PRODUCT_LIFECYCLE_OPTIONS],
+        status: [...PRODUCT_LIFECYCLE_OPTIONS],
       }}
       importRequiredSelectColumns={[]}
       importSampleFilename="products-sample.csv"
@@ -1409,6 +1457,22 @@ export default function ProductsPage() {
       )}
       importColumns={productImportColumns(skuSettings, catalogTables)}
       exportFilename="products-export.csv"
+      exportRowTransform={(row) => {
+        const columns = productImportColumns(skuSettings, catalogTables)
+        const record: Record<string, unknown> = {}
+        for (const column of columns) {
+          if (column === "status") {
+            record.status = row.lifecycle
+            continue
+          }
+          if (column === "imageUrls") {
+            record.imageUrls = (row.imageUrls ?? []).join(" | ")
+            continue
+          }
+          record[column] = (row as Record<string, unknown>)[column] ?? ""
+        }
+        return record
+      }}
       onImportRows={handleImportRows}
       tableClassName="min-w-max"
       isLoading={isLoading || isMutating}

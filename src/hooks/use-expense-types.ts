@@ -11,6 +11,7 @@ import {
   apiUpdateExpenseType,
 } from "@/lib/api/business"
 import { settledErrorMessage } from "@/lib/api/client"
+import { mapAllSettled } from "@/lib/async-pool"
 import { expenseTypeKeys, invalidateExpenseTypes } from "@/lib/expense-types-query"
 import {
   cacheExpenseTypes,
@@ -81,7 +82,7 @@ export function useExpenseTypesQuery(active: boolean) {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const results = await Promise.allSettled(ids.map((id) => apiDeleteExpenseType(id)))
+      const results = await mapAllSettled(ids, (id) => apiDeleteExpenseType(id))
       return {
         deleted: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
@@ -105,8 +106,10 @@ export function useExpenseTypesQuery(active: boolean) {
       ids: string[]
       status: ExpenseTypeStatus
     }) => {
-      const results = await Promise.allSettled(
-        ids.map((id) => apiUpdateExpenseType(id, { status }))
+      const results = await mapAllSettled(
+        ids,
+        (id) => apiUpdateExpenseType(id, { status }),
+        { progress: "update" }
       )
       return {
         updated: results.filter((result) => result.status === "fulfilled").length,

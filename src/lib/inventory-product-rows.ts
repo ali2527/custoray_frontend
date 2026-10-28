@@ -150,12 +150,35 @@ export type ImportCatalogOptions = {
   tables?: CatalogTablesSettings
 }
 
+/** CSV placeholders like "-" mean no brand/category/variant — not a real name. */
+export function isBlankCatalogName(raw: string | null | undefined): boolean {
+  const value = String(raw ?? "")
+    .trim()
+    .toLowerCase()
+  if (!value) return true
+  return (
+    value === "-" ||
+    value === "—" ||
+    value === "–" ||
+    value === "_" ||
+    value === "." ||
+    value === "n/a" ||
+    value === "na" ||
+    value === "n.a." ||
+    value === "n.a" ||
+    value === "none" ||
+    value === "null" ||
+    value === "nil" ||
+    value === "undefined"
+  )
+}
+
 export function matchCatalogOption(
   raw: string | undefined,
   options?: string[]
 ): { value: string; unmatched: string | null } {
+  if (isBlankCatalogName(raw)) return { value: "", unmatched: null }
   const value = (raw ?? "").trim()
-  if (!value) return { value: "", unmatched: null }
   if (!options) return { value, unmatched: null }
   const match = options.find(
     (option) => option.trim().toLowerCase() === value.toLowerCase()
@@ -236,7 +259,8 @@ export function mapImportedProduct(
     tables.variant,
     onUnmatchedCatalog
   )
-  const lifecycleRaw = (row.lifecycle ?? "").trim()
+  // CSV uses "status" (active/inactive/archived). Accept legacy "lifecycle" too.
+  const lifecycleRaw = (row.status ?? row.lifecycle ?? "").trim()
   const parsedLifecycle = parseImportedProductLifecycle(lifecycleRaw)
   const sku = resolveImportedSku(fileSku, existing, skuSettings)
   return {
@@ -310,9 +334,9 @@ export function toApiProductWrite(row: ProductRow) {
   return {
     sku: row.sku.trim(),
     name: row.name.trim(),
-    brandName: row.brand.trim() || null,
-    categoryName: row.category.trim() || null,
-    variantName: row.variant.trim() || null,
+    brandName: isBlankCatalogName(row.brand) ? null : row.brand.trim(),
+    categoryName: isBlankCatalogName(row.category) ? null : row.category.trim(),
+    variantName: isBlankCatalogName(row.variant) ? null : row.variant.trim(),
     status: row.status,
     productStatus: row.productStatus,
     lifecycle: row.lifecycle,

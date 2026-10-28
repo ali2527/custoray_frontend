@@ -30,7 +30,6 @@ import {
   VerifyEmailStep,
 } from "@/components/verifyEmailForm"
 import { useAuth } from "@/context/auth-context"
-import { claimAuthTab } from "@/lib/auth-tab"
 import { startWelcomeForUser } from "@/lib/welcome-flow"
 import { isTwoFactorPending } from "@/lib/two-factor"
 
@@ -38,13 +37,11 @@ export function LoginForm({
   expiredNotice = false,
   openVerify = false,
   verifyPending = false,
-  verifiedNotice = false,
   redirectTo,
 }: {
   expiredNotice?: boolean
   openVerify?: boolean
   verifyPending?: boolean
-  verifiedNotice?: boolean
   redirectTo?: string
 }) {
   const { t } = useTranslation("auth")
@@ -53,16 +50,15 @@ export function LoginForm({
   const [submitting, setSubmitting] = useState(false)
   const [verifyOpen, setVerifyOpen] = useState(false)
   const [verifyEmail, setVerifyEmail] = useState("")
-  const stayOnAuth = useRef(openVerify || verifiedNotice)
+  const stayOnAuth = useRef(openVerify)
 
   function closeInboxAfterVerify() {
     window.focus()
     clearPendingVerifyEmail()
-    clearEmailVerifiedFlag()
     setVerifyOpen(false)
     stayOnAuth.current = true
     const search = window.location.search
-    if (search.includes("verify=1") || search.includes("notice=ready")) {
+    if (search.includes("verify=1") || search.includes("notice=verified")) {
       router.replace("/")
     }
   }
@@ -79,11 +75,6 @@ export function LoginForm({
     setVerifyEmail(pending)
     setVerifyOpen(true)
   }, [openVerify])
-
-  useEffect(() => {
-    if (!verifyOpen) return
-    return claimAuthTab()
-  }, [verifyOpen])
 
   useEffect(() => {
     function onVerifiedElsewhere(event: StorageEvent) {
@@ -143,13 +134,18 @@ export function LoginForm({
     if ("requiresEmailVerification" in result && result.requiresEmailVerification) {
       setSubmitting(false)
       stayOnAuth.current = true
+      // Server is source of truth — drop a stale client "verified" flag.
+      clearEmailVerifiedFlag()
       rememberPendingVerifyEmail(result.email)
       setVerifyEmail(result.email)
       setVerifyOpen(true)
+      toast.message(t("verifyEmail.stillUnverified"))
       return
     }
 
     stayOnAuth.current = true
+    clearEmailVerifiedFlag()
+    clearPendingVerifyEmail()
     if (result.needsOnboarding) startWelcomeForUser(result.userId || "")
     const destination = !result.accessAllowed
       ? "/trial-ended"
@@ -179,11 +175,6 @@ export function LoginForm({
             : t("login.subtitle")
         }
       />
-      {verifiedNotice ? (
-        <p className="border-border bg-muted/50 text-foreground mb-3 rounded-lg border px-3 py-2.5 text-center text-[13px] leading-relaxed">
-          {t("verifyEmail.verifiedNotice")}
-        </p>
-      ) : null}
       <form className="space-y-3.5" onSubmit={handleSubmit}>
         <div className="grid gap-1.5">
           <Label htmlFor="email">{t("login.email")}</Label>

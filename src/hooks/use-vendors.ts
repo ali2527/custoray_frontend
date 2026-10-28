@@ -11,6 +11,7 @@ import {
   apiUpdateVendor,
 } from "@/lib/api/business"
 import { settledErrorMessage } from "@/lib/api/client"
+import { mapAllSettled } from "@/lib/async-pool"
 import { invalidateVendors, vendorKeys } from "@/lib/vendors-query"
 import {
   cacheVendors,
@@ -78,7 +79,7 @@ export function useVendorsQuery(active: boolean) {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const results = await Promise.allSettled(ids.map((id) => apiDeleteVendor(id)))
+      const results = await mapAllSettled(ids, (id) => apiDeleteVendor(id))
       return {
         deleted: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
@@ -105,8 +106,10 @@ export function useVendorsQuery(active: boolean) {
       ids: string[]
       status: VendorStatus
     }) => {
-      const results = await Promise.allSettled(
-        ids.map((id) => apiUpdateVendor(id, { status }))
+      const results = await mapAllSettled(
+        ids,
+        (id) => apiUpdateVendor(id, { status }),
+        { progress: "update" }
       )
       return {
         updatedIds: ids.filter((_, index) => results[index]?.status === "fulfilled"),

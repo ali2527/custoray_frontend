@@ -100,6 +100,8 @@
   },
   "viewSheet": {
     "details": "تفصیلات",
+    "inventory": "انوینٹری",
+    "catalog": "کیٹلاگ",
     "pricing": "قیمتیں",
     "margin": "مارجن",
     "noImage": "مصنوعات کی تصویر نہیں"
@@ -191,6 +193,68 @@
     "set": "سیٹ",
     "quantity": "مقدار",
     "both": "قیمت اور مقدار"
+  },
+  "stockHistory": {
+    "title": "اسٹاک کی سرگزشت",
+    "open": "اسٹاک سرگزشت دیکھیں",
+    "back": "مصنوعات پر واپس",
+    "notFound": "مصنوع نہیں ملی۔",
+    "missingId": "اس مصنوع کا سرور آئی ڈی ابھی نہیں ہے۔",
+    "loadFailed": "اسٹاک سرگزشت لوڈ نہیں ہو سکی۔",
+    "currentStock": "موجودہ",
+    "stockIn": "آمد",
+    "stockOut": "روانگی",
+    "search": "گاہک، انوائس، PO تلاش کریں…",
+    "showing": "{{total}} میں سے {{shown}} واقعات",
+    "eventCount": "{{count}} واقعات",
+    "stockPath": "{{before}} → {{after}} موجودہ",
+    "emptyTitle": "ابھی کوئی اسٹاک حرکت نہیں",
+    "emptyDescription": "اس مصنوع کی فروخت، خریداری، واپسی اور ایڈجسٹمنٹ یہاں دکھائی دیں گی۔",
+    "emptyFiltered": "کوئی مماثل واقعہ نہیں",
+    "emptyFilteredHint": "دوسرا فلٹر آزمائیں یا تلاش صاف کریں۔",
+    "filters": {
+      "all": "سب",
+      "in": "آمد",
+      "out": "روانگی",
+      "sales": "فروخت",
+      "purchases": "خریداری",
+      "returns": "واپسی",
+      "adjustments": "ایڈجسٹمنٹ"
+    },
+    "columns": {
+      "date": "تاریخ",
+      "event": "کیا ہوا",
+      "document": "انوائس / PO",
+      "party": "گاہک / وینڈر",
+      "change": "مقدار کی تبدیلی",
+      "stockAfter": "بعد میں اسٹاک",
+      "type": "قسم"
+    },
+    "kinds": {
+      "sale": "فروخت",
+      "pos_sale": "POS فروخت",
+      "purchase": "خریداری",
+      "return_in": "واپسی آمد",
+      "return_out": "واپسی روانگی",
+      "adjustment": "ایڈجسٹمنٹ",
+      "storefront": "اسٹور فرنٹ",
+      "other": "دیگر"
+    },
+    "summary": {
+      "saleWithParty": "{{party}} نے {{qty}} خریدے",
+      "sale": "{{qty}} کی فروخت",
+      "storefront": "اسٹور فرنٹ فروخت · {{qty}}",
+      "purchaseWithParty": "{{party}} سے {{qty}} موصول",
+      "purchase": "خریداری موصول · {{qty}}",
+      "returnInWithParty": "{{party}} سے واپسی · +{{qty}}",
+      "returnIn": "فروخت واپسی · +{{qty}}",
+      "returnOutWithParty": "{{party}} کو واپسی · −{{qty}}",
+      "returnOut": "خریداری واپسی · −{{qty}}",
+      "adjustmentIn": "دستی ایڈجسٹمنٹ · +{{qty}}",
+      "adjustmentOut": "دستی ایڈجسٹمنٹ · −{{qty}}",
+      "stockIn": "اسٹاک آمد · +{{qty}}",
+      "stockOut": "اسٹاک روانگی · −{{qty}}"
+    }
   },
   "noDescription": "کوئی تفصیل نہیں",
   "images": {

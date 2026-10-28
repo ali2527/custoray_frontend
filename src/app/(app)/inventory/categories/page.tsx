@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { isInactiveRow } from "@/lib/row-status"
 import { cn } from "@/lib/utils"
 import {
   Sheet,
@@ -39,11 +40,12 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { reportImportFailure, toastFailure } from "@/lib/action-toast"
+import { toastFailure } from "@/lib/action-toast"
 import { uniqueErrorMessages } from "@/lib/api/client"
 import { confirmDeleteAction } from "@/lib/confirm-action"
 import { buildSampleCsv } from "@/lib/csv"
 import { runBatchedBulkCreate } from "@/lib/import-batch"
+import { collectFailedImportRows } from "@/lib/import-result"
 import {
   CATALOG_IMPORT_COLUMNS,
   CATEGORY_IMPORT_SAMPLE_ROW,
@@ -217,7 +219,10 @@ function getCategoryColumns(
               <IconPencil />
               {t("actions.edit")}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => onDuplicate(row.original)}>
+            <DropdownMenuItem
+              disabled={isInactiveRow(row.original)}
+              onClick={() => onDuplicate(row.original)}
+            >
               <IconCopy />
               {t("actions.duplicate")}
             </DropdownMenuItem>
@@ -303,6 +308,10 @@ function CategoriesPageContent() {
 
   const handleDuplicate = useCallback(
     async (category: CatalogRow) => {
+      if (isInactiveRow(category)) {
+        toast.error(t("toast.cannotDuplicateInactive", { ns: "common" }))
+        return
+      }
       try {
         await create({
           name: `${category.name} (copy)`,
@@ -395,22 +404,50 @@ function CategoriesPageContent() {
   }
 
   async function handleImportRows(imported: Record<string, string>[]) {
-    const payload = imported
-      .map((row) => mapImportedCatalogWrite(row, CATALOG_STATUS_OPTIONS))
-      .filter((row): row is NonNullable<typeof row> => row != null)
-    if (payload.length === 0) return 0
+    const acceptedIndexes: number[] = []
+    const payload = imported.flatMap((row, index) => {
+      const write = mapImportedCatalogWrite(row, CATALOG_STATUS_OPTIONS)
+      if (!write) return []
+      acceptedIndexes.push(index)
+      return [write]
+    })
+    if (payload.length === 0) {
+      const failed = collectFailedImportRows(imported, {
+        acceptedIndexes: [],
+        invalidMessage: t("toasts.saveFailed"),
+      })
+      toastFailure(
+        t("toasts.importPartial", {
+          added: 0,
+          failed: failed.failedRows.length,
+        })
+      )
+      return { added: 0, ...failed }
+    }
     setIsMutating(true)
     try {
       const res = await runBatchedBulkCreate(payload, (batch) => bulkCreate(batch))
       const added = res.added
-      const failed = imported.length - payload.length + res.errors.length
-      reportImportFailure(
+      const failed = collectFailedImportRows(imported, {
+        acceptedIndexes,
+        errors: res.errors,
+        invalidMessage: t("toasts.saveFailed"),
+      })
+      if (failed.failedRows.length > 0) {
+        toastFailure(
+          t("toasts.importPartial", {
+            added,
+            failed: failed.failedRows.length,
+          }),
+          uniqueErrorMessages(res.errors)
+        )
+      }
+      return {
         added,
-        failed,
-        t("toasts.importPartial", { added, failed }),
-        uniqueErrorMessages(res.errors)
-      )
-      return added
+        failedRows: failed.failedRows,
+        failedMessages: failed.failedMessages,
+        detail: uniqueErrorMessages(res.errors),
+      }
     } finally {
       setIsMutating(false)
     }

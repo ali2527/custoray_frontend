@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { useAuth } from "@/context/auth-context"
 import { isNotFoundError, settledErrorMessage } from "@/lib/api/client"
+import { mapAllSettled } from "@/lib/async-pool"
 import {
   apiBulkCreateBrands,
   apiBulkCreateCategories,
@@ -109,10 +110,8 @@ export function useInventoryCatalog(kind: CatalogKind) {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const results = await Promise.allSettled(
-        ids.filter(Boolean).map((id) => api.remove(id))
-      )
       const attempted = ids.filter(Boolean)
+      const results = await mapAllSettled(attempted, (id) => api.remove(id))
       const deletedIds = attempted.filter(
         (_, index) => results[index]?.status === "fulfilled"
       )
@@ -143,8 +142,10 @@ export function useInventoryCatalog(kind: CatalogKind) {
       ids: string[]
       status: CatalogStatus
     }) => {
-      const results = await Promise.allSettled(
-        ids.map((id) => api.update(id, { status }))
+      const results = await mapAllSettled(
+        ids,
+        (id) => api.update(id, { status }),
+        { progress: "update" }
       )
       return {
         updated: results.filter((result) => result.status === "fulfilled").length,

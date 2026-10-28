@@ -17,7 +17,12 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { apiResendVerification, apiVerifyEmail } from "@/lib/api/auth"
-import { focusAuthTab } from "@/lib/auth-tab"
+import {
+  clearPendingVerifyEmail,
+  markEmailVerified,
+  readPendingVerifyEmail,
+  rememberPendingVerifyEmail,
+} from "@/components/verifyEmailForm/pending-email"
 
 /** One request per token. A second call consumes the link and looks expired. */
 const verifyInflight = new Map<string, Promise<void>>()
@@ -34,10 +39,6 @@ function verifyEmailOnce(token: string) {
   verifyInflight.set(token, pending)
   return pending
 }
-import {
-  markEmailVerified,
-  rememberPendingVerifyEmail,
-} from "@/components/verifyEmailForm/pending-email"
 
 export {
   clearEmailVerifiedFlag,
@@ -51,7 +52,7 @@ export { VerifyEmailStep } from "@/components/verifyEmailForm/verify-email-dialo
 
 /**
  * Landing page for email verification links only.
- * Post-signup / unverified-login "check your inbox" is an inline step.
+ * Verifies automatically when the link is opened.
  */
 function VerifyEmailInner() {
   const { t } = useTranslation("auth")
@@ -59,36 +60,26 @@ function VerifyEmailInner() {
   const params = useSearchParams()
   const token = params.get("token")?.trim() || ""
   const emailFromQuery = params.get("email")?.trim() || ""
-  const landedInAppTab = params.get("land") === "1"
 
-  const [emailDraft, setEmailDraft] = useState(emailFromQuery)
-  const [status, setStatus] = useState<"working" | "handed" | "error" | "missing">(
+  const [emailDraft, setEmailDraft] = useState(
+    () => emailFromQuery || readPendingVerifyEmail()
+  )
+  const [status, setStatus] = useState<"working" | "error" | "missing">(
     token ? "working" : "missing"
   )
   const [resending, setResending] = useState(false)
   const announcedToken = useRef<string | null>(null)
 
   useEffect(() => {
+    if (emailFromQuery) rememberPendingVerifyEmail(emailFromQuery)
+    const pending = readPendingVerifyEmail()
+    if (pending && !emailDraft) setEmailDraft(pending)
+  }, [emailFromQuery, emailDraft])
+
+  useEffect(() => {
     if (!token) {
-      // No token → this isn't a verify link; send people back to sign in.
       if (emailFromQuery) rememberPendingVerifyEmail(emailFromQuery)
       router.replace("/")
-      return
-    }
-
-    // The signup / sign-in tab is still open. Load the link there and leave
-    // this tab alone — closing it would send the browser back to the email.
-    const handoffKey = `custoray:verify-handed:${token}`
-    if (!landedInAppTab && sessionStorage.getItem(handoffKey) === "1") {
-      setStatus("handed")
-      return
-    }
-    if (!landedInAppTab && focusAuthTab(window.location.href)) {
-      sessionStorage.setItem(handoffKey, "1")
-      setStatus("handed")
-      window.setTimeout(() => {
-        if (document.visibilityState === "visible") router.replace("/")
-      }, 800)
       return
     }
 
@@ -96,10 +87,16 @@ function VerifyEmailInner() {
     ;(async () => {
       try {
         await verifyEmailOnce(token)
-        if (cancelled) return
+        // Always mark after a successful API call — even if this effect was
+        // cleaned up (React Strict Mode). Skipping here left login thinking
+        // the user was verified while the server still had a pending token.
         markEmailVerified()
-        if (announcedToken.current === token) return
-        announcedToken.current = token
+        clearPendingVerifyEmail()
+        if (cancelled) return
+        if (announcedToken.current !== token) {
+          announcedToken.current = token
+          toast.success(t("verifyEmail.success"))
+        }
         router.replace("/")
       } catch {
         if (cancelled) return
@@ -109,7 +106,7 @@ function VerifyEmailInner() {
     return () => {
       cancelled = true
     }
-  }, [token, emailFromQuery, landedInAppTab, router])
+  }, [token, emailFromQuery, router, t])
 
   async function onResendSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -120,9 +117,21 @@ function VerifyEmailInner() {
     }
     setResending(true)
     try {
-      await apiResendVerification(normalized)
+      const result = await apiResendVerification(normalized)
       rememberPendingVerifyEmail(normalized)
-      toast.success(t("verifyEmail.resent"))
+      if (result.verifyUrl) {
+        console.info("[dev] verification link:", result.verifyUrl)
+      }
+      if (result.sent) {
+        toast.success(t("verifyEmail.resentToInbox"))
+      } else if (result.reason === "already_verified") {
+        toast.message(t("verifyEmail.alreadyVerifiedHint"))
+      } else if (result.reason === "smtp_failed") {
+        toast.error(t("verifyEmail.smtpFailed"))
+        if (result.verifyUrl) toast.message(t("verifyEmail.devLinkReady"))
+      } else {
+        toast.error(t("verifyEmail.noAccount"))
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : t("signup.toastFailed"))
     } finally {
@@ -155,7 +164,7 @@ function VerifyEmailInner() {
         }
       />
 
-      {status === "working" || status === "handed" ? (
+      {status === "working" ? (
         <div className="flex flex-col items-center gap-4 py-6 text-center">
           <div className="bg-primary/10 text-primary flex size-14 items-center justify-center rounded-full">
             <Loader2 className="size-6 animate-spin" aria-hidden />

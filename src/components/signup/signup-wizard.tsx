@@ -41,7 +41,6 @@ import {
   validateSignupPhone,
 } from "@/lib/phone-mask"
 import { generateStrongPassword, isPasswordStrong } from "@/lib/password"
-import { claimAuthTab } from "@/lib/auth-tab"
 import { startWelcomeForUser } from "@/lib/welcome-flow"
 import { FALLBACK_PLANS } from "@/lib/subscription-access"
 import { cn } from "@/lib/utils"
@@ -134,11 +133,6 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
     if (!hydrated || !session || stayOnSignup.current) return
     router.replace(access && !access.allowed ? "/trial-ended" : "/home")
   }, [hydrated, session, access, router])
-
-  useEffect(() => {
-    if (step !== 3) return
-    return claimAuthTab()
-  }, [step])
 
   useEffect(() => {
     if (step === 3) return
@@ -239,16 +233,25 @@ export function SignupWizard({ planCode }: { planCode?: string }) {
       })
       if (!result.ok) {
         stayOnSignup.current = false
-        toast.error(result.error)
-        return
-      }
-      if ("alreadyVerified" in result && result.alreadyVerified) {
-        window.location.assign("/")
+        const accountExists =
+          result.code === "EMAIL_EXISTS" ||
+          /already exists/i.test(result.error)
+        const message = accountExists
+          ? t("signup.errors.emailExists")
+          : result.error
+        toast.error(message)
+        if (accountExists) {
+          setErrors((current) => ({ ...current, email: message }))
+          setStep(1)
+        }
         return
       }
       if ("requiresEmailVerification" in result && result.requiresEmailVerification) {
         rememberPendingVerifyEmail(result.email)
         setVerifyPending(result.accountStatus === "pending")
+        if (result.accountStatus === "pending") {
+          toast.message(t("signup.toastPendingExists"))
+        }
         setStep(3)
         return
       }

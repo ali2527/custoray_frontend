@@ -58,15 +58,8 @@ type LoginResult =
       email: string
       accountStatus?: "created" | "pending"
     }
-  | {
-      ok: true
-      accessAllowed: false
-      requiresEmailVerification: false
-      alreadyVerified: true
-      email: string
-    }
   | { ok: true; accessAllowed: false; requiresTwoFactor: true }
-  | { ok: false; error: string }
+  | { ok: false; error: string; code?: string }
 
 type GoogleLoginResult =
   | { ok: true; accessAllowed: boolean; isNewUser: boolean; userId?: string; requiresTwoFactor?: false }
@@ -105,6 +98,8 @@ type AuthContextValue = {
   refreshAccess: () => Promise<AccessInfo | null>
   switchCompany: (companyId: string) => Promise<void>
   createCompany: (businessName: string) => Promise<void>
+  /** Optimistic local patch for the active company (logo/name after onboarding). */
+  patchActiveCompany: (patch: Partial<Pick<CompanyMembership, "name" | "logoUrl">>) => void
   canView: boolean
   canEdit: boolean
   canDelete: boolean
@@ -188,26 +183,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .finally(() => setHydrated(true))
   }, [applyRemoteSession])
 
-  const logout = React.useCallback(
-    async (redirectTo?: string) => {
-      const path = typeof redirectTo === "string" && redirectTo.startsWith("/") ? redirectTo : "/"
-      beginAuthTransition()
-      try {
-        await apiLogout()
-      } catch {
-        /* ignore */
-      }
-      clearSession()
-      clearTwoFactorChallenge()
-      setSession(null)
-      setAccess(null)
-      const localCompanies = loadLocalCompanies()
-      setCompanies(localCompanies)
-      setActiveCompanyId(loadActiveCompanyId(localCompanies))
-      router.push(path)
-    },
-    [router]
-  )
+  const logout = React.useCallback((redirectTo?: string) => {
+    const path =
+      typeof redirectTo === "string" && redirectTo.startsWith("/") ? redirectTo : "/"
+    beginAuthTransition()
+    clearSession()
+    clearTwoFactorChallenge()
+    setSession(null)
+    setAccess(null)
+    const localCompanies = loadLocalCompanies()
+    setCompanies(localCompanies)
+    setActiveCompanyId(loadActiveCompanyId(localCompanies))
+    // Server cleanup in the background; leave the app shell immediately.
+    void apiLogout().catch(() => undefined)
+    window.location.assign(path)
+  }, [])
 
   const logoutExpired = React.useCallback(() => {
     toast.error("Your trial has ended. Sign in to continue.")
@@ -306,18 +296,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       beginAuthTransition()
       try {
         const data = await apiSignup(input)
-        if (data.accountStatus === "verified") {
-          clearSession()
-          setSession(null)
-          setAccess(null)
-          return {
-            ok: true,
-            accessAllowed: false,
-            requiresEmailVerification: false,
-            alreadyVerified: true,
-            email: data.email || input.email,
-          }
-        }
         if (data.requiresEmailVerification) {
           clearSession()
           setSession(null)
@@ -342,6 +320,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {
           ok: false,
           error: err instanceof Error ? err.message : "Signup failed",
+          code: err instanceof ApiClientError ? err.code : undefined,
         }
       }
     },
@@ -439,6 +418,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [session, applyRemoteSession]
   )
 
+  const patchActiveCompany = React.useCallback(
+    (patch: Partial<Pick<CompanyMembership, "name" | "logoUrl">>) => {
+      const id = activeCompanyId
+      if (!id) return
+      setCompanies((current) =>
+        current.map((company) => {
+          if (company.id !== id) return company
+          return {
+            ...company,
+            ...(typeof patch.name === "string" ? { name: patch.name } : {}),
+            ...(typeof patch.logoUrl === "string" ? { logoUrl: patch.logoUrl } : {}),
+          }
+        })
+      )
+    },
+    [activeCompanyId]
+  )
+
   const activeSession = session ?? GUEST_SESSION
   const permissions = activeSession.permissions
   const isAuthenticated = session !== null
@@ -463,6 +460,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshAccess,
       switchCompany,
       createCompany,
+      patchActiveCompany,
       canView: canView(permissions),
       canEdit: canEdit(permissions),
       canDelete: canDelete(permissions),
@@ -484,6 +482,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       refreshAccess,
       switchCompany,
       createCompany,
+      patchActiveCompany,
       permissions,
     ]
   )

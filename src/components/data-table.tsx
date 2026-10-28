@@ -44,6 +44,7 @@ import { Area, AreaChart, CartesianGrid, XAxis } from "recharts"
 import { toast } from "sonner"
 import { z } from "zod"
 
+import { EmptyTableIllustration } from "@/components/dashboard/empty-table-illustration"
 import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTableExportDialog } from "@/components/data-table-export-dialog"
 import { DataTableImportDialog, type ImportSelectColumns } from "@/components/data-table-import-dialog"
@@ -56,6 +57,11 @@ import {
   saveTableSettings,
   type DataTableLayoutView,
 } from "@/lib/data-table-settings"
+import { hasImportDraft } from "@/lib/import-draft"
+import {
+  normalizeImportOutcome,
+  type ImportRowsOutcome,
+} from "@/lib/import-result"
 import {
   confirmDuplicateAction,
 } from "@/lib/confirm-action"
@@ -895,25 +901,31 @@ function DataTableEmptyState({
   title,
   description,
   className,
+  illustration,
 }: {
   title: string
   description?: string
   className?: string
+  illustration?: React.ReactNode
 }) {
   return (
     <div
       className={cn(
-        "flex min-h-[16rem] flex-col items-center justify-center gap-2 px-6 py-10 text-center",
+        "flex min-h-[16rem] flex-col items-center justify-center gap-3 px-6 py-10 text-center",
         className
       )}
     >
-      <div className="bg-muted text-muted-foreground mb-1 flex size-10 items-center justify-center rounded-full">
-        <IconLayoutList className="size-5" aria-hidden />
+      {illustration ?? (
+        <EmptyTableIllustration className="h-[5.5rem] w-auto" />
+      )}
+      <div className="space-y-1.5">
+        <p className="text-foreground text-sm font-medium">{title}</p>
+        {description ? (
+          <p className="text-muted-foreground max-w-sm text-xs leading-relaxed">
+            {description}
+          </p>
+        ) : null}
       </div>
-      <p className="text-foreground text-sm font-medium">{title}</p>
-      {description ? (
-        <p className="text-muted-foreground max-w-sm text-xs leading-relaxed">{description}</p>
-      ) : null}
     </div>
   )
 }
@@ -1120,7 +1132,7 @@ export function DataTable<TData>({
   tabFilter?: (row: TData, tabValue: string) => boolean
   /** Pill toggle: list (table) vs grid (card layout). */
   enableLayoutToggle?: boolean
-  /** Persist columns and layout for this table. */
+  /** Persist columns, layout, and sorting for this table. */
   settingsKey?: string
   /** Initial column visibility (`false` = hidden). */
   defaultColumnVisibility?: VisibilityState
@@ -1143,10 +1155,12 @@ export function DataTable<TData>({
   toolbarActions?: React.ReactNode
   /** Custom controls rendered at the top of the table options popover. */
   tableOptionsExtra?: React.ReactNode
-  /** Custom CSV import handler; return number of rows added. */
+  /** Custom CSV import handler; return added count and optional failed rows. */
   onImportRows?: (
     rows: Record<string, string>[]
-  ) => number | null | Promise<number | null>
+  ) =>
+    | import("@/lib/import-result").ImportRowsOutcome
+    | Promise<import("@/lib/import-result").ImportRowsOutcome>
   /** Replace rows with skeleton placeholders while data is loading or a mutation is in flight. */
   isLoading?: boolean
   /** Skeleton only these rows. Other rows stay visible. */
@@ -1212,6 +1226,7 @@ export function DataTable<TData>({
     React.useState<VisibilityState>(() => defaultColumnVisibility ?? {})
   const [layoutView, setLayoutView] =
     React.useState<DataTableLayoutView>("list")
+  const [sorting, setSorting] = React.useState<SortingState>([])
   const [tableSettingsReady, setTableSettingsReady] = React.useState(
     () => !settingsKey
   )
@@ -1226,13 +1241,14 @@ export function DataTable<TData>({
       }))
     }
     if (stored.layoutView) setLayoutView(stored.layoutView)
+    if (stored.sorting) setSorting(stored.sorting)
     setTableSettingsReady(true)
   }, [settingsKey])
 
   React.useEffect(() => {
     if (!settingsKey || !tableSettingsReady) return
-    saveTableSettings(settingsKey, { columnVisibility, layoutView })
-  }, [settingsKey, tableSettingsReady, columnVisibility, layoutView])
+    saveTableSettings(settingsKey, { columnVisibility, layoutView, sorting })
+  }, [settingsKey, tableSettingsReady, columnVisibility, layoutView, sorting])
   const resolvedColumnVisibility = React.useMemo(() => {
     const next: VisibilityState = { ...columnVisibility }
     for (const col of columnsProp) {
@@ -1250,7 +1266,6 @@ export function DataTable<TData>({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   )
-  const [sorting, setSorting] = React.useState<SortingState>([])
   const [pagination, setPagination] = React.useState({
     pageIndex: 0,
     pageSize: 10,
@@ -1328,6 +1343,23 @@ export function DataTable<TData>({
     showSearch || showFilters || Boolean(toolbarExtra) || showToolbarActions
   const [importOpen, setImportOpen] = React.useState(false)
   const [exportOpen, setExportOpen] = React.useState(false)
+  const importStorageKey = React.useMemo(
+    () =>
+      settingsKey
+        ? `table:${settingsKey}`
+        : importSampleFilename
+          ? `file:${importSampleFilename}`
+          : undefined,
+    [importSampleFilename, settingsKey]
+  )
+
+  const importDraftAutoOpenedRef = React.useRef(false)
+  React.useEffect(() => {
+    if (!importStorageKey || importDraftAutoOpenedRef.current) return
+    if (!hasImportDraft(importStorageKey)) return
+    importDraftAutoOpenedRef.current = true
+    setImportOpen(true)
+  }, [importStorageKey])
 
   const csvKeys = React.useMemo(() => {
     const row = data[0] as Record<string, unknown> | undefined
@@ -1342,10 +1374,10 @@ export function DataTable<TData>({
   }, [csvKeys, data, importSampleCsvContent])
 
   const handleImportComplete = React.useCallback(
-    (rows: Record<string, string>[]) => {
+    async (rows: Record<string, string>[]): Promise<ImportRowsOutcome> => {
       if (rows.length === 0) {
         toast.error(t("toast.noRowsToImport"))
-        return
+        return { added: 0, failedRows: rows }
       }
       const { rows: cappedRows, truncated } = capImportRows(rows, IMPORT_MAX_TOTAL)
       if (truncated > 0) {
@@ -1357,26 +1389,24 @@ export function DataTable<TData>({
         )
       }
       if (onImportRows) {
-        void Promise.resolve(onImportRows(cappedRows)).then((added) => {
-          if (added == null) return
-          if (added > 0) {
-            setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-            if (tabProp === undefined && tabs?.length) {
-              setUncontrolledTab(defaultTab ?? tabs[0]?.value ?? "all")
-            }
-            setGlobalFilter("")
-            onRowsImported?.(added)
-            toast.success(t("toast.importedRows", { count: added }))
-          } else {
-            toast.message(t("toast.noRowsAdded"))
+        const outcome = normalizeImportOutcome(await onImportRows(cappedRows))
+        if (!outcome) return { added: 0, failedRows: cappedRows }
+        if (outcome.added > 0) {
+          setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+          if (tabProp === undefined && tabs?.length) {
+            setUncontrolledTab(defaultTab ?? tabs[0]?.value ?? "all")
           }
-        }).catch((error: unknown) => {
-          toast.error(
-            error instanceof Error ? error.message : t("toast.noRowsAdded")
-          )
-        })
-        return
+          setGlobalFilter("")
+          onRowsImported?.(outcome.added)
+          if (!(outcome.failedRows && outcome.failedRows.length > 0)) {
+            toast.success(t("toast.importedRows", { count: outcome.added }))
+          }
+        } else if (!(outcome.failedRows && outcome.failedRows.length > 0)) {
+          toast.message(t("toast.noRowsAdded"))
+        }
+        return outcome
       }
+      let added = 0
       updateData((prev) => {
         let acc = [...prev]
         for (const r of cappedRows) {
@@ -1385,20 +1415,17 @@ export function DataTable<TData>({
             : ({ ...r } as unknown as TData)
           if (mapped != null) acc = [...acc, mapped]
         }
-        const added = acc.length - prev.length
-        queueMicrotask(() => {
-          if (added > 0) {
-            setPagination((prev) => ({ ...prev, pageIndex: 0 }))
-            onRowsImported?.(added)
-            toast.success(t("toast.importedRows", { count: added }))
-          } else {
-            toast.message(
-              t("toast.noRowsAdded")
-            )
-          }
-        })
+        added = acc.length - prev.length
         return acc
       })
+      if (added > 0) {
+        setPagination((prev) => ({ ...prev, pageIndex: 0 }))
+        onRowsImported?.(added)
+        toast.success(t("toast.importedRows", { count: added }))
+      } else {
+        toast.message(t("toast.noRowsAdded"))
+      }
+      return { added }
     },
     [
       importRowMapper,
@@ -1639,6 +1666,7 @@ export function DataTable<TData>({
         selectColumns={importSelectColumns}
         requiredSelectColumns={importRequiredSelectColumns}
         columns={importColumns}
+        storageKey={importStorageKey}
       />
       <DataTableExportDialog
         open={exportOpen}

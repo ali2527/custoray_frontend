@@ -12,6 +12,7 @@
   "planStatus": "{{plan}} · {{status}}",
   "trialEndsToday": "Trial ends today",
   "dayOf": "Day {{day}} of {{total}}",
+  "startsDate": "started {{date}}",
   "endsDate": "ends {{date}}",
   "extensionPending": "Extension request pending",
   "banner": {

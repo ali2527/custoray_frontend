@@ -67,7 +67,7 @@ export function ProductPriceTimeline({
   }, [productId, salePrice, costPrice])
 
   return (
-    <section className="overflow-hidden rounded-xl border">
+    <section className="overflow-hidden rounded-2xl border">
       <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
         <h3 className="text-sm font-semibold tracking-tight">
           {t("timeline.title")}

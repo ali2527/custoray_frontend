@@ -1,3 +1,5 @@
+import { startBulkProgress } from "@/lib/bulk-progress"
+
 /** Backend bulk endpoints accept at most 100 items per request. */
 export const IMPORT_BATCH_SIZE = 100
 /** Soft cap for a single import file / selection. */
@@ -41,7 +43,12 @@ export async function runBatchedBulkCreate<
   createBatch: (
     batch: TPayload[]
   ) => Promise<BulkCreateBatchResult<TItem, TError>>,
-  options?: { batchSize?: number }
+  options?: {
+    batchSize?: number
+    onProgress?: (done: number, total: number) => void
+    /** Set false to skip the shared progress toast / dialog bar. */
+    progress?: boolean
+  }
 ): Promise<{
   added: number
   updated: number
@@ -54,18 +61,34 @@ export async function runBatchedBulkCreate<
   const allErrors: TError[] = []
   let added = 0
   let updated = 0
+  let processed = 0
+  const total = items.length
+  const progress =
+    options?.progress === false
+      ? null
+      : startBulkProgress("import", total)
 
-  for (const chunk of chunks) {
-    const res = await createBatch(chunk)
-    const batchItems = res.items ?? []
-    allItems.push(...batchItems)
-    added += res.added ?? 0
-    updated += res.updated ?? 0
-    // Legacy endpoints that only return items (no added count).
-    if (res.added == null && res.updated == null) {
-      added += batchItems.length
+  try {
+    options?.onProgress?.(0, total)
+    progress?.update(0)
+
+    for (const chunk of chunks) {
+      const res = await createBatch(chunk)
+      const batchItems = res.items ?? []
+      allItems.push(...batchItems)
+      added += res.added ?? 0
+      updated += res.updated ?? 0
+      // Legacy endpoints that only return items (no added count).
+      if (res.added == null && res.updated == null) {
+        added += batchItems.length
+      }
+      if (res.errors?.length) allErrors.push(...res.errors)
+      processed += chunk.length
+      options?.onProgress?.(processed, total)
+      progress?.update(processed)
     }
-    if (res.errors?.length) allErrors.push(...res.errors)
+  } finally {
+    progress?.finish()
   }
 
   return {

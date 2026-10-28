@@ -11,6 +11,7 @@ import {
   toApiCustomerWrite,
   type CustomerRow,
 } from "@/lib/customers"
+import { isInactiveRow } from "@/lib/row-status"
 
 type CustomersContextValue = {
   customers: CustomerRow[]
@@ -105,7 +106,7 @@ function CustomersProviderLive({
   const duplicateCustomer = React.useCallback(
     async (id: number) => {
       const source = customersRef.current.find((c) => c.id === id)
-      if (!source) return null
+      if (!source || isInactiveRow(source)) return null
       return addCustomer({
         name: `${source.name} (copy)`,
         description: source.description,
@@ -113,7 +114,7 @@ function CustomersProviderLive({
         totalSales: "0.00",
         totalPayments: "0.00",
         phone: source.phone,
-        status: source.status,
+        status: "active",
         imageUrl: "",
       })
     },

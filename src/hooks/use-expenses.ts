@@ -11,6 +11,7 @@ import {
   apiUpdateExpense,
 } from "@/lib/api/business"
 import { settledErrorMessage } from "@/lib/api/client"
+import { mapAllSettled } from "@/lib/async-pool"
 import { expenseKeys, invalidateExpenses } from "@/lib/expenses-query"
 import {
   cacheExpenses,
@@ -80,7 +81,7 @@ export function useExpensesQuery(active: boolean) {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const results = await Promise.allSettled(ids.map((id) => apiDeleteExpense(id)))
+      const results = await mapAllSettled(ids, (id) => apiDeleteExpense(id))
       return {
         deleted: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,

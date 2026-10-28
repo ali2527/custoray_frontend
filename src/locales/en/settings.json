@@ -83,6 +83,12 @@
     "tagline": "Tagline",
     "addressLine1": "Address line 1",
     "addressLine2": "Address line 2",
+    "city": "City",
+    "state": "State / region",
+    "postalCode": "Postal code",
+    "country": "Country",
+    "currency": "Currency",
+    "timezone": "Timezone",
     "phone": "Phone",
     "email": "Email",
     "toastSaved": "Company settings saved."

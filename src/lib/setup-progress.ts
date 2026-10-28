@@ -73,6 +73,21 @@ export function markSetupMilestone(id: SetupMilestoneId) {
   return next
 }
 
+/** Mark a milestone and always emit newlyCompleted (for post-modal celebrations). */
+export function completeSetupMilestone(id: SetupMilestoneId) {
+  const previous = loadSetupProgress()
+  const next = previous[id] ? previous : { ...previous, [id]: true }
+  if (!previous[id]) saveSetupProgress(next)
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent<SetupProgressEventDetail>(SETUP_PROGRESS_EVENT, {
+        detail: { id, newlyCompleted: true },
+      })
+    )
+  }
+  return next
+}
+
 export function setupCompletedCount(progress: SetupProgress) {
   return (["settings", "product", "customer", "invoice"] as const).filter(
     (key) => progress[key]

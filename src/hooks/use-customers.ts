@@ -11,6 +11,7 @@ import {
   apiUpdateBuyer,
 } from "@/lib/api/business"
 import { settledErrorMessage } from "@/lib/api/client"
+import { mapAllSettled } from "@/lib/async-pool"
 import { customerKeys, invalidateCustomers } from "@/lib/customers-query"
 import {
   cacheCustomers,
@@ -76,7 +77,7 @@ export function useCustomersQuery(active: boolean) {
 
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const results = await Promise.allSettled(ids.map((id) => apiDeleteBuyer(id)))
+      const results = await mapAllSettled(ids, (id) => apiDeleteBuyer(id))
       return {
         deleted: results.filter((result) => result.status === "fulfilled").length,
         failed: results.filter((result) => result.status === "rejected").length,
@@ -99,8 +100,10 @@ export function useCustomersQuery(active: boolean) {
       ids: string[]
       status: CustomerStatus
     }) => {
-      const results = await Promise.allSettled(
-        ids.map((id) => apiUpdateBuyer(id, { status }))
+      const results = await mapAllSettled(
+        ids,
+        (id) => apiUpdateBuyer(id, { status }),
+        { progress: "update" }
       )
       return {
         updatedIds: ids.filter((_, index) => results[index]?.status === "fulfilled"),

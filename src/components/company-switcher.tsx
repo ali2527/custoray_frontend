@@ -7,6 +7,10 @@ import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 
 import { useAuth } from "@/context/auth-context"
+import {
+  COMPANY_SETTINGS_EVENT,
+  loadCompanySettings,
+} from "@/lib/company-settings"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
@@ -45,6 +49,18 @@ export function CompanySwitcher() {
   const [createOpen, setCreateOpen] = React.useState(false)
   const [businessName, setBusinessName] = React.useState("")
   const [pending, setPending] = React.useState(false)
+  const [settingsLogo, setSettingsLogo] = React.useState("")
+
+  React.useEffect(() => {
+    const sync = () => setSettingsLogo(loadCompanySettings().logoUrl.trim())
+    sync()
+    window.addEventListener(COMPANY_SETTINGS_EVENT, sync)
+    window.addEventListener("storage", sync)
+    return () => {
+      window.removeEventListener(COMPANY_SETTINGS_EVENT, sync)
+      window.removeEventListener("storage", sync)
+    }
+  }, [])
 
   if (!activeCompany) {
     return null
@@ -79,7 +95,8 @@ export function CompanySwitcher() {
     }
   }
 
-  const logoUrl = activeCompany.logoUrl?.trim() || "/assets/logo-2.png"
+  const logoUrl =
+    activeCompany.logoUrl?.trim() || settingsLogo || "/assets/logo-2.png"
 
   return (
     <>

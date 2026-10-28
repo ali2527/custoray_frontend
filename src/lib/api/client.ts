@@ -74,9 +74,11 @@ const REFRESH_LOCK_CHANNEL =
 
 /** Bumped when a new login starts so an older 401 cannot sign that login out. */
 let authEpoch = 0
+let sessionExpiredEmitted = false
 
 export function beginAuthTransition() {
   authEpoch += 1
+  sessionExpiredEmitted = false
 }
 
 export function currentAuthEpoch() {
@@ -124,6 +126,9 @@ async function refreshAccessCookie() {
 
 function emitSessionExpired() {
   if (typeof window === "undefined") return
+  // Parallel 401s after a failed refresh must not spam logout handlers.
+  if (sessionExpiredEmitted) return
+  sessionExpiredEmitted = true
   window.dispatchEvent(new Event("custoray:session-expired"))
 }
 

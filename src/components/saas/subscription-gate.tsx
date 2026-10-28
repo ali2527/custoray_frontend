@@ -3,9 +3,9 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 
+import { PageLoader } from "@/components/ui/page-loader"
 import { useAuth } from "@/context/auth-context"
 import { isApiEnabled } from "@/lib/api/client"
-import { PageLoader } from "@/components/ui/page-loader"
 
 export function SubscriptionGate({ children }: { children: React.ReactNode }) {
   const router = useRouter()
@@ -23,9 +23,13 @@ export function SubscriptionGate({ children }: { children: React.ReactNode }) {
     }
   }, [hydrated, isAuthenticated, access, router, useApi])
 
-  if (useApi && !hydrated) return <PageLoader fullScreen />
+  // Keep the real app chrome while auth restores so the home skeleton matches
+  // the dashboard. On logout / denied, show a spinner instead of a blank flash.
+  if (useApi && !hydrated) return <>{children}</>
   if (useApi && !isAuthenticated) return <PageLoader fullScreen />
-  if (useApi && isAuthenticated && access && !access.allowed) return <PageLoader fullScreen />
+  if (useApi && isAuthenticated && access && !access.allowed) {
+    return <PageLoader fullScreen />
+  }
 
   return <>{children}</>
 }

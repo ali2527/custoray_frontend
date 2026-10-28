@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import Image from "next/image"
+import NextImage from "next/image"
 import { usePathname, useRouter } from "next/navigation"
 import {
   Building2,
@@ -79,7 +79,7 @@ import {
   validateSignupPhone,
 } from "@/lib/phone-mask"
 import { PLAN_BLURB, TRIAL_DAYS, formatPlanPrice } from "@/lib/plans"
-import { markSetupMilestone } from "@/lib/setup-progress"
+import { completeSetupMilestone } from "@/lib/setup-progress"
 import { FALLBACK_PLANS, formatTrialEndDate } from "@/lib/subscription-access"
 import {
   completeWelcomeFlow,
@@ -268,7 +268,8 @@ function CurrencyRow({
 export function WelcomeFlow() {
   const { t } = useTranslation("common")
   const { t: tBilling } = useTranslation("settings")
-  const { hydrated, isAuthenticated, activeCompany, access, user } = useAuth()
+  const { hydrated, isAuthenticated, activeCompany, access, user, patchActiveCompany } =
+    useAuth()
   const pathname = usePathname()
   const router = useRouter()
   const [open, setOpen] = useState(false)
@@ -359,8 +360,12 @@ export function WelcomeFlow() {
     const fromUrl =
       typeof window !== "undefined" &&
       new URLSearchParams(window.location.search).get("welcome") === "1"
+    // Never re-arm after done/dismissed. ?welcome=1 used to re-queue setup.
+    if (isWelcomeFlowCompleted() || isWelcomeFlowDismissed()) {
+      if (fromUrl) clearWelcomeQuery()
+      return
+    }
     if (fromUrl) queueWelcomeFlow()
-    else if (isWelcomeFlowCompleted() || isWelcomeFlowDismissed()) return
     if (isWelcomeFlowPending()) {
       setSetupStep(readWelcomeSetupStep())
       setOpen(true)
@@ -469,9 +474,31 @@ export function WelcomeFlow() {
   }, [open, draftHydrated, placed, businessKnown])
 
   function finishSetup() {
+    const logoUrl = companyDraft.logoUrl.trim()
+    const name = companyDraft.name.trim()
+    patchActiveCompany({
+      ...(name ? { name } : {}),
+      ...(logoUrl ? { logoUrl } : {}),
+    })
     completeWelcomeFlow()
+    // Drop ?welcome=1 before closing so the open-effect cannot re-queue setup.
+    if (typeof window !== "undefined") {
+      const url = new URL(window.location.href)
+      if (url.searchParams.has("welcome")) {
+        url.searchParams.delete("welcome")
+        window.history.replaceState(
+          window.history.state,
+          "",
+          `${url.pathname}${url.search}${url.hash}`
+        )
+      }
+    }
     setOpen(false)
     clearWelcomeQuery()
+    // Mark business/settings after the modal closes so the dashboard confetti is visible.
+    window.setTimeout(() => {
+      completeSetupMilestone("settings")
+    }, 180)
     if (!pathMatches(pathname, "/home")) {
       router.push(toAppPath("/home"))
     }
@@ -518,7 +545,12 @@ export function WelcomeFlow() {
           logoUrl,
           email: user?.email?.trim() || companyDraft.email,
         })
-        if (logoUrl) updateCompany({ logoUrl })
+        if (logoUrl) {
+          updateCompany({ logoUrl })
+          patchActiveCompany({ logoUrl, name })
+        } else if (name) {
+          patchActiveCompany({ name })
+        }
         void apiPatchOnboarding({ business: true }).catch(() => undefined)
         goToStep(2)
       } catch (error) {
@@ -610,7 +642,6 @@ export function WelcomeFlow() {
         { business: true, preferences: true, invoices: true },
         true
       ).catch(() => undefined)
-      markSetupMilestone("settings")
       goToStep(6)
       return
     }
@@ -722,7 +753,7 @@ export function WelcomeFlow() {
 
   const logo = (
     <>
-      <Image
+      <NextImage
         src="/assets/logo-2.png"
         alt="Custoray"
         width={168}
@@ -730,7 +761,7 @@ export function WelcomeFlow() {
         className="h-full w-auto object-contain dark:hidden"
         priority
       />
-      <Image
+      <NextImage
         src="/assets/logo-3.png"
         alt=""
         width={168}
@@ -785,7 +816,14 @@ export function WelcomeFlow() {
             >
               {setupStep !== 6 ? (
                 <DialogHeader className="gap-0 text-left sm:text-left">
-                  <DialogTitle className="text-foreground text-[1.35rem] leading-snug font-semibold tracking-tight sm:text-[1.6875rem]">
+                  <DialogTitle
+                    className={cn(
+                      "text-foreground leading-snug font-semibold tracking-tight",
+                      setupStep === 0
+                        ? "text-[1.85rem] sm:text-[2.35rem]"
+                        : "text-[1.35rem] sm:text-[1.6875rem]"
+                    )}
+                  >
                     {placed ? title : t("welcome.onboarding.welcomeTitle")}
                   </DialogTitle>
                   <DialogDescription className="text-muted-foreground mt-2 max-w-none text-[13px] leading-relaxed sm:text-sm">

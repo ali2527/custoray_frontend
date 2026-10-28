@@ -1,5 +1,6 @@
 "use client"
 
+import * as React from "react"
 import Link from "next/link"
 import { Sparkles } from "lucide-react"
 import { useTranslation } from "react-i18next"
@@ -7,15 +8,11 @@ import { useTranslation } from "react-i18next"
 import { useSidebar } from "@/components/ui/sidebar"
 import { useAuth } from "@/context/auth-context"
 import { TRIAL_DAYS } from "@/lib/plans"
-import { formatTrialEndDate } from "@/lib/subscription-access"
+import {
+  formatTrialEndDate,
+  planPeriodProgress,
+} from "@/lib/subscription-access"
 import { cn } from "@/lib/utils"
-
-function daysLeft(iso: string) {
-  return Math.max(
-    0,
-    Math.ceil((new Date(iso).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-  )
-}
 
 function statusI18nKey(status: string) {
   if (status === "TRIAL") return "trial"
@@ -32,16 +29,28 @@ export function PlanStatusCard() {
   const { access } = useAuth()
   const { state } = useSidebar()
   const collapsed = state === "collapsed"
+  const [now, setNow] = React.useState(() => Date.now())
+
+  React.useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 60_000)
+    return () => window.clearInterval(id)
+  }, [])
 
   if (!access) return null
 
   const onTrial = access.status === "TRIAL"
   const attention = access.status === "PAST_DUE" || access.status === "EXPIRED"
-  const left = access.trialEndsAt ? daysLeft(access.trialEndsAt) : 0
-  const remainingPct = onTrial
-    ? Math.min(100, Math.max(8, (left / TRIAL_DAYS) * 100))
-    : 100
-  const usedDays = onTrial ? Math.min(TRIAL_DAYS, TRIAL_DAYS - left) : 0
+  const endsAt = onTrial
+    ? access.trialEndsAt
+    : access.currentPeriodEnd ?? access.trialEndsAt
+  const startsAt =
+    access.currentPeriodStart ?? access.subscriptionCreatedAt ?? null
+  const period = planPeriodProgress({
+    endsAt,
+    startsAt,
+    fallbackDays: TRIAL_DAYS,
+    now,
+  })
   const statusKey = statusI18nKey(access.status)
   const statusText = statusKey
     ? tSettings(`billing.statuses.${statusKey}`)
@@ -63,7 +72,7 @@ export function PlanStatusCard() {
             : "bg-primary/15 text-primary ring-primary/20"
         )}
       >
-        {onTrial ? left : <Sparkles className="size-3.5" />}
+        {onTrial ? period.daysLeft : <Sparkles className="size-3.5" />}
       </Link>
     )
   }
@@ -86,9 +95,12 @@ export function PlanStatusCard() {
           </p>
           <p className="text-muted-foreground mt-1 text-xs leading-snug">
             {onTrial
-              ? left === 0
+              ? period.daysLeft === 0
                 ? t("trialEndsToday")
-                : t("daysLeftOf", { count: left, total: TRIAL_DAYS })
+                : t("daysLeftOf", {
+                    count: period.daysLeft,
+                    total: period.spanDays,
+                  })
               : statusText}
           </p>
         </div>
@@ -104,20 +116,34 @@ export function PlanStatusCard() {
         </span>
       </div>
       <div className="mt-auto pt-4">
-        {onTrial ? (
+        {endsAt ? (
           <div>
-            <div className="bg-primary/20 h-1.5 overflow-hidden rounded-full">
+            <div className="relative flex h-2.5 items-center">
+              <div className="bg-primary/20 absolute inset-x-0 h-px rounded-full" />
               <div
-                className="bg-primary h-full rounded-full"
-                style={{ width: `${remainingPct}%` }}
+                className="bg-primary absolute inset-y-auto start-0 h-px rounded-full transition-[width]"
+                style={{
+                  width: `${Math.max(period.elapsedPct, period.elapsedPct > 0 ? 2 : 0)}%`,
+                }}
+              />
+              <span className="bg-primary absolute start-0 size-1.5 rounded-full ring-2 ring-primary/20" />
+              <span
+                className={cn(
+                  "absolute end-0 size-1.5 rounded-full ring-2",
+                  period.elapsedPct >= 99.5
+                    ? "bg-primary ring-primary/20"
+                    : "bg-primary/30 ring-primary/15"
+                )}
               />
             </div>
-            <p className="text-muted-foreground mt-1.5 text-[11px]">
-              {t("dayOf", { day: Math.max(1, usedDays), total: TRIAL_DAYS })}
-              {access.trialEndsAt
-                ? ` · ${t("endsDate", { date: formatTrialEndDate(access.trialEndsAt) })}`
-                : null}
-            </p>
+            <div className="text-muted-foreground mt-1.5 flex items-center justify-between gap-2 text-[11px]">
+              <span className="min-w-0 truncate">
+                {period.startsAt ? formatTrialEndDate(period.startsAt) : null}
+              </span>
+              <span className="min-w-0 truncate text-end">
+                {formatTrialEndDate(endsAt)}
+              </span>
+            </div>
           </div>
         ) : null}
         {access.trialRequestPending ? (

@@ -102,7 +102,7 @@ export const PRODUCT_IMPORT_BASE_COLUMNS = [
   "stock",
   "costPrice",
   "salePrice",
-  "lifecycle",
+  "status",
   "imageUrls",
 ] as const
 
@@ -118,7 +118,7 @@ export function productImportColumns(
     "stock",
     "costPrice",
     "salePrice",
-    "lifecycle",
+    "status",
     "imageUrls",
   ]
 }
@@ -133,7 +133,7 @@ export function productImportSampleRow(
     stock: "25",
     costPrice: "120.00",
     salePrice: "150.00",
-    lifecycle: "active",
+    status: "active",
     imageUrls: "",
   }
   if (tables.brand) row.brand = "Acme"

@@ -19,7 +19,9 @@ import {
   apiPatchCompanySettings,
 } from "@/lib/api/auth"
 import {
+  companySettingsFromRemote,
   DEFAULT_COMPANY_SETTINGS,
+  saveCompanySettings,
   type CompanySettings,
 } from "@/lib/company-settings"
 import { industryLabel, SIGNUP_INDUSTRIES } from "@/lib/industries"
@@ -45,33 +47,52 @@ const fieldClass =
 const labelClass = "text-xs font-medium"
 
 export async function persistWelcomeCompany(settings: CompanySettings) {
-  const address = composeAddress({
-    street: settings.addressLine1,
-    city: settings.city,
-    state: settings.state,
-    postalCode: settings.postalCode,
-    country: settings.country,
-  })
-  await apiPatchCompanySettings({
+  const next: CompanySettings = {
+    ...settings,
     name: settings.name.trim(),
     industry: settings.industry.trim(),
     country: settings.country.trim(),
-    address,
+    addressLine1: settings.addressLine1.trim(),
+    addressLine2: settings.addressLine2.trim(),
     city: settings.city.trim(),
     state: settings.state.trim(),
     postalCode: settings.postalCode.trim(),
     phone: settings.phone.trim(),
     email: settings.email.trim(),
-    logoUrl: settings.logoUrl.trim() || undefined,
-    currency: settings.currency,
-    timezone: settings.timezone,
-    dateFormat: settings.dateFormat,
+    logoUrl: settings.logoUrl.trim(),
     invoicePrefix: settings.invoicePrefix.trim() || "INV",
-    nextInvoiceNumber: settings.nextInvoiceNumber,
-    paymentTermsDays: settings.paymentTermsDays,
     invoiceNote: settings.invoiceNote.trim(),
     paymentInstructions: settings.paymentInstructions.trim(),
+  }
+  const address = composeAddress({
+    street: next.addressLine1,
+    city: next.city,
+    state: next.state,
+    postalCode: next.postalCode,
+    country: next.country,
   })
+  await apiPatchCompanySettings({
+    name: next.name,
+    industry: next.industry,
+    country: next.country,
+    address,
+    city: next.city,
+    state: next.state,
+    postalCode: next.postalCode,
+    phone: next.phone,
+    email: next.email,
+    logoUrl: next.logoUrl || "",
+    currency: next.currency,
+    timezone: next.timezone,
+    dateFormat: next.dateFormat,
+    invoicePrefix: next.invoicePrefix,
+    nextInvoiceNumber: next.nextInvoiceNumber,
+    paymentTermsDays: next.paymentTermsDays,
+    invoiceNote: next.invoiceNote,
+    paymentInstructions: next.paymentInstructions,
+  })
+  // Keep local cache in sync so invoices/PDF/settings UI see welcome choices.
+  saveCompanySettings(next)
 }
 
 export function WelcomeSetupBody({
@@ -523,43 +544,16 @@ export function useWelcomeCompanyDraft() {
               ? browserTz
               : defaults.timezone)
 
-          // Legacy: country may still live in address from older signups.
-          const industry = remote.industry || ""
-          const legacyCountry =
-            remote.country ||
-            (!remote.city && !remote.state ? remote.address : "") ||
-            ""
-
-          setCompanyDraft({
-            ...DEFAULT_COMPANY_SETTINGS,
+          const next = {
+            ...companySettingsFromRemote(remote),
             name: remote.name || activeCompany?.name || "",
-            industry,
-            country: legacyCountry,
-            addressLine1:
-              remote.city || remote.state || remote.postalCode
-                ? remote.address?.split(",")[0]?.trim() || ""
-                : remote.country
-                  ? ""
-                  : remote.address || "",
-            addressLine2: "",
-            city: remote.city || "",
-            state: remote.state || "",
-            postalCode: remote.postalCode || "",
-            phone: remote.phone || "",
             email: user?.email || remote.email || "",
-            logoUrl: remote.logoUrl || "",
             currency: remote.currency || defaults.currency,
             timezone,
             dateFormat: (remote.dateFormat as DateFormatOption) || defaults.dateFormat,
-            invoicePrefix: remote.invoicePrefix || "INV",
-            nextInvoiceNumber: remote.nextInvoiceNumber || 1,
-            paymentTermsDays:
-              typeof remote.paymentTermsDays === "number"
-                ? remote.paymentTermsDays
-                : 30,
-            invoiceNote: remote.invoiceNote || "",
-            paymentInstructions: remote.paymentInstructions || "",
-          })
+          }
+          setCompanyDraft(next)
+          saveCompanySettings(next)
 
           if (!prefs.language || prefs.language === "en") {
             if (defaults.language !== "en") {

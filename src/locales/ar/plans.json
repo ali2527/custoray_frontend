@@ -12,6 +12,7 @@
   "planStatus": "{{plan}} · {{status}}",
   "trialEndsToday": "تنتهي التجربة اليوم",
   "dayOf": "اليوم {{day}} من {{total}}",
+  "startsDate": "بدأت {{date}}",
   "endsDate": "تنتهي {{date}}",
   "extensionPending": "طلب التمديد قيد الانتظار",
   "banner": {

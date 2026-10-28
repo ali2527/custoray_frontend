@@ -100,6 +100,8 @@
   },
   "viewSheet": {
     "details": "Details",
+    "inventory": "Inventory",
+    "catalog": "Catalog",
     "pricing": "Pricing",
     "margin": "Margin",
     "noImage": "No product image"
@@ -191,6 +193,68 @@
     "set": "Set",
     "quantity": "Quantity",
     "both": "Price & qty"
+  },
+  "stockHistory": {
+    "title": "Stock history",
+    "open": "View stock history",
+    "back": "Back to products",
+    "notFound": "Product not found.",
+    "missingId": "This product has no server id yet.",
+    "loadFailed": "Could not load stock history.",
+    "currentStock": "On hand",
+    "stockIn": "Stock in",
+    "stockOut": "Stock out",
+    "search": "Search customer, invoice, PO…",
+    "showing": "Showing {{shown}} of {{total}} events",
+    "eventCount": "{{count}} events",
+    "stockPath": "{{before}} → {{after}} on hand",
+    "emptyTitle": "No stock movements yet",
+    "emptyDescription": "Sales, purchases, returns, and adjustments for this product will show up here.",
+    "emptyFiltered": "No matching events",
+    "emptyFilteredHint": "Try another filter or clear the search.",
+    "filters": {
+      "all": "All",
+      "in": "In",
+      "out": "Out",
+      "sales": "Sales",
+      "purchases": "Purchases",
+      "returns": "Returns",
+      "adjustments": "Adjustments"
+    },
+    "columns": {
+      "date": "Date",
+      "event": "What happened",
+      "document": "Invoice / PO",
+      "party": "Customer / vendor",
+      "change": "Qty change",
+      "stockAfter": "Stock after",
+      "type": "Type"
+    },
+    "kinds": {
+      "sale": "Sale",
+      "pos_sale": "POS sale",
+      "purchase": "Purchase",
+      "return_in": "Return in",
+      "return_out": "Return out",
+      "adjustment": "Adjustment",
+      "storefront": "Storefront",
+      "other": "Other"
+    },
+    "summary": {
+      "saleWithParty": "{{party}} bought {{qty}}",
+      "sale": "Sale of {{qty}}",
+      "storefront": "Storefront sale · {{qty}}",
+      "purchaseWithParty": "Received {{qty}} from {{party}}",
+      "purchase": "Purchase received · {{qty}}",
+      "returnInWithParty": "Return from {{party}} · +{{qty}}",
+      "returnIn": "Sales return · +{{qty}}",
+      "returnOutWithParty": "Return to {{party}} · −{{qty}}",
+      "returnOut": "Purchase return · −{{qty}}",
+      "adjustmentIn": "Manual adjustment · +{{qty}}",
+      "adjustmentOut": "Manual adjustment · −{{qty}}",
+      "stockIn": "Stock in · +{{qty}}",
+      "stockOut": "Stock out · −{{qty}}"
+    }
   },
   "noDescription": "No description",
   "images": {
