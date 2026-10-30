@@ -1,10 +1,13 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { IconCamera, IconUser, IconX } from "@tabler/icons-react"
+import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { fileToCompressedDataUrl } from "@/lib/image-data-url"
 import { cn } from "@/lib/utils"
 
 type VendorImageFieldProps = {
@@ -14,26 +17,46 @@ type VendorImageFieldProps = {
 }
 
 export function VendorImageField({ id, name, initialUrl = "" }: VendorImageFieldProps) {
+  const { t } = useTranslation("vendors")
   const [imageUrl, setImageUrl] = useState(initialUrl.trim())
+  const inputRef = useRef<HTMLInputElement>(null)
+  const loadGen = useRef(0)
   const hasImage = Boolean(imageUrl)
+
+  const resetFileInput = () => {
+    if (inputRef.current) inputRef.current.value = ""
+  }
 
   const addFile = (file: File | undefined) => {
     if (!file?.type.startsWith("image/")) return
-    const reader = new FileReader()
-    reader.onload = () => setImageUrl(String(reader.result))
-    reader.readAsDataURL(file)
+    const gen = ++loadGen.current
+    void fileToCompressedDataUrl(file, { maxEdge: 1024, quality: 0.82 })
+      .then((dataUrl) => {
+        if (gen !== loadGen.current) return
+        setImageUrl(dataUrl)
+      })
+      .catch(() => {
+        if (gen !== loadGen.current) return
+        toast.error(t("images.tooLarge"))
+      })
+  }
+
+  const removeImage = () => {
+    loadGen.current += 1
+    setImageUrl("")
+    resetFileInput()
   }
 
   return (
     <div className="flex flex-col items-center gap-2">
       <Label htmlFor={id} className="sr-only">
-        Vendor photo
+        {t("images.photo")}
       </Label>
       <div className="relative">
         <label
           htmlFor={id}
           className="group relative block size-24 cursor-pointer"
-          aria-label={hasImage ? "Change vendor photo" : "Upload vendor photo"}
+          aria-label={hasImage ? t("images.change") : t("images.upload")}
         >
           <span
             className={cn(
@@ -45,7 +68,7 @@ export function VendorImageField({ id, name, initialUrl = "" }: VendorImageField
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={imageUrl}
-                alt={name || "Vendor"}
+                alt={name || t("entity.vendor")}
                 className="size-full object-cover"
               />
             ) : (
@@ -62,14 +85,15 @@ export function VendorImageField({ id, name, initialUrl = "" }: VendorImageField
           <button
             type="button"
             className="bg-background text-muted-foreground hover:bg-destructive/10 hover:text-destructive absolute -top-0.5 -right-0.5 flex size-7 items-center justify-center rounded-full border shadow-sm transition-colors"
-            aria-label="Remove vendor photo"
-            onClick={() => setImageUrl("")}
+            aria-label={t("images.remove")}
+            onClick={removeImage}
           >
             <IconX className="size-3.5" />
           </button>
         ) : null}
       </div>
       <Input
+        ref={inputRef}
         id={id}
         type="file"
         accept="image/*"

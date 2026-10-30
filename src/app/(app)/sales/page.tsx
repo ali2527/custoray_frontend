@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { ColumnDef } from "@tanstack/react-table"
 import {
   IconCopy,
@@ -21,7 +22,7 @@ import { OrderForm } from "@/components/orders/order-form"
 import { SaleLineDetail } from "@/components/sales/sale-line-detail"
 import { SalesViewTableOption } from "@/components/sales/sales-view-toggle"
 import { DataTableColumnHeader } from "@/components/data-table-column-header"
-import { DataTable, type DataTableTab } from "@/components/data-table"
+import { DataTable } from "@/components/data-table"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -32,8 +33,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { InfiniteScrollSelect } from "@/components/ui/infinite-scroll-select"
-import { Label } from "@/components/ui/label"
 import {
   Sheet,
   SheetClose,
@@ -43,9 +42,27 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { useAuth } from "@/context/auth-context"
 import { useOrders } from "@/context/orders-context"
+import { usePosSettings } from "@/context/pos-settings-context"
+import { useProducts } from "@/context/products-context"
 import { useReturns } from "@/context/returns-context"
 import { useInvoiceLineReturn } from "@/hooks/use-invoice-line-return"
+import {
+  apiCreateOrder,
+  apiUpdateOrder,
+  type ApiOrderCreateInput,
+} from "@/lib/api/business"
+import { invalidateCustomers } from "@/lib/customers-query"
+import {
+  persistCancelOrder,
+  persistCreateOrder,
+  persistDeleteOrder,
+  persistDuplicateOrder,
+  persistUpdateOrder,
+} from "@/lib/order-persist"
+import { mapApiOrderToRow, mapApiReturnToRow, resolveDefaultStoreId } from "@/lib/pos-api"
+import { persistCompletedReturn } from "@/lib/return-persist"
 import {
   confirmCancelAction,
   confirmDeleteAction,
@@ -84,16 +101,6 @@ import {
   type SaleLineRow,
 } from "@/lib/sales-report"
 
-function salesBillTabFilter(row: OrderRow, tab: string) {
-  if (tab === "all") return true
-  return row.status === tab
-}
-
-function salesLineTabFilter(row: SaleLineRow, tab: string) {
-  if (tab === "all") return true
-  return row.orderStatus === tab
-}
-
 function textFilterMeta(label: string) {
   return { dataTableFilterVariant: "text" as const, dataTableFilterLabel: label }
 }
@@ -106,37 +113,16 @@ function statusFilterMeta(t: TFunction<"sales">, label = t("columns.status")) {
   return {
     dataTableFilterVariant: "select" as const,
     dataTableFilterLabel: label,
-    dataTableFilterSelectLabels: {
-      pending: t("status.pending"),
-      completed: t("status.completed"),
-      cancelled: t("status.cancelled"),
-    },
+    dataTableFilterSelectLabels: Object.fromEntries(
+      ORDER_STATUSES.map((status) => [status, t(`status.${status}`)])
+    ),
   }
 }
 
 type SaleFormSidebarState =
-  | { step: "choose" }
   | { step: "form"; mode: "add" }
   | { step: "form"; mode: "edit"; order: OrderRow }
   | null
-
-function orderWithNewLine(order: OrderRow): OrderRow {
-  const lines = order.lines ?? []
-  const maxId = lines.reduce((max, line) => Math.max(max, line.id), 0)
-  return {
-    ...order,
-    lines: [
-      ...lines,
-      {
-        id: maxId + 1,
-        productName: "",
-        quantity: 1,
-        unitPrice: "0",
-        lineTotal: "0.00",
-      },
-    ],
-  }
-}
 
 function selectColumn<T>(t: TFunction<"sales">): ColumnDef<T> {
   return {
@@ -267,6 +253,53 @@ function getSalesBillColumns(
         </div>
       ),
       meta: rangeFilterMeta(t("columns.totalAmount")),
+    },
+    {
+      id: "adjustments",
+      accessorFn: (row) =>
+        (row.lines ?? []).reduce((sum, line) => {
+          const list = Number(line.listPrice ?? line.unitPrice)
+          const unit = Number(line.unitPrice)
+          if (!Number.isFinite(list) || !Number.isFinite(unit)) return sum
+          return sum + (unit - list) * (Number(line.quantity) || 0)
+        }, 0),
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t("columns.adjustments")}
+          align="center"
+        />
+      ),
+      cell: ({ row }) => {
+        const adjustment = (row.original.lines ?? []).reduce((sum, line) => {
+          const list = Number(line.listPrice ?? line.unitPrice)
+          const unit = Number(line.unitPrice)
+          if (!Number.isFinite(list) || !Number.isFinite(unit)) return sum
+          return sum + (unit - list) * (Number(line.quantity) || 0)
+        }, 0)
+        if (Math.abs(adjustment) < 0.005) {
+          return (
+            <div className="flex justify-center">
+              <span className="text-muted-foreground tabular-nums">—</span>
+            </div>
+          )
+        }
+        const amount = formatMoney(Math.abs(adjustment).toFixed(2))
+        return (
+          <div className="flex justify-center">
+            <span
+              className={
+                adjustment < 0
+                  ? "text-emerald-700 dark:text-emerald-400 tabular-nums"
+                  : "text-amber-700 dark:text-amber-400 tabular-nums"
+              }
+            >
+              {adjustment < 0 ? `−${amount}` : `+${amount}`}
+            </span>
+          </div>
+        )
+      },
+      meta: rangeFilterMeta(t("columns.adjustments")),
     },
     {
       accessorKey: "paidAmount",
@@ -454,18 +487,95 @@ function getSalesLineColumns(
       meta: rangeFilterMeta(t("columns.qty")),
     },
     {
-      accessorKey: "unitPrice",
+      accessorKey: "listPrice",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("columns.unitPrice")} align="center" />
+        <DataTableColumnHeader
+          column={column}
+          title={t("columns.originalPrice")}
+          align="center"
+        />
       ),
       cell: ({ row }) => (
         <div className="flex justify-center">
           <span className="text-muted-foreground tabular-nums">
-            {formatMoney(row.original.unitPrice)}
+            {formatMoney(row.original.listPrice)}
           </span>
         </div>
       ),
+      meta: rangeFilterMeta(t("columns.originalPrice")),
+    },
+    {
+      accessorKey: "unitPrice",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("columns.unitPrice")} align="center" />
+      ),
+      cell: ({ row }) => {
+        const list = Number(row.original.listPrice)
+        const unit = Number(row.original.unitPrice)
+        const discounted =
+          Number.isFinite(list) && Number.isFinite(unit) && list > unit + 0.004
+        return (
+          <div className="flex justify-center">
+            <span
+              className={
+                discounted
+                  ? "text-foreground tabular-nums font-medium"
+                  : "text-muted-foreground tabular-nums"
+              }
+            >
+              {formatMoney(row.original.unitPrice)}
+            </span>
+          </div>
+        )
+      },
       meta: rangeFilterMeta(t("columns.unitPrice")),
+    },
+    {
+      id: "adjustments",
+      accessorFn: (row) => {
+        const list = Number(row.listPrice)
+        const unit = Number(row.unitPrice)
+        if (!Number.isFinite(list) || !Number.isFinite(unit)) return 0
+        return (unit - list) * (Number(row.quantity) || 0)
+      },
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={t("columns.adjustments")}
+          align="center"
+        />
+      ),
+      cell: ({ row }) => {
+        const list = Number(row.original.listPrice)
+        const unit = Number(row.original.unitPrice)
+        const qty = Number(row.original.quantity) || 0
+        const adjustment =
+          Number.isFinite(list) && Number.isFinite(unit)
+            ? (unit - list) * qty
+            : 0
+        if (Math.abs(adjustment) < 0.005) {
+          return (
+            <div className="flex justify-center">
+              <span className="text-muted-foreground tabular-nums">—</span>
+            </div>
+          )
+        }
+        const amount = formatMoney(Math.abs(adjustment).toFixed(2))
+        return (
+          <div className="flex justify-center">
+            <span
+              className={
+                adjustment < 0
+                  ? "text-emerald-700 dark:text-emerald-400 tabular-nums"
+                  : "text-amber-700 dark:text-amber-400 tabular-nums"
+              }
+            >
+              {adjustment < 0 ? `−${amount}` : `+${amount}`}
+            </span>
+          </div>
+        )
+      },
+      meta: rangeFilterMeta(t("columns.adjustments")),
     },
     {
       accessorKey: "lineTotal",
@@ -553,21 +663,34 @@ function getSalesLineColumns(
 
 export default function SalesReportPage() {
   const { t } = useTranslation("sales")
-  const { orders, setOrders, getOrder, addOrder, updateOrder, removeOrder, duplicateOrder } =
-    useOrders()
-  const { addReturn } = useReturns()
-  const { returnInvoiceLine, returningLineId, applyCompletedReturnEffects } =
-    useInvoiceLineReturn()
+  const { session } = useAuth()
+  const queryClient = useQueryClient()
+  const {
+    orders,
+    getOrder,
+    addOrder,
+    updateOrder,
+    removeOrder,
+    refreshOrders,
+  } = useOrders()
+  const { addReturn, refreshReturns } = useReturns()
+  const { products, getApiProductId } = useProducts()
+  const { settings: posSettings } = usePosSettings()
+  const { returnInvoiceLine, returningLineId } = useInvoiceLineReturn()
   const [viewMode, setViewMode] = useState<BillItemViewMode>("item")
   const [viewSaleLine, setViewSaleLine] = useState<SaleLineRow | null>(null)
   const [viewOrder, setViewOrder] = useState<OrderRow | null>(null)
   const [invoiceSheetMode, setInvoiceSheetMode] = useState<"view" | "edit">("view")
-  const [selectedOrderId, setSelectedOrderId] = useState("")
   const [saleFormSidebar, setSaleFormSidebar] = useState<SaleFormSidebarState>(null)
+  const [savingSale, setSavingSale] = useState(false)
 
   useEffect(() => {
     setViewMode(loadSalesViewMode())
   }, [])
+
+  useEffect(() => {
+    void refreshOrders()
+  }, [refreshOrders])
 
   const saleLines = useMemo(() => flattenOrdersToSaleLines(orders), [orders])
 
@@ -632,22 +755,34 @@ export default function SalesReportPage() {
         !(await confirmDeleteAction({
           itemName: order.invoiceNumber,
           entityLabel: t("entity.sale"),
+          warning:
+            order.status === "completed"
+              ? t("confirm.delete.completedStockWarning", { ns: "common" })
+              : undefined,
         }))
       ) {
         return
       }
-      removeOrder(order.id)
-      if (viewOrder?.id === order.id) setViewOrder(null)
-      if (
-        saleFormSidebar?.step === "form" &&
-        saleFormSidebar.mode === "edit" &&
-        saleFormSidebar.order.id === order.id
-      ) {
-        setSaleFormSidebar(null)
+      try {
+        await persistDeleteOrder(order)
+        removeOrder(order.id)
+        if (viewOrder?.id === order.id) setViewOrder(null)
+        if (
+          saleFormSidebar?.step === "form" &&
+          saleFormSidebar.mode === "edit" &&
+          saleFormSidebar.order.id === order.id
+        ) {
+          setSaleFormSidebar(null)
+        }
+        invalidateCustomers(queryClient, session?.tenantId)
+        toast.message(t("toasts.removedNamed", { name: order.invoiceNumber }))
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not delete sale."
+        )
       }
-      toast.message(t("toasts.removedNamed", { name: order.invoiceNumber }))
     },
-    [removeOrder, saleFormSidebar, viewOrder, t]
+    [removeOrder, saleFormSidebar, viewOrder, queryClient, session?.tenantId, t]
   )
 
   const handleDuplicateBill = useCallback(
@@ -660,48 +795,109 @@ export default function SalesReportPage() {
       ) {
         return
       }
-      const copy = duplicateOrder(order.id)
-      if (copy) toast.success(t("toasts.duplicatedNamed", { name: order.invoiceNumber }))
+      try {
+        const apiOrder = await persistDuplicateOrder(order)
+        addOrder(mapApiOrderToRow(apiOrder))
+        invalidateCustomers(queryClient, session?.tenantId)
+        toast.success(t("toasts.duplicatedNamed", { name: order.invoiceNumber }))
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not duplicate sale."
+        )
+      }
     },
-    [duplicateOrder, t]
+    [addOrder, queryClient, session?.tenantId, t]
   )
 
   const handleDeleteSaleLines = useCallback(
     async (selected: SaleLineRow[]) => {
+      const selectedKeys = new Set(selected.map((line) => line.id))
+      const affected = new Map<number, OrderRow>()
+      for (const line of selected) {
+        const order = getOrder(line.orderId)
+        if (order) affected.set(order.id, order)
+      }
+      const completedCount = [...affected.values()].filter(
+        (order) => order.status === "completed"
+      ).length
+
       if (
         !(await confirmDeleteAction({
           count: selected.length,
           entityLabel: t("entity.saleLineItem"),
+          warning:
+            completedCount > 0
+              ? t("confirm.delete.completedStockWarningBulk", {
+                  ns: "common",
+                  count: completedCount,
+                })
+              : undefined,
         }))
       ) {
         return
       }
 
-      const selectedKeys = new Set(selected.map((line) => line.id))
-      setOrders((prev) =>
-        prev
-          .map((order) => {
-            const remaining = (order.lines ?? []).filter(
-              (line) => !selectedKeys.has(`${order.id}-${line.id}`)
-            )
-            if (remaining.length === (order.lines ?? []).length) return order
-            if (remaining.length === 0) return null
-            return {
-              ...order,
-              lines: remaining,
-              totalAmount: computeOrderTotal(remaining),
-            }
-          })
-          .filter((order): order is OrderRow => order !== null)
-      )
+      let removedLines = 0
+      const errors: string[] = []
+      for (const order of affected.values()) {
+        const selectedOnOrder = (order.lines ?? []).filter((line) =>
+          selectedKeys.has(`${order.id}-${line.id}`)
+        )
+        const remaining = (order.lines ?? []).filter(
+          (line) => !selectedKeys.has(`${order.id}-${line.id}`)
+        )
+        const apiId = order.apiId?.trim()
+        try {
+          if (remaining.length === 0) {
+            await persistDeleteOrder(order)
+            removeOrder(order.id)
+            removedLines += selectedOnOrder.length
+            continue
+          }
+          const next = {
+            ...order,
+            lines: remaining,
+            totalAmount: computeOrderTotal(remaining),
+          }
+          if (apiId) {
+            const apiOrder = await persistUpdateOrder(apiId, next)
+            updateOrder(order.id, { ...mapApiOrderToRow(apiOrder), id: order.id })
+          } else {
+            const apiOrder = await persistCreateOrder(next)
+            updateOrder(order.id, { ...mapApiOrderToRow(apiOrder), id: order.id })
+          }
+          removedLines += selectedOnOrder.length
+        } catch (error) {
+          errors.push(
+            error instanceof Error
+              ? `${order.invoiceNumber}: ${error.message}`
+              : order.invoiceNumber
+          )
+        }
+      }
 
       if (viewSaleLine && selectedKeys.has(viewSaleLine.id)) {
         setViewSaleLine(null)
       }
-
-      toast.message(t("toasts.removedLines", { count: selected.length }))
+      if (removedLines > 0) {
+        invalidateCustomers(queryClient, session?.tenantId)
+        toast.message(t("toasts.removedLines", { count: removedLines }))
+      }
+      if (errors.length > 0) {
+        toast.error(errors.slice(0, 3).join(" · "))
+        await refreshOrders()
+      }
     },
-    [setOrders, viewSaleLine, t]
+    [
+      getOrder,
+      removeOrder,
+      updateOrder,
+      viewSaleLine,
+      queryClient,
+      session?.tenantId,
+      refreshOrders,
+      t,
+    ]
   )
 
   const handleDeleteSaleLine = useCallback(
@@ -717,6 +913,11 @@ export default function SalesReportPage() {
         toast.error(t("toasts.onlyCompletedPaid"))
         return
       }
+      const sourceApiId = order.apiId?.trim()
+      if (!sourceApiId) {
+        toast.error("This sale is not saved on the server yet.")
+        return
+      }
       const draft = buildReturnFromOrder(order)
       if (
         !(await confirmReturnAction({
@@ -728,22 +929,46 @@ export default function SalesReportPage() {
       ) {
         return
       }
-      const created = addReturn({ ...draft, status: "completed" }, {
-        getOrder,
-        onApplySales: updateOrder,
-      })
-      applyCompletedReturnEffects(created, order)
-      toast.success(
-        t("toasts.returnRecorded", {
-          returnNumber: created.returnNumber,
-          name: order.invoiceNumber,
-        })
-      )
-      if (viewOrder?.id === order.id) {
-        setViewOrder(getOrder(order.id) ?? null)
+      try {
+        const productIdBySourceLineId = Object.fromEntries(
+          (order.lines ?? [])
+            .filter((line) => line.productApiId?.trim())
+            .map((line) => [line.id, line.productApiId!.trim()])
+        )
+        const apiReturn = await persistCompletedReturn(
+          draft,
+          sourceApiId,
+          productIdBySourceLineId
+        )
+        addReturn(mapApiReturnToRow(apiReturn, { sourceNumericId: order.id }))
+        await refreshOrders()
+        await refreshReturns()
+        invalidateCustomers(queryClient, session?.tenantId)
+        toast.success(
+          t("toasts.returnRecorded", {
+            returnNumber: apiReturn.returnNumber,
+            name: order.invoiceNumber,
+          })
+        )
+        if (viewOrder?.id === order.id) {
+          setViewOrder(getOrder(order.id) ?? null)
+        }
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not record return."
+        )
       }
     },
-    [addReturn, applyCompletedReturnEffects, getOrder, updateOrder, viewOrder, t]
+    [
+      addReturn,
+      getOrder,
+      refreshOrders,
+      refreshReturns,
+      queryClient,
+      session?.tenantId,
+      viewOrder,
+      t,
+    ]
   )
 
   const handleReturnLine = useCallback(
@@ -777,11 +1002,24 @@ export default function SalesReportPage() {
       ) {
         return
       }
-      updateOrder(order.id, { status: "cancelled" })
-      if (viewOrder?.id === order.id) setViewOrder(null)
-      toast.success(t("toasts.cancelled", { name: order.invoiceNumber }))
+      try {
+        const apiId = order.apiId?.trim()
+        if (apiId) {
+          const apiOrder = await persistCancelOrder(apiId)
+          updateOrder(order.id, { ...mapApiOrderToRow(apiOrder), id: order.id })
+        } else {
+          updateOrder(order.id, { status: "cancelled" })
+        }
+        invalidateCustomers(queryClient, session?.tenantId)
+        if (viewOrder?.id === order.id) setViewOrder(null)
+        toast.success(t("toasts.cancelled", { name: order.invoiceNumber }))
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not cancel sale."
+        )
+      }
     },
-    [updateOrder, viewOrder, t]
+    [updateOrder, viewOrder, queryClient, session?.tenantId, t]
   )
 
   const handleCancelLine = useCallback(
@@ -799,11 +1037,24 @@ export default function SalesReportPage() {
       ) {
         return
       }
-      updateOrder(order.id, { status: "cancelled" })
-      if (viewSaleLine?.orderId === order.id) setViewSaleLine(null)
-      toast.success(t("toasts.cancelled", { name: order.invoiceNumber }))
+      try {
+        const apiId = order.apiId?.trim()
+        if (apiId) {
+          const apiOrder = await persistCancelOrder(apiId)
+          updateOrder(order.id, { ...mapApiOrderToRow(apiOrder), id: order.id })
+        } else {
+          updateOrder(order.id, { status: "cancelled" })
+        }
+        invalidateCustomers(queryClient, session?.tenantId)
+        if (viewSaleLine?.orderId === order.id) setViewSaleLine(null)
+        toast.success(t("toasts.cancelled", { name: order.invoiceNumber }))
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not cancel sale."
+        )
+      }
     },
-    [getOrder, updateOrder, viewSaleLine, t]
+    [getOrder, updateOrder, viewSaleLine, queryClient, session?.tenantId, t]
   )
 
   const resolveOrderForLine = useCallback(
@@ -813,20 +1064,50 @@ export default function SalesReportPage() {
 
   const handleBulkDeleteBills = useCallback(
     async (selected: OrderRow[]) => {
+      const completedCount = selected.filter((order) => order.status === "completed")
+        .length
       if (
         !(await confirmDeleteAction({
           count: selected.length,
           entityLabel: t("entity.sale"),
+          warning:
+            completedCount > 0
+              ? t("confirm.delete.completedStockWarningBulk", {
+                  ns: "common",
+                  count: completedCount,
+                })
+              : undefined,
         }))
       ) {
         return
       }
-      const ids = new Set(selected.map((row) => row.id))
-      setOrders((prev) => prev.filter((row) => !ids.has(row.id)))
-      if (viewOrder && ids.has(viewOrder.id)) setViewOrder(null)
-      toast.message(t("toasts.removedSales", { count: selected.length }))
+      let deleted = 0
+      const errors: string[] = []
+      for (const order of selected) {
+        try {
+          await persistDeleteOrder(order)
+          removeOrder(order.id)
+          deleted += 1
+        } catch (error) {
+          errors.push(
+            error instanceof Error
+              ? `${order.invoiceNumber}: ${error.message}`
+              : order.invoiceNumber
+          )
+        }
+      }
+      if (viewOrder && selected.some((row) => row.id === viewOrder.id)) {
+        setViewOrder(null)
+      }
+      if (deleted > 0) {
+        invalidateCustomers(queryClient, session?.tenantId)
+        toast.message(t("toasts.removedSales", { count: deleted }))
+      }
+      if (errors.length > 0) {
+        toast.error(errors.slice(0, 3).join(" · "))
+      }
     },
-    [setOrders, viewOrder, t]
+    [removeOrder, viewOrder, queryClient, session?.tenantId, t]
   )
 
   const billColumns = useMemo(
@@ -877,52 +1158,68 @@ export default function SalesReportPage() {
     ]
   )
 
-  const invoiceOptions = useMemo(
-    () =>
-      orders.map((order) => ({
-        value: String(order.id),
-        label: order.invoiceNumber,
-        description: order.customerName,
-        trailing: formatDate(order.orderDate),
-      })),
-    [orders]
-  )
-
   const openAddSaleSidebar = useCallback(() => {
-    setSelectedOrderId("")
-    setSaleFormSidebar({ step: "choose" })
-  }, [])
-
-  const openNewInvoiceSale = useCallback(() => {
     setSaleFormSidebar({ step: "form", mode: "add" })
   }, [])
 
-  const openExistingInvoiceSale = useCallback(() => {
-    const order = getOrder(Number(selectedOrderId))
-    if (!order) {
-      toast.error(t("toasts.selectInvoiceFirst"))
-      return
-    }
-    setSaleFormSidebar({ step: "form", mode: "edit", order: orderWithNewLine(order) })
-  }, [getOrder, selectedOrderId, t])
-
   const closeSaleFormSidebar = useCallback(() => {
     setSaleFormSidebar(null)
-    setSelectedOrderId("")
   }, [])
 
   const handleImportSales = useCallback(
-    (rows: Record<string, string>[]) => {
+    async (rows: Record<string, string>[]) => {
+      const parsed = importOrdersFromRows(rows, orders)
+      if (parsed.length === 0) return 0
       let added = 0
-      setOrders((prev) => {
-        const created = importOrdersFromRows(rows, prev)
-        added = created.length
-        return added > 0 ? [...prev, ...created] : prev
-      })
-      if (added > 0) markSetupMilestone("invoice")
+      const errors: string[] = []
+      try {
+        const storeId = await resolveDefaultStoreId()
+        for (const order of parsed) {
+          try {
+            const apiOrder = await apiCreateOrder({
+              storeId,
+              buyerName: order.customerName,
+              description: order.description === "—" ? "" : order.description,
+              orderDate: order.orderDate,
+              paidAmount: Number(order.paidAmount) || 0,
+              paymentMethod: order.paymentMethod,
+              status: order.status,
+              source: "MANUAL",
+              lines: order.lines
+                .filter((line) => line.productName.trim())
+                .map((line) => ({
+                  productId: null,
+                  productName: line.productName.trim(),
+                  quantity: line.quantity,
+                  unitPrice: Number(line.unitPrice) || 0,
+                })),
+            })
+            addOrder(mapApiOrderToRow(apiOrder))
+            added += 1
+          } catch (error) {
+            errors.push(
+              error instanceof Error
+                ? error.message
+                : `Failed to import ${order.invoiceNumber}`
+            )
+          }
+        }
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not import sales."
+        )
+        return 0
+      }
+      if (added > 0) {
+        markSetupMilestone("invoice")
+        invalidateCustomers(queryClient, session?.tenantId)
+      }
+      if (errors.length > 0) {
+        toast.error(errors.slice(0, 3).join(" · "))
+      }
       return added
     },
-    [setOrders]
+    [orders, addOrder, queryClient, session?.tenantId]
   )
 
   const salesImportSampleCsv = useMemo(
@@ -931,8 +1228,9 @@ export default function SalesReportPage() {
   )
 
   const handleSaleFormSubmit = useCallback(
-    (e: FormEvent<HTMLFormElement>) => {
+    async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault()
+      if (savingSale) return
       const fd = new FormData(e.currentTarget)
       const customerName = String(fd.get("customerName") ?? "").trim()
       if (!customerName) {
@@ -940,6 +1238,7 @@ export default function SalesReportPage() {
         return
       }
 
+      const buyerId = String(fd.get("buyerId") ?? "").trim() || null
       const parsed = orderFromFormData(
         fd,
         saleFormSidebar?.step === "form" && saleFormSidebar.mode === "edit"
@@ -951,25 +1250,147 @@ export default function SalesReportPage() {
         return
       }
 
-      if (saleFormSidebar?.step === "form" && saleFormSidebar.mode === "add") {
-        addOrder(parsed)
-        markSetupMilestone("invoice")
-        toast.success(t("toasts.saleOnNewInvoice"))
-        closeSaleFormSidebar()
+      const productLines = parsed.lines.filter((line) => line.productName.trim())
+      if (productLines.some((line) => !Number.isFinite(line.quantity) || line.quantity < 1)) {
+        toast.error(t("toasts.quantityInvalid"))
         return
       }
 
-      if (
-        saleFormSidebar?.step === "form" &&
-        saleFormSidebar.mode === "edit"
-      ) {
-        updateOrder(saleFormSidebar.order.id, parsed)
-        markSetupMilestone("invoice")
-        toast.success(t("toasts.saleAdded"))
-        closeSaleFormSidebar()
+      if (!posSettings.allowOverselling) {
+        const remaining = new Map<string, number>()
+        for (const product of products) {
+          const key =
+            getApiProductId(product.id)?.trim() || `name:${product.name.trim()}`
+          remaining.set(key, Number(product.stock) || 0)
+        }
+        const editingOrder =
+          saleFormSidebar?.step === "form" && saleFormSidebar.mode === "edit"
+            ? saleFormSidebar.order
+            : null
+        if (editingOrder?.status === "completed") {
+          for (const original of editingOrder.lines) {
+            const key =
+              original.productApiId?.trim() || `name:${original.productName.trim()}`
+            remaining.set(key, (remaining.get(key) ?? 0) + Math.max(0, original.quantity))
+          }
+        }
+        for (const line of productLines) {
+          const key =
+            line.productApiId?.trim() || `name:${line.productName.trim()}`
+          const available = remaining.get(key)
+          if (available == null) continue
+          if (available < line.quantity) {
+            toast.error(
+              available <= 0
+                ? t("toasts.outOfStock", { name: line.productName })
+                : t("toasts.onlyInStock", {
+                    count: available,
+                    name: line.productName,
+                  })
+            )
+            return
+          }
+          remaining.set(key, available - line.quantity)
+        }
+      }
+
+      const lines = productLines.map((line) => {
+          const unitPrice = Number(line.unitPrice) || 0
+          const listRaw = line.listPrice != null ? Number(line.listPrice) : NaN
+          let listPrice = Number.isFinite(listRaw) ? listRaw : NaN
+          if (!Number.isFinite(listPrice) || listPrice <= 0) {
+            const product = products.find((item) => {
+              const apiId = getApiProductId(item.id)?.trim()
+              if (line.productApiId?.trim() && apiId === line.productApiId.trim()) {
+                return true
+              }
+              return item.name === line.productName.trim()
+            })
+            const catalog = product ? Number(product.salePrice) : NaN
+            listPrice = Number.isFinite(catalog) && catalog > 0 ? catalog : unitPrice
+          }
+          return {
+            productId: line.productApiId?.trim() || null,
+            productName: line.productName.trim(),
+            quantity: line.quantity,
+            listPrice,
+            unitPrice,
+          }
+        })
+
+      const payloadBase = {
+        buyerId,
+        buyerName: customerName,
+        description: parsed.description === "—" ? "" : parsed.description,
+        orderDate: parsed.orderDate,
+        paidAmount: Number(parsed.paidAmount) || 0,
+        paymentMethod: parsed.paymentMethod,
+        status: parsed.status,
+        lines,
+      }
+
+      setSavingSale(true)
+      try {
+        if (saleFormSidebar?.step === "form" && saleFormSidebar.mode === "add") {
+          const storeId = await resolveDefaultStoreId()
+          const createPayload: ApiOrderCreateInput = {
+            ...payloadBase,
+            storeId,
+            source: "MANUAL",
+          }
+          const apiOrder = await apiCreateOrder(createPayload)
+          addOrder(mapApiOrderToRow(apiOrder))
+          await refreshOrders()
+          invalidateCustomers(queryClient, session?.tenantId)
+          markSetupMilestone("invoice")
+          toast.success(t("toasts.saleOnNewInvoice"))
+          closeSaleFormSidebar()
+          return
+        }
+
+        if (saleFormSidebar?.step === "form" && saleFormSidebar.mode === "edit") {
+          const existingApiId = saleFormSidebar.order.apiId?.trim()
+          const localId = saleFormSidebar.order.id
+          if (existingApiId) {
+            const apiOrder = await apiUpdateOrder(existingApiId, payloadBase)
+            updateOrder(localId, { ...mapApiOrderToRow(apiOrder), id: localId })
+          } else {
+            const storeId = await resolveDefaultStoreId()
+            const apiOrder = await apiCreateOrder({
+              ...payloadBase,
+              storeId,
+              source: "MANUAL",
+            })
+            updateOrder(localId, { ...mapApiOrderToRow(apiOrder), id: localId })
+          }
+          await refreshOrders()
+          invalidateCustomers(queryClient, session?.tenantId)
+          markSetupMilestone("invoice")
+          toast.success(t("toasts.saleAdded"))
+          closeSaleFormSidebar()
+        }
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not save sale. Try again."
+        )
+      } finally {
+        setSavingSale(false)
       }
     },
-    [saleFormSidebar, addOrder, updateOrder, closeSaleFormSidebar, t]
+    [
+      savingSale,
+      saleFormSidebar,
+      addOrder,
+      updateOrder,
+      closeSaleFormSidebar,
+      queryClient,
+      session?.tenantId,
+      products,
+      getApiProductId,
+      posSettings.allowOverselling,
+      refreshOrders,
+      t,
+    ]
   )
 
   const formOrder =
@@ -984,13 +1405,6 @@ export default function SalesReportPage() {
       : saleFormSidebar?.step === "form" && saleFormSidebar.mode === "edit"
         ? `sale-edit-${saleFormSidebar.order.id}`
         : "sale-edit"
-
-  const salesTabs: DataTableTab[] = [
-    { value: "all", label: t("tabs.all") },
-    { value: "pending", label: t("tabs.pending") },
-    { value: "completed", label: t("tabs.completed") },
-    { value: "cancelled", label: t("tabs.cancelled") },
-  ]
 
   return (
     <>
@@ -1008,99 +1422,42 @@ export default function SalesReportPage() {
             <>
               <SheetHeader className="border-border/60 space-y-1 border-b px-6 py-5 text-left">
                 <SheetTitle className="text-lg leading-tight">
-                  {saleFormSidebar.step === "choose"
+                  {saleFormSidebar.mode === "add"
                     ? t("sheet.addSale")
-                    : saleFormSidebar.mode === "add"
-                      ? t("sheet.newInvoice")
-                      : t("sheet.addToInvoice")}
+                    : t("sheet.editInvoice")}
                 </SheetTitle>
                 <SheetDescription>
-                  {saleFormSidebar.step === "choose" ? (
-                    t("sheet.chooseDescription")
-                  ) : saleFormSidebar.mode === "add" ? (
-                    t("sheet.newInvoiceDescription")
-                  ) : (
-                    `${saleFormSidebar.order.invoiceNumber} · ${saleFormSidebar.order.customerName}`
-                  )}
+                  {saleFormSidebar.mode === "add"
+                    ? t("sheet.newInvoiceDescription")
+                    : `${saleFormSidebar.order.invoiceNumber} · ${saleFormSidebar.order.customerName}`}
                 </SheetDescription>
               </SheetHeader>
               <div
                 key={
-                  saleFormSidebar.step === "choose"
-                    ? "choose"
-                    : saleFormSidebar.mode === "add"
-                      ? "add"
-                      : `edit-${saleFormSidebar.order.id}`
+                  saleFormSidebar.mode === "add"
+                    ? "add"
+                    : `edit-${saleFormSidebar.order.id}`
                 }
                 className="min-h-0 flex-1 overflow-y-auto px-6 py-5"
               >
-                {saleFormSidebar.step === "choose" ? (
-                  <div className="flex flex-col gap-4 text-sm">
-                    <Button type="button" variant="outline" onClick={openNewInvoiceSale}>
-                      {t("sheet.newInvoice")}
-                    </Button>
-                    <div className="border-border/60 flex flex-col gap-2 border-t pt-4">
-                      <Label htmlFor="add-sale-invoice">{t("sheet.existingInvoice")}</Label>
-                      <InfiniteScrollSelect
-                        id="add-sale-invoice"
-                        value={selectedOrderId}
-                        onValueChange={setSelectedOrderId}
-                        options={invoiceOptions}
-                        placeholder={t("sheet.selectInvoice")}
-                        searchPlaceholder={t("sheet.searchInvoices")}
-                        emptyMessage={t("sheet.noInvoices")}
-                        pageSize={10}
-                      />
-                      <Button
-                        type="button"
-                        className="mt-1"
-                        disabled={!selectedOrderId}
-                        onClick={openExistingInvoiceSale}
-                      >
-                        {t("sheet.addToSelected")}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <OrderForm
-                    formId={saleFormId}
-                    order={formOrder}
-                    isNew={saleFormSidebar.mode === "add"}
-                    onSubmit={handleSaleFormSubmit}
-                  />
-                )}
+                <OrderForm
+                  formId={saleFormId}
+                  order={formOrder}
+                  isNew={saleFormSidebar.mode === "add"}
+                  onSubmit={handleSaleFormSubmit}
+                />
               </div>
               <SheetFooter className="border-border/60 gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end">
-                {saleFormSidebar.step === "choose" ? (
-                  <SheetClose asChild>
-                    <Button variant="outline" type="button">
-                      {t("sheet.cancel")}
-                    </Button>
-                  </SheetClose>
-                ) : (
-                  <>
-                    <Button
-                      variant="outline"
-                      type="button"
-                      onClick={() => {
-                        setSelectedOrderId("")
-                        setSaleFormSidebar({ step: "choose" })
-                      }}
-                    >
-                      {t("sheet.back")}
-                    </Button>
-                    <SheetClose asChild>
-                      <Button variant="outline" type="button">
-                        {t("sheet.cancel")}
-                      </Button>
-                    </SheetClose>
-                    <Button type="submit" form={saleFormId}>
-                      {saleFormSidebar.mode === "add"
-                        ? t("sheet.createInvoice")
-                        : t("sheet.saveInvoice")}
-                    </Button>
-                  </>
-                )}
+                <SheetClose asChild>
+                  <Button variant="outline" type="button">
+                    {t("sheet.cancel")}
+                  </Button>
+                </SheetClose>
+                <Button type="submit" form={saleFormId} disabled={savingSale}>
+                  {saleFormSidebar.mode === "add"
+                    ? t("sheet.createInvoice")
+                    : t("sheet.saveInvoice")}
+                </Button>
               </SheetFooter>
             </>
           ) : null}
@@ -1234,6 +1591,7 @@ export default function SalesReportPage() {
           data={orders}
           columns={billColumns}
           settingsKey="sales-bills"
+          defaultSorting={[{ id: "orderDate", desc: true }]}
           searchPlaceholder={t("search.bills")}
           exportFilename="sales-bills-export.csv"
           addButtonLabel={t("addButton")}
@@ -1258,15 +1616,13 @@ export default function SalesReportPage() {
               onClick: handleBulkDeleteBills,
             },
           ]}
-          tabs={salesTabs}
-          defaultTab="all"
-          tabFilter={salesBillTabFilter}
         />
       ) : (
         <DataTable
           data={saleLines}
           columns={lineColumns}
           settingsKey="sales-items"
+          defaultSorting={[{ id: "orderDate", desc: true }]}
           searchPlaceholder={t("search.items")}
           exportFilename="sales-items-export.csv"
           addButtonLabel={t("addButton")}
@@ -1291,9 +1647,6 @@ export default function SalesReportPage() {
               onClick: handleDeleteSaleLines,
             },
           ]}
-          tabs={salesTabs}
-          defaultTab="all"
-          tabFilter={salesLineTabFilter}
         />
       )}
     </>

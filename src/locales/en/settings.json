@@ -212,8 +212,8 @@
     "showBalanceHistoryDesc": "Include opening and closing balances in the full customer record."
   },
   "numbering": {
-    "title": "Document numbers",
-    "description": "Choose automatic IDs with a prefix, or enter numbers yourself — same pattern as product SKUs.",
+    "title": "Document & customer numbers",
+    "description": "Choose automatic IDs with a prefix, or enter numbers yourself — customers, invoices, payments, and more.",
     "entryHint": "Applies when you add or import records of this type.",
     "autoTitle": "Auto ID",
     "autoDescription": "Assign the next number with your prefix.",
@@ -223,6 +223,7 @@
     "prefixHint": "New records will use {{first}}, then {{second}}, and so on.",
     "customHint": "The number field is required when creating records.",
     "keys": {
+      "customers": "Customer IDs",
       "sales": "Sales invoices",
       "purchases": "Purchase orders",
       "salesReturns": "Sales returns",

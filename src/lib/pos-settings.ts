@@ -5,7 +5,7 @@ import type { ReturnRow } from "@/lib/returns"
 
 export const POS_SETTINGS_STORAGE_KEY = "custoray-pos-settings-v2"
 
-const paymentMethodSchema = z.enum(["Cash", "Bank transfer", "Card", "Credit"])
+const paymentMethodSchema = z.string().trim().min(1).max(40)
 const documentStatusSchema = z.enum(["pending", "completed", "cancelled"])
 const registerModeSchema = z.enum(["sale", "return"])
 const catalogColumnsSchema = z.union([z.literal(2), z.literal(3), z.literal(4)])
@@ -125,15 +125,15 @@ export function sanitizeReceiptPrefix(value: string): string {
 
 export function isPaymentMethodEnabled(
   settings: PosSettings,
-  method: OrderRow["paymentMethod"]
+  method: string
 ): boolean {
-  return settings.enabledPaymentMethods.includes(method)
+  return settings.enabledPaymentMethods.some(
+    (item) => item.toLowerCase() === method.trim().toLowerCase()
+  )
 }
 
-export function isValidPosPaymentMethod(
-  value: string
-): value is OrderRow["paymentMethod"] {
-  return PAYMENT_METHODS.includes(value as OrderRow["paymentMethod"])
+export function isValidPosPaymentMethod(value: string): boolean {
+  return value.trim().length > 0
 }
 
 export function isValidPosDocumentStatus(

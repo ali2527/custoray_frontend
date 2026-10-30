@@ -99,20 +99,35 @@ export function getMoneyFormatPreset(
   return MONEY_FORMAT_PRESETS[variant] ?? MONEY_FORMAT_PRESETS.us
 }
 
+function toMoneyNumber(value: string | number): number {
+  if (typeof value === "number") return value
+  return Number(String(value).replace(/[^0-9.-]/g, ""))
+}
+
+/** Locale-aware amount with thousand separators (no currency symbol). */
+export function formatGroupedMoney(
+  value: string | number,
+  settings: MoneyFormatSettings = loadMoneyFormatSettings()
+): string {
+  const n = toMoneyNumber(value)
+  if (!Number.isFinite(n)) return String(value)
+  const preset = getMoneyFormatPreset(settings.variant)
+  return new Intl.NumberFormat(preset.locale, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n)
+}
+
 export function formatMoneyWithSettings(
   value: string | number,
   settings: MoneyFormatSettings = loadMoneyFormatSettings()
 ): string {
-  const n = typeof value === "number" ? value : Number(value)
+  const n = toMoneyNumber(value)
   if (!Number.isFinite(n)) return String(value)
   const preset = getMoneyFormatPreset(settings.variant)
   // Prefer a familiar "Rs " prefix for Pakistan (Intl may emit "PKR").
   if (preset.variant === "pakistani") {
-    const grouped = new Intl.NumberFormat(preset.locale, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n)
-    return `Rs ${grouped}`
+    return `Rs ${formatGroupedMoney(n, settings)}`
   }
   return new Intl.NumberFormat(preset.locale, {
     style: "currency",

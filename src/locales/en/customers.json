@@ -29,6 +29,8 @@
     "description": "Description",
     "descriptionPlaceholder": "Notes, terms, segment…",
     "openingBalance": "Opening balance",
+    "code": "Customer ID",
+    "codePlaceholder": "ACME-01",
     "phone": "Phone number",
     "phonePlaceholder": "+92 300 1234567",
     "status": "Status"
@@ -37,7 +39,8 @@
     "photo": "Customer photo",
     "upload": "Upload customer photo",
     "change": "Change customer photo",
-    "remove": "Remove customer photo"
+    "remove": "Remove customer photo",
+    "tooLarge": "Image is too large. Try a smaller photo."
   },
   "actions": {
     "view": "View",
@@ -168,6 +171,7 @@
     "removedNamed": "Removed {{name}}.",
     "duplicatedNamed": "Duplicated {{name}}.",
     "nameRequired": "Customer name is required.",
+    "idRequired": "Customer ID is required.",
     "created": "Customer created.",
     "saved": "Customer saved.",
     "saveFailed": "Could not save customer.",

@@ -6,6 +6,7 @@ export const DOCUMENT_NUMBER_SETTINGS_EVENT =
   "custoray-document-number-settings"
 
 export const DOCUMENT_NUMBER_KEYS = [
+  "customers",
   "sales",
   "purchases",
   "salesReturns",
@@ -31,6 +32,7 @@ export type DocumentNumberSettings = Record<
 >
 
 export const DEFAULT_DOCUMENT_NUMBER_SETTINGS: DocumentNumberSettings = {
+  customers: { mode: "auto", prefix: "CUS" },
   sales: { mode: "auto", prefix: "INV" },
   purchases: { mode: "auto", prefix: "PO" },
   salesReturns: { mode: "auto", prefix: "SR" },
@@ -118,6 +120,7 @@ export function parseDocumentNumberSettings(
 export function loadDocumentNumberSettings(): DocumentNumberSettings {
   if (typeof window === "undefined") {
     return {
+      customers: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.customers },
       sales: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.sales },
       purchases: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.purchases },
       salesReturns: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.salesReturns },
@@ -131,6 +134,7 @@ export function loadDocumentNumberSettings(): DocumentNumberSettings {
     parseDocumentNumberSettings(
       window.localStorage.getItem(DOCUMENT_NUMBER_SETTINGS_STORAGE_KEY)
     ) ?? {
+      customers: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.customers },
       sales: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.sales },
       purchases: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.purchases },
       salesReturns: { ...DEFAULT_DOCUMENT_NUMBER_SETTINGS.salesReturns },

@@ -17,6 +17,8 @@ export const customerSchema = z.object({
   phone: z.string(),
   status: z.enum(CUSTOMER_STATUS_OPTIONS),
   imageUrl: z.string().default(""),
+  /** Display ID from Settings → Document numbers. Empty until assigned. */
+  code: z.string().default(""),
 })
 
 export type CustomerRow = z.infer<typeof customerSchema>
@@ -30,6 +32,7 @@ export type CustomerWrite = {
   status?: CustomerStatus
   openingBalance?: number
   imageUrl?: string
+  code?: string
 }
 
 export const CUSTOMERS_STORAGE_KEY = "custoray-customers-v5"
@@ -39,8 +42,7 @@ export function customerTimelineHref(id: string | number) {
   return `/customers/timeline?id=${encodeURIComponent(String(id))}`
 }
 
-export const CUSTOMER_IMPORT_COLUMNS = [
-  "id",
+const CUSTOMER_IMPORT_BASE_COLUMNS = [
   "name",
   "description",
   "phone",
@@ -49,17 +51,22 @@ export const CUSTOMER_IMPORT_COLUMNS = [
   "imageUrl",
 ] as const
 
-export const CUSTOMER_IMPORT_SAMPLE_ROW: Record<
-  (typeof CUSTOMER_IMPORT_COLUMNS)[number],
-  string
-> = {
-  id: "",
-  name: "Acme Retail",
-  description: "Wholesale buyer",
-  phone: "+92 300 1234567",
-  openingBalance: "0.00",
-  status: "active",
-  imageUrl: "",
+/** Auto mode assigns the ID. Custom mode asks for it in the file. */
+export function customerImportColumns(mode: "auto" | "custom" = "auto"): string[] {
+  return mode === "custom" ? ["id", ...CUSTOMER_IMPORT_BASE_COLUMNS] : [...CUSTOMER_IMPORT_BASE_COLUMNS]
+}
+
+export function customerImportSampleRow(mode: "auto" | "custom" = "auto"): Record<string, string> {
+  const row: Record<string, string> = {
+    name: "Acme Retail",
+    description: "Wholesale buyer",
+    phone: "+92 300 1234567",
+    openingBalance: "0.00",
+    status: "active",
+    imageUrl: "",
+  }
+  if (mode === "custom") row.id = "ACME-01"
+  return row
 }
 
 export const EMPTY_CUSTOMER: CustomerRow = {
@@ -73,6 +80,7 @@ export const EMPTY_CUSTOMER: CustomerRow = {
   phone: "",
   status: "active",
   imageUrl: "",
+  code: "",
 }
 
 export function emitCustomersChanged() {
@@ -150,7 +158,7 @@ export function filterCustomerRows(rows: CustomerRow[], tab: string, search = ""
   return rows.filter((row) => {
     if (!customerTabFilter(row, tab)) return false
     if (!query) return true
-    return [row.name, row.description, row.phone, row.status].some((value) =>
+    return [row.code, row.name, row.description, row.phone, row.status].some((value) =>
       String(value).toLowerCase().includes(query)
     )
   })
@@ -169,7 +177,13 @@ export function mapApiBuyerToRow(item: ApiBuyer, index: number): CustomerRow {
     phone: item.phone ?? "",
     status: parseStatus(item.status ?? "active"),
     imageUrl: item.imageUrl ?? "",
+    code: item.code?.trim() ?? "",
   }
+}
+
+export function customerDisplayId(customer: Pick<CustomerRow, "code" | "id">) {
+  const code = customer.code?.trim()
+  return code || String(customer.id)
 }
 
 export function toApiCustomerWrite(row: CustomerRow): CustomerWrite {
@@ -180,6 +194,7 @@ export function toApiCustomerWrite(row: CustomerRow): CustomerWrite {
     status: row.status,
     openingBalance: Number(parseMoney(row.openingBalance)),
     imageUrl: row.imageUrl.trim(),
+    ...(row.code.trim() ? { code: row.code.trim() } : {}),
   }
 }
 
@@ -188,9 +203,15 @@ export function mapImportedCustomerWrite(row: Record<string, string>): CustomerW
   if (!name) return null
   const parsedStatus = parseImportedCustomerStatus(row.status)
   if ((row.status ?? "").trim() && !parsedStatus) return null
-  const id = (row.id || row.apiId || row.api_id || "").trim()
+  const rawId = (row.id || "").trim()
+  const explicitApiId = (row.apiId || row.api_id || "").trim()
+  const explicitCode = (row.code || row.customerCode || row.customer_code || "").trim()
+  // Long ids are previous exports of the database id. Shorter values are the display ID.
+  const apiId = explicitApiId || (rawId.length >= 24 ? rawId : "")
+  const code = explicitCode || (rawId && rawId.length < 24 ? rawId : "")
   return {
-    ...(id ? { id } : {}),
+    ...(apiId ? { id: apiId } : {}),
+    ...(code ? { code } : {}),
     name,
     description: (row.description || row.desc || "").trim(),
     phone: (row.phone || row.phone_number || "").trim(),
@@ -222,6 +243,7 @@ export function mapImportedCustomer(
     phone: mapped.phone || "",
     status: mapped.status || "active",
     imageUrl: mapped.imageUrl || "",
+    code: mapped.code || "",
   }
 }
 
@@ -235,7 +257,24 @@ export function customerFromFormData(fd: FormData, base: CustomerRow = EMPTY_CUS
     phone: String(fd.get("phone") ?? "").trim(),
     status: parseStatus(String(fd.get("status") ?? base.status)),
     imageUrl: String(fd.get("imageUrl") ?? "").trim(),
+    code: String(fd.get("code") ?? base.code).trim(),
   }
+}
+
+export function importedCustomerIsExisting(
+  write: CustomerWrite,
+  existing: Pick<CustomerRow, "apiId" | "name" | "phone">[]
+) {
+  if (write.id && existing.some((row) => row.apiId === write.id)) return true
+  const name = write.name.trim().toLowerCase()
+  const phone = (write.phone ?? "").trim().toLowerCase()
+  const matches = existing.filter((row) => row.name.trim().toLowerCase() === name)
+  if (phone) {
+    return matches.some(
+      (row) => (row.phone === "—" ? "" : row.phone).trim().toLowerCase() === phone
+    )
+  }
+  return matches.length === 1
 }
 
 export function applySalesReturnToCustomer(

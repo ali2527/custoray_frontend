@@ -1,6 +1,7 @@
 import type { ApiOrder, ApiReturn } from "@/lib/api/business"
 import {
   PAYMENT_METHODS,
+  parseStatus,
   type OrderLineRow,
   type OrderRow,
 } from "@/lib/orders"
@@ -31,31 +32,39 @@ function dateOnly(value: string | Date | null | undefined): string {
 
 function normalizePaymentMethod(value: string | null | undefined): OrderRow["paymentMethod"] {
   const trimmed = (value ?? "Cash").trim()
+  if (!trimmed) return "Cash"
   const match = PAYMENT_METHODS.find(
     (method) => method.toLowerCase() === trimmed.toLowerCase()
   )
-  return match ?? "Cash"
+  return match ?? trimmed.slice(0, 40)
 }
 
 function normalizeStatus(
   value: string | null | undefined
 ): OrderRow["status"] {
-  if (value === "pending" || value === "cancelled") return value
-  return "completed"
+  return parseStatus(String(value ?? "pending"))
 }
 
 export function mapApiOrderToRow(order: ApiOrder): OrderRow & { apiId: string } {
   const lines: OrderLineRow[] = (order.lines ?? [])
     .slice()
     .sort((a, b) => (a.lineNo ?? 0) - (b.lineNo ?? 0))
-    .map((line, index) => ({
-      id: index + 1,
-      productApiId: line.productId ?? "",
-      productName: line.productName,
-      quantity: Number(line.quantity) || 0,
-      unitPrice: money(line.unitPrice),
-      lineTotal: money(line.lineTotal),
-    }))
+    .map((line, index) => {
+      const unitPrice = money(line.unitPrice)
+      const listPrice =
+        line.listPrice != null && line.listPrice !== ""
+          ? money(line.listPrice)
+          : unitPrice
+      return {
+        id: index + 1,
+        productApiId: line.productId ?? "",
+        productName: line.productName,
+        quantity: Number(line.quantity) || 0,
+        listPrice,
+        unitPrice,
+        lineTotal: money(line.lineTotal),
+      }
+    })
 
   const description =
     order.description?.trim() ||

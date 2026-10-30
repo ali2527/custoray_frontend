@@ -185,6 +185,8 @@
       "textNamed": "Are you sure you want to delete \"{{name}}\"? This action cannot be undone.",
       "textBulk": "This will permanently remove {{count}} selected {{entity}}. This action cannot be undone.",
       "textGeneric": "This action cannot be undone.",
+      "completedStockWarning": "This sale is completed. Deleting it will restore stock for its line items.",
+      "completedStockWarningBulk": "{{count}} selected sale(s) are completed. Deleting them will restore stock for those invoices.",
       "confirm": "Yes, delete"
     },
     "cancelAction": {
@@ -236,13 +238,17 @@
     }
   },
   "status": {
+    "draft": "Draft",
     "pending": "Pending",
+    "confirmed": "Confirmed",
+    "processing": "Processing",
+    "on_hold": "On hold",
     "completed": "Completed",
     "cancelled": "Cancelled",
+    "refunded": "Refunded",
     "active": "Active",
     "inactive": "Inactive",
     "archived": "Archived",
-    "draft": "Draft",
     "voided": "Voided"
   },
   "viewMode": {
@@ -573,7 +579,7 @@
       "skuPrefixHint": "New records will use {{first}}, then {{second}}, and so on.",
       "idProducts": "Product SKUs",
       "idSales": "Sales invoices",
-      "idCustomers": "Customer payments",
+      "idCustomers": "Customer IDs",
       "idPurchases": "Purchase orders",
       "languageEnHint": "Keep the workspace in English.",
       "languageArHint": "Use Arabic for menus and reports.",

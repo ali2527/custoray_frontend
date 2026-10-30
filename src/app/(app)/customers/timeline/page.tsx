@@ -8,6 +8,7 @@ import { useTranslation } from "react-i18next"
 import { CustomerTimelinePage } from "@/components/customers/customer-timeline-page"
 import { Button } from "@/components/ui/button"
 import { PageLoader } from "@/components/ui/page-loader"
+import { customerDisplayId } from "@/lib/customers"
 import { useCustomers } from "@/context/customers-context"
 
 function CustomerTimelineRouteInner() {
@@ -16,7 +17,11 @@ function CustomerTimelineRouteInner() {
   const { customers, loading } = useCustomers()
   const raw = (searchParams.get("id") ?? "").trim()
   const customer = customers.find(
-    (row) => String(row.id) === raw || row.apiId === raw
+    (row) =>
+      String(row.id) === raw ||
+      row.apiId === raw ||
+      row.code === raw ||
+      customerDisplayId(row) === raw
   )
 
   if (loading) return <PageLoader />

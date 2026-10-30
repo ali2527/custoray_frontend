@@ -1,10 +1,11 @@
 import { z } from "zod"
 
 import { formatMoney, parseMoney } from "@/lib/customers"
+import { DEFAULT_PAYMENT_METHODS } from "@/lib/payment-methods-settings"
 
 export { formatMoney, parseMoney }
 
-export const PAYMENT_METHODS = ["Cash", "Bank transfer", "Card", "Credit"] as const
+export const PAYMENT_METHODS = DEFAULT_PAYMENT_METHODS
 
 export const saleSchema = z.object({
   id: z.number(),
@@ -14,7 +15,7 @@ export const saleSchema = z.object({
   saleDate: z.string(),
   totalAmount: z.string(),
   paidAmount: z.string(),
-  paymentMethod: z.enum(["Cash", "Bank transfer", "Card", "Credit"]),
+  paymentMethod: z.string().min(1),
   status: z.enum(["pending", "completed", "cancelled"]),
 })
 

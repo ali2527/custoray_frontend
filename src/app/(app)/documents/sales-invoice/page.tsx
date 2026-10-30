@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useMemo, useState, type FormEvent } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { ColumnDef } from "@tanstack/react-table"
 import {
   IconCopy,
@@ -36,6 +37,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
+import { useAuth } from "@/context/auth-context"
 import { useOrders } from "@/context/orders-context"
 import { markSetupMilestone } from "@/lib/setup-progress"
 import { useInvoiceLineReturn } from "@/hooks/use-invoice-line-return"
@@ -43,13 +45,23 @@ import {
   confirmDeleteAction,
   confirmDuplicateAction,
 } from "@/lib/confirm-action"
+import { apiCreateOrder } from "@/lib/api/business"
+import { invalidateCustomers } from "@/lib/customers-query"
+import {
+  persistCreateOrder,
+  persistDeleteOrder,
+  persistDuplicateOrder,
+  persistUpdateOrder,
+} from "@/lib/order-persist"
+import { mapApiOrderToRow, resolveDefaultStoreId } from "@/lib/pos-api"
 import {
   computeBalance,
   EMPTY_ORDER,
   formatDate,
   formatMoney,
-  mapImportedOrder,
+  importOrdersFromRows,
   nextInvoiceNumber,
+  ORDER_STATUSES,
   orderFromFormData,
   statusBadgeClass,
   statusLabel,
@@ -62,11 +74,6 @@ type InvoiceSidebarState =
   | { mode: "edit"; order: OrderRow }
   | { mode: "add" }
   | null
-
-function invoiceTabFilter(row: OrderRow, tab: string) {
-  if (tab === "all") return true
-  return row.status === tab
-}
 
 function getInvoiceColumns(
   t: TFunction<"documents">,
@@ -218,7 +225,13 @@ function getInvoiceColumns(
           {statusLabel(row.original.status)}
         </Badge>
       ),
-      meta: { dataTableFilter: false },
+      meta: {
+        dataTableFilterVariant: "select" as const,
+        dataTableFilterLabel: t("labels.status"),
+        dataTableFilterSelectLabels: Object.fromEntries(
+          ORDER_STATUSES.map((status) => [status, statusLabel(status)])
+        ),
+      },
     },
     {
       id: "actions",
@@ -263,10 +276,12 @@ function getInvoiceColumns(
 export default function SalesInvoicePage() {
   const { t } = useTranslation("documents")
   const { t: tc } = useTranslation("common")
-  const { orders, setOrders, getOrder, addOrder, updateOrder, removeOrder, duplicateOrder } =
-    useOrders()
+  const { session } = useAuth()
+  const queryClient = useQueryClient()
+  const { orders, getOrder, addOrder, updateOrder, removeOrder } = useOrders()
   const { returnInvoiceLine, returningLineId } = useInvoiceLineReturn()
   const [sidebar, setSidebar] = useState<InvoiceSidebarState>(null)
+  const [saving, setSaving] = useState(false)
 
   const closeSidebar = () => setSidebar(null)
 
@@ -280,13 +295,21 @@ export default function SalesInvoicePage() {
       ) {
         return
       }
-      removeOrder(order.id)
-      if (sidebar?.mode !== "add" && sidebar?.order.id === order.id) {
-        closeSidebar()
+      try {
+        await persistDeleteOrder(order)
+        removeOrder(order.id)
+        if (sidebar?.mode !== "add" && sidebar?.order.id === order.id) {
+          closeSidebar()
+        }
+        invalidateCustomers(queryClient, session?.tenantId)
+        toast.message(t("toasts.removedNamed", { name: order.invoiceNumber }))
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not delete invoice."
+        )
       }
-      toast.message(t("toasts.removedNamed", { name: order.invoiceNumber }))
     },
-    [removeOrder, sidebar, t]
+    [removeOrder, sidebar, queryClient, session?.tenantId, t]
   )
 
   const handleDuplicate = useCallback(
@@ -299,15 +322,24 @@ export default function SalesInvoicePage() {
       ) {
         return
       }
-      const copy = duplicateOrder(order.id)
-      if (copy) toast.success(t("toasts.duplicatedNamed", { name: order.invoiceNumber }))
+      try {
+        const apiOrder = await persistDuplicateOrder(order)
+        addOrder(mapApiOrderToRow(apiOrder))
+        invalidateCustomers(queryClient, session?.tenantId)
+        toast.success(t("toasts.duplicatedNamed", { name: order.invoiceNumber }))
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not duplicate invoice."
+        )
+      }
     },
-    [duplicateOrder, t]
+    [addOrder, queryClient, session?.tenantId, t]
   )
 
   const handleSubmit = useCallback(
-    (e: FormEvent<HTMLFormElement>) => {
+    async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault()
+      if (saving) return
       const fd = new FormData(e.currentTarget)
       const customerName = String(fd.get("customerName") ?? "").trim()
       if (!customerName) {
@@ -315,6 +347,7 @@ export default function SalesInvoicePage() {
         return
       }
 
+      const buyerId = String(fd.get("buyerId") ?? "").trim() || null
       const parsed = orderFromFormData(
         fd,
         sidebar?.mode === "edit" && sidebar.order ? sidebar.order.id : 0
@@ -324,20 +357,93 @@ export default function SalesInvoicePage() {
         return
       }
 
-      if (sidebar?.mode === "add") {
-        addOrder(parsed)
-        toast.success(t("toasts.salesCreated"))
-        closeSidebar()
-        return
-      }
+      setSaving(true)
+      try {
+        if (sidebar?.mode === "add") {
+          const apiOrder = await persistCreateOrder(parsed, { buyerId })
+          addOrder(mapApiOrderToRow(apiOrder))
+          invalidateCustomers(queryClient, session?.tenantId)
+          markSetupMilestone("invoice")
+          toast.success(t("toasts.salesCreated"))
+          closeSidebar()
+          return
+        }
 
-      if (sidebar?.mode === "edit" && sidebar.order) {
-        updateOrder(sidebar.order.id, parsed)
-        toast.success(t("toasts.salesSaved"))
-        closeSidebar()
+        if (sidebar?.mode === "edit" && sidebar.order) {
+          const localId = sidebar.order.id
+          const existingApiId = sidebar.order.apiId?.trim()
+          const apiOrder = existingApiId
+            ? await persistUpdateOrder(existingApiId, parsed, { buyerId })
+            : await persistCreateOrder(parsed, { buyerId })
+          updateOrder(localId, { ...mapApiOrderToRow(apiOrder), id: localId })
+          invalidateCustomers(queryClient, session?.tenantId)
+          markSetupMilestone("invoice")
+          toast.success(t("toasts.salesSaved"))
+          closeSidebar()
+        }
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not save invoice."
+        )
+      } finally {
+        setSaving(false)
       }
     },
-    [sidebar, addOrder, updateOrder, t]
+    [sidebar, saving, addOrder, updateOrder, queryClient, session?.tenantId, t]
+  )
+
+  const handleImportSales = useCallback(
+    async (rows: Record<string, string>[]) => {
+      const parsed = importOrdersFromRows(rows, orders)
+      if (parsed.length === 0) return 0
+      let added = 0
+      const errors: string[] = []
+      try {
+        const storeId = await resolveDefaultStoreId()
+        for (const order of parsed) {
+          try {
+            const apiOrder = await apiCreateOrder({
+              storeId,
+              buyerName: order.customerName,
+              description: order.description === "—" ? "" : order.description,
+              orderDate: order.orderDate,
+              paidAmount: Number(order.paidAmount) || 0,
+              paymentMethod: order.paymentMethod,
+              status: order.status,
+              source: "MANUAL",
+              lines: order.lines
+                .filter((line) => line.productName.trim())
+                .map((line) => ({
+                  productId: null,
+                  productName: line.productName.trim(),
+                  quantity: line.quantity,
+                  unitPrice: Number(line.unitPrice) || 0,
+                })),
+            })
+            addOrder(mapApiOrderToRow(apiOrder))
+            added += 1
+          } catch (error) {
+            errors.push(
+              error instanceof Error
+                ? error.message
+                : `Failed to import ${order.invoiceNumber}`
+            )
+          }
+        }
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not import invoices."
+        )
+        return 0
+      }
+      if (added > 0) {
+        markSetupMilestone("invoice")
+        invalidateCustomers(queryClient, session?.tenantId)
+      }
+      if (errors.length > 0) toast.error(errors.slice(0, 3).join(" · "))
+      return added
+    },
+    [orders, addOrder, queryClient, session?.tenantId]
   )
 
   const columns = useMemo(
@@ -479,7 +585,7 @@ export default function SalesInvoicePage() {
                         {tc("actions.cancel")}
                       </Button>
                     </SheetClose>
-                    <Button type="submit" form={formId}>
+                    <Button type="submit" form={formId} disabled={saving}>
                       {sidebar.mode === "add" ? t("sheet.createInvoice") : t("sheet.saveInvoice")}
                     </Button>
                   </>
@@ -495,10 +601,9 @@ export default function SalesInvoicePage() {
         columns={columns}
         addButtonLabel={t("table.newSalesInvoice")}
         searchPlaceholder={t("table.searchSales")}
-        importRowMapper={mapImportedOrder}
         importSampleFilename="sales-invoices-sample.csv"
         exportFilename="sales-invoices-export.csv"
-        onDataChange={setOrders}
+        onImportRows={handleImportSales}
         onRowsImported={() => markSetupMilestone("invoice")}
         onAddClick={() => setSidebar({ mode: "add" })}
         bulkActions={[
@@ -516,22 +621,27 @@ export default function SalesInvoicePage() {
               ) {
                 return
               }
-              const ids = new Set(selected.map((s) => s.id))
-              setOrders((prev) => prev.filter((r) => !ids.has(r.id)))
-              toast.message(
-                t("toasts.removedSalesCount", { count: selected.length })
-              )
+              let deleted = 0
+              for (const order of selected) {
+                try {
+                  await persistDeleteOrder(order)
+                  removeOrder(order.id)
+                  deleted += 1
+                } catch (error) {
+                  toast.error(
+                    error instanceof Error
+                      ? `${order.invoiceNumber}: ${error.message}`
+                      : order.invoiceNumber
+                  )
+                }
+              }
+              invalidateCustomers(queryClient, session?.tenantId)
+              if (deleted > 0) {
+                toast.message(t("toasts.removedSalesCount", { count: deleted }))
+              }
             },
           },
         ]}
-        tabs={[
-          { value: "all", label: tc("tabs.all") },
-          { value: "pending", label: tc("status.pending") },
-          { value: "completed", label: tc("status.completed") },
-          { value: "cancelled", label: tc("status.cancelled") },
-        ]}
-        defaultTab="all"
-        tabFilter={invoiceTabFilter}
       />
     </>
   )

@@ -37,7 +37,8 @@
     "photo": "Vendor photo",
     "upload": "Upload vendor photo",
     "change": "Change vendor photo",
-    "remove": "Remove vendor photo"
+    "remove": "Remove vendor photo",
+    "tooLarge": "Image is too large. Try a smaller photo."
   },
   "actions": {
     "view": "View",

@@ -6,14 +6,25 @@ import {
   loadDocumentNumberSettings,
   nextDocumentNumber,
 } from "@/lib/document-number-settings"
+import { DEFAULT_PAYMENT_METHODS } from "@/lib/payment-methods-settings"
 import i18n from "@/i18n"
 import { dateLocaleForLanguage } from "@/i18n/config"
 
 export { formatMoney, parseMoney }
 
-export const PAYMENT_METHODS = ["Cash", "Bank transfer", "Card", "Credit"] as const
+/** Default list; prefer usePaymentMethods() for tenant-configured methods. */
+export const PAYMENT_METHODS = DEFAULT_PAYMENT_METHODS
 
-export const ORDER_STATUSES = ["pending", "completed", "cancelled"] as const
+export const ORDER_STATUSES = [
+  "draft",
+  "pending",
+  "confirmed",
+  "processing",
+  "on_hold",
+  "completed",
+  "cancelled",
+  "refunded",
+] as const
 
 export const ORDER_IMPORT_COLUMNS = [
   "invoiceNumber",
@@ -51,6 +62,8 @@ export const orderLineSchema = z.object({
   productName: z.string(),
   quantity: z.number(),
   unitPrice: z.string(),
+  /** Catalog sale price when the line was added; used to show discounts. */
+  listPrice: z.string().optional(),
   lineTotal: z.string(),
 })
 
@@ -65,8 +78,17 @@ export const orderSchema = z.object({
   orderDate: z.string(),
   totalAmount: z.string(),
   paidAmount: z.string(),
-  paymentMethod: z.enum(["Cash", "Bank transfer", "Card", "Credit"]),
-  status: z.enum(["pending", "completed", "cancelled"]),
+  paymentMethod: z.string().min(1),
+  status: z.enum([
+    "draft",
+    "pending",
+    "confirmed",
+    "processing",
+    "on_hold",
+    "completed",
+    "cancelled",
+    "refunded",
+  ]),
   lines: z.array(orderLineSchema).min(1),
 })
 
@@ -584,32 +606,50 @@ export function statusBadgeClass(status: OrderRow["status"] | undefined | null) 
   const normalized = status ?? "pending"
   if (normalized === "completed")
     return "border-emerald-500/30 px-1.5 text-emerald-700 dark:text-emerald-400"
-  if (normalized === "pending")
+  if (normalized === "confirmed" || normalized === "processing")
+    return "border-sky-500/30 px-1.5 text-sky-700 dark:text-sky-400"
+  if (normalized === "pending" || normalized === "draft")
     return "border-blue-500/30 px-1.5 text-blue-700 dark:text-blue-400"
+  if (normalized === "on_hold")
+    return "border-amber-500/30 px-1.5 text-amber-700 dark:text-amber-400"
+  if (normalized === "refunded")
+    return "border-violet-500/30 px-1.5 text-violet-700 dark:text-violet-400"
+  if (normalized === "cancelled")
+    return "border-border px-1.5 text-muted-foreground"
   return "border-border px-1.5 text-muted-foreground"
 }
 
 export function statusLabel(status: OrderRow["status"] | undefined | null) {
   const normalized = status ?? "pending"
-  return i18n.t(`status.${normalized}`, { ns: "common", defaultValue: normalized })
+  return i18n.t(`status.${normalized}`, {
+    ns: "common",
+    defaultValue: normalized.replace(/_/g, " "),
+  })
 }
 
 export function parseStatus(raw: string): OrderRow["status"] {
-  const statusRaw = raw.toLowerCase().replace(/\s+/g, "_")
-  if (statusRaw === "on_hold" || statusRaw === "on-hold") return "pending"
+  const statusRaw = raw.toLowerCase().replace(/\s+/g, "_").replace(/-/g, "_")
+  if (statusRaw === "draft") return "draft"
+  if (statusRaw === "confirmed") return "confirmed"
+  if (statusRaw === "processing") return "processing"
+  if (statusRaw === "on_hold") return "on_hold"
   if (statusRaw === "completed") return "completed"
   if (statusRaw === "cancelled" || statusRaw === "canceled") return "cancelled"
+  if (statusRaw === "refunded") return "refunded"
   return "pending"
 }
 
 export function parsePaymentMethod(raw: string): OrderRow["paymentMethod"] {
-  const normalized = raw.trim().toLowerCase()
+  const trimmed = raw.trim()
+  if (!trimmed) return "Cash"
+  const normalized = trimmed.toLowerCase()
   if (normalized === "bank transfer" || normalized === "bank_transfer") {
     return "Bank transfer"
   }
   if (normalized === "card") return "Card"
   if (normalized === "credit") return "Credit"
-  return "Cash"
+  if (normalized === "cash") return "Cash"
+  return trimmed.slice(0, 40)
 }
 
 export function nextInvoiceNumber(existing: OrderRow[]): string {
@@ -629,14 +669,23 @@ export function parseLinesFromFormData(fd: FormData): OrderLineRow[] {
     if (!productName && index > 0) break
     if (!productName && index === 0) break
 
-    const quantity = Number(fd.get(`lines[${index}].quantity`)) || 1
+    const quantityRaw = Number(fd.get(`lines[${index}].quantity`))
+    const quantity =
+      Number.isFinite(quantityRaw) && quantityRaw >= 1
+        ? Math.floor(quantityRaw)
+        : 1
     const unitPrice = parseMoney(String(fd.get(`lines[${index}].unitPrice`) ?? "0"))
+    const listPriceRaw = String(fd.get(`lines[${index}].listPrice`) ?? "").trim()
+    const listPrice = listPriceRaw ? parseMoney(listPriceRaw) : unitPrice
     const lineId = Number(fd.get(`lines[${index}].id`)) || index + 1
+    const productApiId = String(fd.get(`lines[${index}].productApiId`) ?? "").trim()
 
     lines.push({
       id: lineId,
+      ...(productApiId ? { productApiId } : {}),
       productName,
       quantity,
+      listPrice,
       unitPrice,
       lineTotal: computeLineTotal(quantity, unitPrice),
     })
@@ -715,6 +764,9 @@ function importedOrderLine(row: Record<string, string>, id: number): OrderLineRo
   const unitPrice = parseMoney(
     String(row.unitPrice ?? row.unit_price ?? row.rate ?? "0")
   )
+  const listPrice = parseMoney(
+    String(row.listPrice ?? row.list_price ?? row.originalPrice ?? unitPrice)
+  )
   const computed = computeLineTotal(quantity, unitPrice)
   const fileLineTotal = String(
     row.lineTotal ?? row.line_total ?? row.amount ?? ""
@@ -723,6 +775,7 @@ function importedOrderLine(row: Record<string, string>, id: number): OrderLineRo
     id,
     productName: productName || "Imported item",
     quantity,
+    listPrice,
     unitPrice,
     lineTotal:
       Number(unitPrice) > 0 || !fileLineTotal
@@ -747,6 +800,7 @@ export function flattenOrderForExport(order: OrderRow): Record<string, unknown>[
     orderDate: order.orderDate,
     productName: line.productName,
     quantity: line.quantity,
+    listPrice: line.listPrice ?? line.unitPrice,
     unitPrice: line.unitPrice,
     lineTotal: line.lineTotal ?? computeLineTotal(line.quantity, line.unitPrice),
     totalAmount: order.totalAmount,

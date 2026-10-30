@@ -30,6 +30,13 @@ type InfiniteScrollSelectProps = {
   className?: string
   leadingIcon?: ReactNode
   "aria-invalid"?: boolean
+  /** `remote` skips local filtering; parent owns results via `onSearchChange`. */
+  searchMode?: "local" | "remote"
+  /** Controlled search text when `searchMode` is `remote`. */
+  searchValue?: string
+  onSearchChange?: (query: string) => void
+  searchLoading?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 const SCROLL_LOAD_THRESHOLD_PX = 24
@@ -49,12 +56,27 @@ export function InfiniteScrollSelect({
   className,
   leadingIcon,
   "aria-invalid": ariaInvalid,
+  searchMode = "local",
+  searchValue,
+  onSearchChange,
+  searchLoading = false,
+  onOpenChange,
 }: InfiniteScrollSelectProps) {
   const [open, setOpen] = useState(false)
-  const [search, setSearch] = useState("")
+  const [localSearch, setLocalSearch] = useState("")
   const [visibleCount, setVisibleCount] = useState(pageSize)
   const listRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const isRemote = searchMode === "remote"
+  const search = isRemote ? (searchValue ?? "") : localSearch
+
+  const setOpenState = useCallback(
+    (next: boolean) => {
+      setOpen(next)
+      onOpenChange?.(next)
+    },
+    [onOpenChange]
+  )
 
   const selected = useMemo(
     () => options.find((option) => option.value === value),
@@ -62,6 +84,7 @@ export function InfiniteScrollSelect({
   )
 
   const filtered = useMemo(() => {
+    if (isRemote) return options
     const query = search.trim().toLowerCase()
     if (!query) return options
     return options.filter(
@@ -70,7 +93,7 @@ export function InfiniteScrollSelect({
         option.description?.toLowerCase().includes(query) ||
         option.trailing?.toLowerCase().includes(query)
     )
-  }, [options, search])
+  }, [options, search, isRemote])
 
   const visibleOptions = filtered.slice(0, visibleCount)
   const hasMore = visibleCount < filtered.length
@@ -78,8 +101,8 @@ export function InfiniteScrollSelect({
   useEffect(() => {
     if (!open) return
     setVisibleCount(pageSize)
-    setSearch("")
-  }, [open, pageSize])
+    if (!isRemote) setLocalSearch("")
+  }, [open, pageSize, isRemote])
 
   useEffect(() => {
     setVisibleCount(pageSize)
@@ -108,11 +131,16 @@ export function InfiniteScrollSelect({
 
   const handleSelect = (nextValue: string) => {
     onValueChange(nextValue)
-    setOpen(false)
+    setOpenState(false)
+  }
+
+  const handleSearchChange = (next: string) => {
+    if (isRemote) onSearchChange?.(next)
+    else setLocalSearch(next)
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen} modal>
+    <Popover open={open} onOpenChange={setOpenState} modal>
       <PopoverTrigger asChild>
         <Button
           id={id}
@@ -152,11 +180,11 @@ export function InfiniteScrollSelect({
             <Input
               ref={searchInputRef}
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => handleSearchChange(e.target.value)}
               onKeyDown={(e) => {
                 e.stopPropagation()
                 if (e.key === "Escape") {
-                  setOpen(false)
+                  setOpenState(false)
                 }
               }}
               placeholder={searchPlaceholder}
@@ -173,7 +201,7 @@ export function InfiniteScrollSelect({
         >
           {visibleOptions.length === 0 ? (
             <p className="text-muted-foreground px-2 py-6 text-center text-sm">
-              {emptyMessage}
+              {searchLoading ? "Searching…" : emptyMessage}
             </p>
           ) : (
             visibleOptions.map((option) => (
@@ -214,7 +242,7 @@ export function InfiniteScrollSelect({
               className="text-primary hover:bg-accent flex w-full items-center gap-2 rounded-sm px-2 py-2 text-left text-sm font-medium transition-colors"
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => {
-                setOpen(false)
+                setOpenState(false)
                 onAddNew()
               }}
             >

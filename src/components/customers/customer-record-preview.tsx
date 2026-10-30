@@ -448,7 +448,7 @@ export function CustomerRecordPreview({
                 As of {formatDate(record.asOf)}
               </div>
               <div style={{ marginTop: 12, fontSize: 12, color: headerOnPanel ? "rgba(255,255,255,0.7)" : "#6b7280" }}>
-                Customer ID <span style={{ fontWeight: 600, color: headerText }}>#{record.customer.id}</span>
+                Customer ID <span style={{ fontWeight: 600, color: headerText }}>#{record.customer.code || record.customer.id}</span>
               </div>
             </div>
           </div>

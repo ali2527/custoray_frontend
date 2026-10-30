@@ -185,6 +185,8 @@
       "textNamed": "هل أنت متأكد من حذف \"{{name}}\"؟ لا يمكن التراجع عن هذا الإجراء.",
       "textBulk": "سيؤدي هذا إلى إزالة {{count}} {{entity}} محدد نهائياً. لا يمكن التراجع عن هذا الإجراء.",
       "textGeneric": "لا يمكن التراجع عن هذا الإجراء.",
+      "completedStockWarning": "هذه العملية مكتملة. سيؤدي حذفها إلى إعادة المخزون لبنودها.",
+      "completedStockWarningBulk": "{{count}} من عمليات البيع المحددة مكتملة. سيؤدي حذفها إلى إعادة المخزون لتلك الفواتير.",
       "confirm": "نعم، احذف"
     },
     "cancelAction": {
@@ -236,13 +238,17 @@
     }
   },
   "status": {
+    "draft": "مسودة",
     "pending": "معلّق",
+    "confirmed": "مؤكد",
+    "processing": "قيد المعالجة",
+    "on_hold": "معلّق مؤقتًا",
     "completed": "مكتمل",
     "cancelled": "ملغى",
+    "refunded": "مسترد",
     "active": "نشط",
     "inactive": "غير نشط",
     "archived": "مؤرشف",
-    "draft": "مسودة",
     "voided": "ملغاة"
   },
   "viewMode": {
@@ -573,7 +579,7 @@
       "skuPrefixHint": "ستستخدم السجلات الجديدة {{first}} ثم {{second}} وهكذا.",
       "idProducts": "رموز المنتجات",
       "idSales": "فواتير المبيعات",
-      "idCustomers": "مدفوعات العملاء",
+      "idCustomers": "معرّفات العملاء",
       "idPurchases": "أوامر الشراء",
       "languageEnHint": "أبقِ مساحة العمل بالإنجليزية.",
       "languageArHint": "استخدم العربية للقوائم والتقارير.",

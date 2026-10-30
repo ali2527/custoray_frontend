@@ -1,8 +1,8 @@
 import assert from "node:assert/strict"
 
 import {
-  CUSTOMER_IMPORT_COLUMNS,
-  CUSTOMER_IMPORT_SAMPLE_ROW,
+  customerImportColumns,
+  customerImportSampleRow,
   customerTabFilter,
   filterCustomerRows,
   mapApiBuyerToRow,
@@ -64,6 +64,7 @@ const active: CustomerRow = {
   phone: "+92 300 1234567",
   status: "active",
   imageUrl: "",
+  code: "",
 }
 const inactive: CustomerRow = {
   ...active,
@@ -77,12 +78,22 @@ console.log("\nCustomers flow tests\n")
 
 console.log("Import / mapping")
 test("customer sample csv includes every import column", () => {
-  const csv = buildSampleCsv([...CUSTOMER_IMPORT_COLUMNS], CUSTOMER_IMPORT_SAMPLE_ROW)
+  const columns = customerImportColumns("auto")
+  const csv = buildSampleCsv(columns, customerImportSampleRow("auto"))
   const parsed = parseCsv(csv)
-  assert.deepEqual(Object.keys(parsed[0] ?? {}), [...CUSTOMER_IMPORT_COLUMNS])
+  assert.deepEqual(Object.keys(parsed[0] ?? {}), columns)
+  assert.equal(columns.includes("id"), false)
+  assert.equal(columns.includes("code"), false)
   const mapped = mapImportedCustomerWrite(parsed[0]!)
   assert.equal(mapped?.name, "Acme Retail")
   assert.equal(mapped?.imageUrl, "")
+})
+test("custom customer sample asks for a code and not an internal id", () => {
+  const columns = customerImportColumns("custom")
+  assert.equal(columns[0], "id")
+  const mapped = mapImportedCustomerWrite(customerImportSampleRow("custom"))
+  assert.equal(mapped?.code, "ACME-01")
+  assert.equal(mapped?.id, undefined)
 })
 test("import projection reads snake_case and spaced headers", () => {
   const projected = projectCsvRecord(
@@ -94,7 +105,7 @@ test("import projection reads snake_case and spaced headers", () => {
       image_url: "https://cdn.example/beta.png",
       description: "Notes",
     },
-    [...CUSTOMER_IMPORT_COLUMNS]
+    customerImportColumns("auto")
   )
   assert.equal(projected.name, "Beta Shop")
   assert.equal(projected.openingBalance, "12.5")
@@ -127,13 +138,23 @@ test("import maps name phone opening balance status and imageUrl", () => {
 })
 test("import maps api id for updates", () => {
   const mapped = mapImportedCustomerWrite({
-    id: "ckbuyer123",
+    id: "ckbuyer123456789012345678",
     name: "Sony Shop",
     phone: "0300",
     status: "active",
   })
-  assert.equal(mapped?.id, "ckbuyer123")
+  assert.equal(mapped?.id, "ckbuyer123456789012345678")
+  assert.equal(mapped?.code, undefined)
   assert.equal(mapped?.name, "Sony Shop")
+})
+test("short import id is the display customer id", () => {
+  const mapped = mapImportedCustomerWrite({
+    id: "ACME-01",
+    name: "Sony Shop",
+    status: "active",
+  })
+  assert.equal(mapped?.code, "ACME-01")
+  assert.equal(mapped?.id, undefined)
 })
 test("import rejects unmatched status so the row is not created", () => {
   const mapped = mapImportedCustomerWrite({

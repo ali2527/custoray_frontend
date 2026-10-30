@@ -7,6 +7,8 @@ type ConfirmActionOptions = {
   itemName?: string
   count?: number
   entityLabel?: string
+  /** Extra warning shown under the normal delete copy (e.g. completed sales / stock). */
+  warning?: string
 }
 
 type ConfirmReturnOptions = {
@@ -32,6 +34,7 @@ export async function confirmDeleteAction({
   itemName,
   count,
   entityLabel: entity,
+  warning,
 }: ConfirmActionOptions): Promise<boolean> {
   const isBulk = count != null && count > 0
   const entityText = entityLabel(entity, isBulk ? count : 1)
@@ -41,11 +44,12 @@ export async function confirmDeleteAction({
         name: itemName ?? entityText,
       })
 
-  const description = isBulk
+  const base = isBulk
     ? i18n.t("confirm.delete.textBulk", { count, entity: entityText })
     : itemName
       ? i18n.t("confirm.delete.textNamed", { name: itemName })
       : i18n.t("confirm.delete.textGeneric")
+  const description = warning ? `${base}\n\n${warning}` : base
 
   return confirm({
     title,

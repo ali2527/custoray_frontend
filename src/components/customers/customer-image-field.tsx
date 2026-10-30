@@ -3,9 +3,11 @@
 import { useRef, useState } from "react"
 import { IconCamera, IconUser, IconX } from "@tabler/icons-react"
 import { useTranslation } from "react-i18next"
+import { toast } from "sonner"
 
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { fileToCompressedDataUrl } from "@/lib/image-data-url"
 import { cn } from "@/lib/utils"
 
 type CustomerImageFieldProps = {
@@ -28,12 +30,15 @@ export function CustomerImageField({ id, name, initialUrl = "" }: CustomerImageF
   const addFile = (file: File | undefined) => {
     if (!file?.type.startsWith("image/")) return
     const gen = ++loadGen.current
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (gen !== loadGen.current) return
-      setImageUrl(String(reader.result))
-    }
-    reader.readAsDataURL(file)
+    void fileToCompressedDataUrl(file, { maxEdge: 1024, quality: 0.82 })
+      .then((dataUrl) => {
+        if (gen !== loadGen.current) return
+        setImageUrl(dataUrl)
+      })
+      .catch(() => {
+        if (gen !== loadGen.current) return
+        toast.error(t("images.tooLarge"))
+      })
   }
 
   const removeImage = () => {

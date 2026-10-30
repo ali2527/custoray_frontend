@@ -424,6 +424,7 @@ export function PosTerminal() {
       productName: string
       sku: string
       quantity: number
+      listPrice: number
       unitPrice: number
     }[] = []
     for (const line of cart) {
@@ -432,13 +433,15 @@ export function PosTerminal() {
         throw new Error(`Product "${line.productName}" is not synced. Refresh inventory and try again.`)
       }
       const lineTotal = Number(cartLineTotal(line))
+      const listPrice = Number(line.unitPrice) || 0
       const unitPrice =
-        line.quantity > 0 ? lineTotal / line.quantity : Number(line.unitPrice) || 0
+        line.quantity > 0 ? lineTotal / line.quantity : listPrice
       lines.push({
         productId: apiId,
         productName: line.productName,
         sku: line.sku,
         quantity: line.quantity,
+        listPrice: Number(listPrice.toFixed(2)),
         unitPrice: Number(unitPrice.toFixed(2)),
       })
     }

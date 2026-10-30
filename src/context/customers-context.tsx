@@ -7,10 +7,12 @@ import { createLoadGate } from "@/lib/load-when-used"
 
 const { LoadGate, useMarkNeeded } = createLoadGate()
 import {
+  customerDisplayId,
   mapApiBuyerToRow,
   toApiCustomerWrite,
   type CustomerRow,
 } from "@/lib/customers"
+import { loadDocumentNumberSettings, nextDocumentNumber } from "@/lib/document-number-settings"
 import { isInactiveRow } from "@/lib/row-status"
 
 type CustomersContextValue = {
@@ -68,7 +70,18 @@ function CustomersProviderLive({
 
   const addCustomer = React.useCallback(
     async (customer: Omit<CustomerRow, "id" | "apiId">) => {
-      const saved = await create(toApiCustomerWrite({ ...customer, id: 0, apiId: "" }))
+      const settings = loadDocumentNumberSettings().customers
+      let code = customer.code?.trim() ?? ""
+      if (!code && settings.mode === "auto") {
+        code = nextDocumentNumber(
+          customersRef.current.map((row) => row.code),
+          settings.prefix,
+          "CUS"
+        )
+      }
+      const saved = await create(
+        toApiCustomerWrite({ ...customer, code, id: 0, apiId: "" })
+      )
       return mapApiBuyerToRow(saved, 0)
     },
     [create]
@@ -88,6 +101,7 @@ function CustomersProviderLive({
         payload.openingBalance = Number(next.openingBalance) || 0
       }
       if (patch.imageUrl !== undefined) payload.imageUrl = next.imageUrl
+      if (patch.code !== undefined) payload.code = next.code.trim()
       if (Object.keys(payload).length === 0) return
       await update({ id: current.apiId, data: payload })
     },
@@ -107,6 +121,20 @@ function CustomersProviderLive({
     async (id: number) => {
       const source = customersRef.current.find((c) => c.id === id)
       if (!source || isInactiveRow(source)) return null
+      const settings = loadDocumentNumberSettings().customers
+      const base = customerDisplayId(source)
+      let code = ""
+      if (settings.mode === "custom") {
+        const used = new Set(
+          customersRef.current.map((row) => row.code.trim().toLowerCase()).filter(Boolean)
+        )
+        code = `${base}-copy`
+        let n = 2
+        while (used.has(code.toLowerCase())) {
+          code = `${base}-copy-${n}`
+          n += 1
+        }
+      }
       return addCustomer({
         name: `${source.name} (copy)`,
         description: source.description,
@@ -116,6 +144,7 @@ function CustomersProviderLive({
         phone: source.phone,
         status: "active",
         imageUrl: "",
+        code,
       })
     },
     [addCustomer]

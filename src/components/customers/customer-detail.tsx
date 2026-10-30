@@ -1,16 +1,14 @@
 "use client"
 
 import type { ReactNode } from "react"
-import Link from "next/link"
 import { IconHistory, IconPhone, IconUser } from "@tabler/icons-react"
 import { useTranslation } from "react-i18next"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { CustomerOrderCards } from "@/components/customers/customer-order-cards"
 import {
   computeBalance,
-  customerTimelineHref,
+  customerDisplayId,
   formatMoney,
   statusBadgeClass,
   type CustomerRow,
@@ -91,7 +89,7 @@ export function CustomerDetail({
 
       <div className="flex flex-wrap items-center gap-1.5">
         <Badge variant="outline" className="font-mono text-xs">
-          {t("viewSheet.idLabel", { id: customer.id })}
+          {t("viewSheet.idLabel", { id: customerDisplayId(customer) })}
         </Badge>
         <Badge variant="outline" className={statusBadgeClass(customer.status)}>
           {t(`status.${customer.status}`, { ns: "common" })}
@@ -163,38 +161,13 @@ export function CustomerDetail({
         </h3>
         <dl className="grid grid-cols-2 gap-2">
           <ViewDetail label={t("columns.id")}>
-            <span className="font-mono tabular-nums">{customer.id}</span>
+            <span className="font-mono tabular-nums">{customerDisplayId(customer)}</span>
           </ViewDetail>
           <ViewDetail label={t("fields.status")}>
             {t(`status.${customer.status}`, { ns: "common" })}
           </ViewDetail>
           <ViewDetail label={t("fields.phone")}>{phone || "—"}</ViewDetail>
         </dl>
-      </div>
-
-      <div className="flex flex-col gap-2">
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-semibold tracking-tight">
-            {t("viewSheet.recent")}
-          </h3>
-          {onViewTimeline ? (
-            <button
-              type="button"
-              className="text-muted-foreground hover:text-foreground text-xs font-medium underline-offset-4 hover:underline"
-              onClick={onViewTimeline}
-            >
-              {t("viewSheet.viewAll")}
-            </button>
-          ) : (
-            <Link
-              href={customerTimelineHref(customer.id)}
-              className="text-muted-foreground hover:text-foreground text-xs font-medium underline-offset-4 hover:underline"
-            >
-              {t("viewSheet.viewAll")}
-            </Link>
-          )}
-        </div>
-        <CustomerOrderCards customer={customer} limit={3} compact />
       </div>
 
       {onViewTimeline ? (

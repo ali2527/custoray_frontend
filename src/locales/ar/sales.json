@@ -34,7 +34,9 @@
     "status": "الحالة",
     "item": "الصنف",
     "qty": "الكمية",
-    "unitPrice": "سعر الوحدة",
+    "originalPrice": "السعر الأصلي",
+    "unitPrice": "سعر البيع",
+    "adjustments": "التسويات",
     "lineTotal": "إجمالي البند"
   },
   "actions": {
@@ -75,10 +77,16 @@
     "sourceNotFound": "لم يُعثر على فاتورة المصدر.",
     "returnRecorded": "تم تسجيل المرتجع {{returnNumber}} لـ {{name}}.",
     "cancelled": "تم إلغاء {{name}}.",
+    "completedCannotDelete": "لا يمكن حذف المبيعات المكتملة. قم بإلغائها بدلاً من ذلك.",
+    "completedCannotEditLines": "لا يمكن تعديل المبيعات المكتملة. قم بالإلغاء أو الإرجاع.",
+    "completedSkippedDelete": "تم تخطي {{count}} عملية بيع مكتملة. ألغِها بدلاً من الحذف.",
     "onlyPendingUnpaid": "يمكن إلغاء المبيعات المعلّقة وغير المدفوعة فقط.",
     "selectInvoiceFirst": "اختر فاتورة أولاً.",
     "customerRequired": "اسم العميل مطلوب.",
     "lineRequired": "أضف بنداً واحداً على الأقل باسم منتج.",
+    "quantityInvalid": "يجب أن تكون كمية كل بند 1 على الأقل.",
+    "outOfStock": "{{name}} غير متوفر في المخزون.",
+    "onlyInStock": "يتوفر فقط {{count}} من {{name}} في المخزون.",
     "saleOnNewInvoice": "تم تسجيل البيع في فاتورة جديدة (تجريبي).",
     "saleAdded": "تمت إضافة البيع إلى الفاتورة (تجريبي).",
     "lineNotFound": "لم يُعثر على البند."

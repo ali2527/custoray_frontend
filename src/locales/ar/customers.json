@@ -29,6 +29,8 @@
     "description": "الوصف",
     "descriptionPlaceholder": "ملاحظات، شروط، شريحة…",
     "openingBalance": "الرصيد الافتتاحي",
+    "code": "معرّف العميل",
+    "codePlaceholder": "ACME-01",
     "phone": "رقم الهاتف",
     "phonePlaceholder": "+92 300 1234567",
     "status": "الحالة"
@@ -37,7 +39,8 @@
     "photo": "صورة العميل",
     "upload": "رفع صورة العميل",
     "change": "تغيير صورة العميل",
-    "remove": "إزالة صورة العميل"
+    "remove": "إزالة صورة العميل",
+    "tooLarge": "الصورة كبيرة جدًا. جرّب صورة أصغر."
   },
   "actions": {
     "view": "عرض",
@@ -168,6 +171,7 @@
     "removedNamed": "تم حذف {{name}}.",
     "duplicatedNamed": "تم تكرار {{name}}.",
     "nameRequired": "اسم العميل مطلوب.",
+    "idRequired": "معرّف العميل مطلوب.",
     "created": "تم إنشاء العميل.",
     "saved": "تم حفظ العميل.",
     "saveFailed": "تعذر حفظ العميل.",

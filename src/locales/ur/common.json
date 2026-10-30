@@ -185,6 +185,8 @@
       "textNamed": "کیا آپ واقعی \"{{name}}\" حذف کرنا چاہتے ہیں؟ یہ عمل واپس نہیں ہو سکتا۔",
       "textBulk": "اس سے منتخب {{count}} {{entity}} مستقل طور پر ہٹ جائیں گے۔ یہ عمل واپس نہیں ہو سکتا۔",
       "textGeneric": "یہ عمل واپس نہیں ہو سکتا۔",
+      "completedStockWarning": "یہ فروخت مکمل ہے۔ حذف کرنے سے اس کی لائن اشیاء کا اسٹاک واپس ہو جائے گا۔",
+      "completedStockWarningBulk": "{{count}} منتخب فروخت(یں) مکمل ہیں۔ حذف کرنے سے ان انوائسز کا اسٹاک واپس ہو جائے گا۔",
       "confirm": "ہاں، حذف کریں"
     },
     "cancelAction": {
@@ -236,13 +238,17 @@
     }
   },
   "status": {
+    "draft": "مسودہ",
     "pending": "زیر التوا",
+    "confirmed": "تصدیق شدہ",
+    "processing": "جاری عمل",
+    "on_hold": "روک دیا گیا",
     "completed": "مکمل",
     "cancelled": "منسوخ",
+    "refunded": "واپس شدہ",
     "active": "فعال",
     "inactive": "غیر فعال",
     "archived": "محفوظ شدہ",
-    "draft": "مسودہ",
     "voided": "منسوخ شدہ"
   },
   "viewMode": {
@@ -573,7 +579,7 @@
       "skuPrefixHint": "نئے ریکارڈز {{first}} پھر {{second}} استعمال کریں گے، وغیرہ۔",
       "idProducts": "پروڈکٹ SKUs",
       "idSales": "سیلز انوائسز",
-      "idCustomers": "کسٹمر ادائیگیاں",
+      "idCustomers": "گاہک آئی ڈیز",
       "idPurchases": "پرچیز آرڈرز",
       "languageEnHint": "ورک اسپیس انگریزی میں رکھیں۔",
       "languageArHint": "مینو اور رپورٹس کے لیے عربی استعمال کریں۔",

@@ -1207,18 +1207,18 @@ export function WelcomeFlow() {
                       {
                         id: "customers" as const,
                         label: t("welcome.onboarding.idCustomers"),
-                        mode: numberSettings.customerPayments.mode,
-                        prefix: numberSettings.customerPayments.prefix,
+                        mode: numberSettings.customers.mode,
+                        prefix: numberSettings.customers.prefix,
                         sample: (n: number) =>
                           formatAutoDocumentNumber(
-                            numberSettings.customerPayments.prefix,
+                            numberSettings.customers.prefix,
                             n,
-                            "CP"
+                            "CUS"
                           ),
                         setMode: (mode: DocumentNumberMode) =>
-                          setNumberMode("customerPayments", mode),
+                          setNumberMode("customers", mode),
                         setPrefix: (prefix: string) =>
-                          updateNumberEntry("customerPayments", {
+                          updateNumberEntry("customers", {
                             prefix: sanitizeNumberPrefixInput(prefix),
                           }),
                       },

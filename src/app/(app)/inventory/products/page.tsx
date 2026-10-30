@@ -40,6 +40,7 @@ import {
   removeProductImageAt,
   type ProductRow,
 } from "@/lib/inventory-product-rows"
+import { fileToCompressedDataUrl } from "@/lib/image-data-url"
 
 import { DataTableColumnHeader } from "@/components/data-table-column-header"
 import { DataTable, type DataTableTab } from "@/components/data-table"
@@ -184,19 +185,21 @@ function ProductImagesField({
       if (!file.type.startsWith("image/")) continue
       const id = `${file.name}-${file.size}-${file.lastModified}-${added}`
       pendingRef.current.add(id)
-      const reader = new FileReader()
-      reader.onload = () => {
-        if (!pendingRef.current.has(id)) return
-        pendingRef.current.delete(id)
-        const dataUrl = String(reader.result)
-        setUrls((current) => {
-          if (current.includes(dataUrl) || current.length >= maxImages) {
-            return current
-          }
-          return [...current, dataUrl]
+      void fileToCompressedDataUrl(file, { maxEdge: 1280, quality: 0.82 })
+        .then((dataUrl) => {
+          if (!pendingRef.current.has(id)) return
+          pendingRef.current.delete(id)
+          setUrls((current) => {
+            if (current.includes(dataUrl) || current.length >= maxImages) {
+              return current
+            }
+            return [...current, dataUrl]
+          })
         })
-      }
-      reader.readAsDataURL(file)
+        .catch(() => {
+          pendingRef.current.delete(id)
+          toast.error(t("toasts.imageTooLarge"))
+        })
       added += 1
     }
 

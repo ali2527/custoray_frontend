@@ -11,10 +11,10 @@ import { Label } from "@/components/ui/label"
 import { useCustomers } from "@/context/customers-context"
 import { useVendors } from "@/context/vendors-context"
 import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
+import { usePaymentMethods } from "@/hooks/use-payment-methods"
 import type { CustomerRow } from "@/lib/customers"
 import type { VendorRow } from "@/lib/vendors"
 import {
-  PAYMENT_METHODS,
   findPartyBySelectValue,
   partySelectValue,
   type PaymentRow,
@@ -52,8 +52,21 @@ export function PaymentForm({
 }: PaymentFormProps) {
   const { t } = useTranslation("payments")
   const { settings: numberSettings } = useDocumentNumberSettings()
+  const { methods: paymentMethods } = usePaymentMethods()
   const { customers } = useCustomers()
   const { vendors } = useVendors()
+
+  const methodOptions = useMemo(() => {
+    if (
+      payment.paymentMethod &&
+      !paymentMethods.some(
+        (method) => method.toLowerCase() === payment.paymentMethod.toLowerCase()
+      )
+    ) {
+      return [payment.paymentMethod, ...paymentMethods]
+    }
+    return paymentMethods
+  }, [payment.paymentMethod, paymentMethods])
 
   const initialType = lockType ?? payment.type
   const [type, setType] = useState<PaymentRow["type"]>(initialType)
@@ -221,7 +234,7 @@ export function PaymentForm({
             defaultValue={payment.paymentMethod}
             className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
           >
-            {PAYMENT_METHODS.map((method) => (
+            {methodOptions.map((method) => (
               <option key={method} value={method}>
                 {method}
               </option>

@@ -16,20 +16,51 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { ProductSearchSelect } from "@/components/inventory/product-search-select"
 import { InfiniteScrollSelect } from "@/components/ui/infinite-scroll-select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useCustomers } from "@/context/customers-context"
+import { useMoneyFormat } from "@/context/money-format-context"
+import { usePosSettings } from "@/context/pos-settings-context"
 import { useProducts } from "@/context/products-context"
 import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
-import { formatMoney } from "@/lib/customers"
+import { usePaymentMethods } from "@/hooks/use-payment-methods"
+import { formatGroupedMoney } from "@/lib/money-format-settings"
 import {
   computeLineTotal,
   computeOrderTotal,
+  formatMoney,
+  parseMoney,
   type OrderLineRow,
   type OrderRow,
 } from "@/lib/orders"
-import { EMPTY_PRODUCT, nextSku, productFromFormData } from "@/lib/products"
+import type { SearchProductRow } from "@/lib/product-search"
+import {
+  EMPTY_PRODUCT,
+  nextSku,
+  productFromFormData,
+  type ProductRow,
+} from "@/lib/products"
+
+const OVERSELL_MAX_QTY = 999_999
+
+function sameProductLine(
+  line: OrderLineRow,
+  product: { id?: number; name: string; apiId?: string },
+  resolveApiId?: (productId: number) => string | undefined
+) {
+  const apiId =
+    product.apiId?.trim() ||
+    (product.id != null ? resolveApiId?.(product.id)?.trim() : undefined)
+  if (apiId && line.productApiId?.trim() === apiId) return true
+  return line.productName.trim() === product.name.trim()
+}
+
+function clampSaleQuantity(raw: number, max: number) {
+  if (!Number.isFinite(raw)) return 1
+  return Math.min(Math.max(1, Math.floor(raw)), Math.max(1, max))
+}
 
 type OrderFormProps = {
   formId: string
@@ -69,17 +100,32 @@ function resolveProductId(products: { id: number; name: string }[], name: string
 
 export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormProps) {
   const { settings: numberSettings } = useDocumentNumberSettings()
+  const { settings: moneySettings } = useMoneyFormat()
+  const { settings: posSettings } = usePosSettings()
+  const { methods: paymentMethods } = usePaymentMethods()
   const { customers } = useCustomers()
-  const { products, addProduct } = useProducts()
+  const { products, addProduct, getApiProductId } = useProducts()
+  const allowOverselling = posSettings.allowOverselling
 
   const initialCustomerName = order.customerName === "—" ? "" : order.customerName
   const [customerId, setCustomerId] = useState(() =>
     resolveCustomerId(customers, initialCustomerName)
   )
+  const [paymentMethod, setPaymentMethod] = useState(() => {
+    const current = order.paymentMethod?.trim()
+    if (current) return current
+    return paymentMethods[0] ?? "Cash"
+  })
   const [lines, setLines] = useState<OrderLineRow[]>(
     order.lines.length > 0 ? order.lines : [emptyLine(1)]
   )
   const [quickAdd, setQuickAdd] = useState<QuickAddState>(null)
+  const [priceFocusedIndex, setPriceFocusedIndex] = useState<number | null>(null)
+
+  useEffect(() => {
+    if (paymentMethods.includes(paymentMethod)) return
+    setPaymentMethod(paymentMethods[0] ?? "Cash")
+  }, [paymentMethods, paymentMethod])
 
   useEffect(() => {
     if (customerId) return
@@ -87,11 +133,12 @@ export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormP
     if (resolved) setCustomerId(resolved)
   }, [customers, initialCustomerName, customerId])
 
-  const customerName = useMemo(() => {
-    if (!customerId) return ""
-    const customer = customers.find((item) => String(item.id) === customerId)
-    return customer?.name ?? ""
-  }, [customerId, customers])
+  const selectedCustomer = useMemo(
+    () => customers.find((item) => String(item.id) === customerId) ?? null,
+    [customerId, customers]
+  )
+  const customerName = selectedCustomer?.name ?? ""
+  const buyerApiId = selectedCustomer?.apiId?.trim() ?? ""
 
   const orderTotal = useMemo(() => computeOrderTotal(lines), [lines])
 
@@ -105,15 +152,41 @@ export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormP
     [customers]
   )
 
-  const productOptions = useMemo(
-    () =>
-      products.map((product) => ({
-        value: String(product.id),
-        label: product.name,
-        description: product.sku,
-        trailing: formatMoney(product.salePrice),
-      })),
-    [products]
+  const findProductForLine = useCallback(
+    (line: OrderLineRow) => {
+      const apiId = line.productApiId?.trim()
+      if (apiId) {
+        const byApi = products.find(
+          (product) => getApiProductId(product.id)?.trim() === apiId
+        )
+        if (byApi) return byApi
+      }
+      return products.find((product) => product.name === line.productName) ?? null
+    },
+    [getApiProductId, products]
+  )
+
+  const availableStockForLine = useCallback(
+    (lineIndex: number, product: ProductRow, currentLines: OrderLineRow[]) => {
+      if (allowOverselling) return OVERSELL_MAX_QTY
+      let available = Number(product.stock) || 0
+      // Completed sales already deducted stock — credit this order’s original lines back.
+      if (order.status === "completed") {
+        for (const original of order.lines) {
+          if (sameProductLine(original, product, getApiProductId)) {
+            available += Math.max(0, original.quantity)
+          }
+        }
+      }
+      for (let i = 0; i < currentLines.length; i++) {
+        if (i === lineIndex) continue
+        if (sameProductLine(currentLines[i], product, getApiProductId)) {
+          available -= Math.max(0, currentLines[i].quantity)
+        }
+      }
+      return Math.max(0, available)
+    },
+    [allowOverselling, getApiProductId, order.lines, order.status]
   )
 
   const updateLine = useCallback(
@@ -122,16 +195,34 @@ export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormP
         prev.map((line, i) => {
           if (i !== index) return line
           const next = { ...line, ...patch }
-          const qty = patch.quantity ?? line.quantity
           const price = patch.unitPrice ?? line.unitPrice
+          let qty = patch.quantity ?? line.quantity
+          if (patch.quantity != null) {
+            const product = findProductForLine(next)
+            if (product && !allowOverselling) {
+              const max = availableStockForLine(index, product, prev)
+              if (max <= 0) {
+                toast.error(`${product.name} is out of stock.`)
+                qty = line.quantity
+              } else if (qty > max) {
+                toast.error(`Only ${max} in stock for ${product.name}.`)
+                qty = max
+              } else {
+                qty = clampSaleQuantity(qty, max)
+              }
+            } else {
+              qty = clampSaleQuantity(qty, OVERSELL_MAX_QTY)
+            }
+          }
           return {
             ...next,
+            quantity: qty,
             lineTotal: computeLineTotal(qty, price),
           }
         })
       )
     },
-    []
+    [allowOverselling, availableStockForLine, findProductForLine]
   )
 
   const addLine = useCallback(() => {
@@ -149,18 +240,49 @@ export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormP
   }, [])
 
   const handleProductSelect = useCallback(
-    (index: number, productId: string) => {
-      const product = products.find((item) => String(item.id) === productId)
-      if (!product) return
-      updateLine(index, {
-        productName: product.name,
-        unitPrice: product.salePrice,
+    (index: number, product: SearchProductRow | (ProductRow & { apiId?: string })) => {
+      const stock = Number(product.stock) || 0
+      if (!allowOverselling && stock <= 0) {
+        toast.error(`${product.name} is out of stock.`)
+        return
+      }
+      const salePrice = parseMoney(product.salePrice)
+      setLines((prev) => {
+        const max = allowOverselling
+          ? OVERSELL_MAX_QTY
+          : availableStockForLine(index, product, prev.map((line, i) =>
+              i === index
+                ? {
+                    ...line,
+                    productName: product.name,
+                    productApiId:
+                      product.apiId?.trim() || getApiProductId(product.id) || "",
+                  }
+                : line
+            ))
+        if (!allowOverselling && max <= 0) {
+          toast.error(`${product.name} is out of stock.`)
+          return prev
+        }
+        const quantity = clampSaleQuantity(prev[index]?.quantity ?? 1, Math.max(1, max))
+        return prev.map((line, i) => {
+          if (i !== index) return line
+          return {
+            ...line,
+            productName: product.name,
+            unitPrice: salePrice,
+            listPrice: salePrice,
+            productApiId: product.apiId?.trim() || getApiProductId(product.id) || "",
+            quantity,
+            lineTotal: computeLineTotal(quantity, salePrice),
+          }
+        })
       })
     },
-    [products, updateLine]
+    [allowOverselling, availableStockForLine, getApiProductId]
   )
 
-  const handleCustomerCreated = useCallback((created: { id: number }) => {
+  const handleCustomerCreated = useCallback((created: { id: number; apiId?: string }) => {
     setCustomerId(String(created.id))
     setQuickAdd(null)
   }, [])
@@ -179,9 +301,19 @@ export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormP
 
       try {
         const created = await addProduct(parsed)
+        const stock = Number(created.stock) || 0
+        if (!allowOverselling && stock <= 0) {
+          toast.error(`${created.name} is out of stock.`)
+          setQuickAdd(null)
+          return
+        }
+        const salePrice = parseMoney(created.salePrice)
         updateLine(quickAdd.lineIndex, {
           productName: created.name,
-          unitPrice: created.salePrice,
+          unitPrice: salePrice,
+          listPrice: salePrice,
+          productApiId: getApiProductId(created.id) ?? "",
+          quantity: 1,
         })
         setQuickAdd(null)
         toast.success("Product added.")
@@ -189,7 +321,7 @@ export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormP
         toast.error(error instanceof Error ? error.message : "Could not save product.")
       }
     },
-    [addProduct, products, quickAdd, updateLine]
+    [addProduct, allowOverselling, getApiProductId, products, quickAdd, updateLine]
   )
 
   const customerFormId = `${formId}-add-customer`
@@ -198,8 +330,9 @@ export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormP
   return (
     <>
       <form id={formId} className="flex flex-col gap-4 text-sm" onSubmit={onSubmit}>
-        <input type="hidden" name="paymentMethod" value={order.paymentMethod} />
+        <input type="hidden" name="paymentMethod" value={paymentMethod} />
         <input type="hidden" name="customerName" value={customerName} required />
+        <input type="hidden" name="buyerId" value={buyerApiId} />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <DocumentNumberField
@@ -251,13 +384,7 @@ export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormP
         </div>
 
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between gap-2">
-            <Label>Line items</Label>
-            <Button type="button" variant="outline" size="sm" onClick={addLine}>
-              <IconPlus className="size-4" />
-              Add line
-            </Button>
-          </div>
+          <Label>Line items</Label>
           <div className="flex flex-col gap-3">
             {lines.map((line, index) => (
               <div
@@ -265,49 +392,99 @@ export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormP
                 className="border-border/60 bg-muted/20 space-y-2 rounded-lg border p-3"
               >
                 <input type="hidden" name={`lines[${index}].id`} value={line.id} />
-                <input type="hidden" name={`lines[${index}].productName`} value={line.productName} />
+                <input
+                  type="hidden"
+                  name={`lines[${index}].productName`}
+                  value={line.productName}
+                />
+                <input
+                  type="hidden"
+                  name={`lines[${index}].productApiId`}
+                  value={line.productApiId ?? ""}
+                />
+                <input
+                  type="hidden"
+                  name={`lines[${index}].listPrice`}
+                  value={line.listPrice ?? line.unitPrice}
+                />
                 <div className="flex flex-col gap-2">
                   <Label htmlFor={`${formId}-product-${index}`}>Product</Label>
-                  <InfiniteScrollSelect
+                  <ProductSearchSelect
                     id={`${formId}-product-${index}`}
                     value={resolveProductId(products, line.productName)}
-                    onValueChange={(productId) => handleProductSelect(index, productId)}
-                    options={productOptions}
-                    placeholder="Select product"
-                    searchPlaceholder="Search products…"
-                    emptyMessage="No products found."
-                    pageSize={10}
+                    selectedProduct={
+                      products.find((product) => product.name === line.productName) ?? null
+                    }
+                    onSelect={(product) => handleProductSelect(index, product)}
+                    priceField="salePrice"
                     onAddNew={() => setQuickAdd({ type: "product", lineIndex: index })}
-                    addNewLabel="Add product"
                   />
                 </div>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
                   <div className="flex flex-col gap-1">
                     <Label htmlFor={`${formId}-qty-${index}`}>Qty</Label>
-                    <Input
-                      id={`${formId}-qty-${index}`}
-                      name={`lines[${index}].quantity`}
-                      type="number"
-                      min={1}
-                      value={line.quantity}
-                      onChange={(e) =>
-                        updateLine(index, { quantity: Number(e.target.value) || 1 })
-                      }
-                    />
+                    {(() => {
+                      const product = findProductForLine(line)
+                      const maxQty = product
+                        ? availableStockForLine(index, product, lines)
+                        : OVERSELL_MAX_QTY
+                      return (
+                        <>
+                          <Input
+                            id={`${formId}-qty-${index}`}
+                            name={`lines[${index}].quantity`}
+                            type="number"
+                            min={1}
+                            max={allowOverselling ? undefined : Math.max(1, maxQty)}
+                            value={line.quantity}
+                            onChange={(e) => {
+                              const raw = e.target.value
+                              if (raw.trim() === "") {
+                                updateLine(index, { quantity: 1 })
+                                return
+                              }
+                              updateLine(index, {
+                                quantity: clampSaleQuantity(Number(raw), maxQty),
+                              })
+                            }}
+                          />
+                          {product && !allowOverselling ? (
+                            <span className="text-muted-foreground text-xs">
+                              {maxQty <= 0
+                                ? "Out of stock"
+                                : `In stock: ${maxQty}`}
+                            </span>
+                          ) : null}
+                        </>
+                      )
+                    })()}
                   </div>
                   <div className="flex flex-col gap-1">
                     <Label htmlFor={`${formId}-price-${index}`}>Unit price</Label>
                     <Input
                       id={`${formId}-price-${index}`}
                       name={`lines[${index}].unitPrice`}
-                      value={line.unitPrice}
-                      onChange={(e) => updateLine(index, { unitPrice: e.target.value })}
+                      inputMode="decimal"
+                      className="tabular-nums"
+                      value={
+                        priceFocusedIndex === index
+                          ? line.unitPrice
+                          : formatGroupedMoney(line.unitPrice, moneySettings)
+                      }
+                      onFocus={() => setPriceFocusedIndex(index)}
+                      onBlur={() => {
+                        setPriceFocusedIndex(null)
+                        updateLine(index, { unitPrice: parseMoney(line.unitPrice) })
+                      }}
+                      onChange={(e) =>
+                        updateLine(index, { unitPrice: e.target.value.replace(/[^0-9.-]/g, "") })
+                      }
                     />
                   </div>
                   <div className="flex flex-col gap-1">
                     <Label>Line total</Label>
                     <div className="text-foreground flex h-9 items-center tabular-nums">
-                      {line.lineTotal}
+                      {formatMoney(line.lineTotal)}
                     </div>
                   </div>
                 </div>
@@ -326,12 +503,23 @@ export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormP
               </div>
             ))}
           </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="lg"
+            className="h-12 w-full text-base"
+            onClick={addLine}
+          >
+            <IconPlus className="size-5" />
+            Add line
+          </Button>
           <p className="text-muted-foreground text-right text-sm tabular-nums">
-            Order total: <span className="text-foreground font-medium">{orderTotal}</span>
+            Order total:{" "}
+            <span className="text-foreground font-medium">{formatMoney(orderTotal)}</span>
           </p>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <div className="flex flex-col gap-2">
             <Label htmlFor={`${formId}-paidAmount`}>Paid amount</Label>
             <Input
@@ -349,9 +537,29 @@ export function OrderForm({ formId, order, isNew = false, onSubmit }: OrderFormP
               defaultValue={order.status}
               className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
             >
+              <option value="draft">Draft</option>
               <option value="pending">Pending</option>
+              <option value="confirmed">Confirmed</option>
+              <option value="processing">Processing</option>
+              <option value="on_hold">On hold</option>
               <option value="completed">Completed</option>
               <option value="cancelled">Cancelled</option>
+              <option value="refunded">Refunded</option>
+            </select>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={`${formId}-paymentMethod`}>Payment method</Label>
+            <select
+              id={`${formId}-paymentMethod`}
+              value={paymentMethod}
+              onChange={(e) => setPaymentMethod(e.target.value)}
+              className="border-input bg-background h-9 w-full rounded-md border px-3 text-sm shadow-xs outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+            >
+              {paymentMethods.map((method) => (
+                <option key={method} value={method}>
+                  {method}
+                </option>
+              ))}
             </select>
           </div>
         </div>

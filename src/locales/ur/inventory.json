@@ -166,6 +166,7 @@
     "setInactiveCount": "{{count}} غیر فعال ہو گئیں۔",
     "deletedCategories": "{{count}} کیٹگری(ز) حذف ہو گئیں۔",
     "maxImages": "آپ زیادہ سے زیادہ {{count}} تصاویر اپ لوڈ کر سکتے ہیں۔",
+    "imageTooLarge": "تصویر بہت بڑی ہے۔ چھوٹی تصویر آزمائیں۔",
     "onlyImagesAllowed": "صرف {{count}} تصاویر کی اجازت ہے۔"
   },
   "timeline": {

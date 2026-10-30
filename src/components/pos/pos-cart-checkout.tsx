@@ -39,7 +39,7 @@ type PosCartCheckoutProps = {
   processing?: boolean
   onCompleteSale: () => void
   variant?: "sale" | "return"
-  enabledPaymentMethods?: OrderRow["paymentMethod"][]
+  enabledPaymentMethods?: string[]
   allowDiscounts?: boolean
   allowPartialPayment?: boolean
   paidAmountDraft?: string

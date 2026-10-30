@@ -1,16 +1,26 @@
 {
   "tabs": {
     "all": "All",
+    "draft": "Draft",
     "pending": "Pending",
+    "confirmed": "Confirmed",
+    "processing": "Processing",
+    "on_hold": "On hold",
     "completed": "Completed",
     "cancelled": "Cancelled",
+    "refunded": "Refunded",
     "active": "Active",
     "archived": "Archived"
   },
   "status": {
+    "draft": "Draft",
     "pending": "Pending",
+    "confirmed": "Confirmed",
+    "processing": "Processing",
+    "on_hold": "On hold",
     "completed": "Completed",
-    "cancelled": "Cancelled"
+    "cancelled": "Cancelled",
+    "refunded": "Refunded"
   },
   "viewMode": {
     "aria": "Sales view mode",
@@ -34,7 +44,9 @@
     "status": "Status",
     "item": "Item",
     "qty": "Qty",
-    "unitPrice": "Unit price",
+    "originalPrice": "Original price",
+    "unitPrice": "Sale price",
+    "adjustments": "Adjustments",
     "lineTotal": "Line total"
   },
   "actions": {
@@ -75,10 +87,16 @@
     "sourceNotFound": "Source invoice not found.",
     "returnRecorded": "Return {{returnNumber}} recorded for {{name}}.",
     "cancelled": "{{name}} cancelled.",
+    "completedCannotDelete": "Completed sales cannot be deleted. Cancel them instead.",
+    "completedCannotEditLines": "Completed sales cannot be edited. Cancel or return them instead.",
+    "completedSkippedDelete": "Skipped {{count}} completed sale(s). Cancel them instead of deleting.",
     "onlyPendingUnpaid": "Only pending unpaid sales can be cancelled.",
     "selectInvoiceFirst": "Select an invoice first.",
     "customerRequired": "Customer name is required.",
     "lineRequired": "Add at least one line item with a product name.",
+    "quantityInvalid": "Each line must have a quantity of at least 1.",
+    "outOfStock": "{{name}} is out of stock.",
+    "onlyInStock": "Only {{count}} in stock for {{name}}.",
     "saleOnNewInvoice": "Sale recorded on new invoice (demo).",
     "saleAdded": "Sale added to invoice (demo).",
     "lineNotFound": "Line item not found."

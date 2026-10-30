@@ -34,7 +34,9 @@
     "status": "حیثیت",
     "item": "آئٹم",
     "qty": "مقدار",
-    "unitPrice": "یونٹ قیمت",
+    "originalPrice": "اصل قیمت",
+    "unitPrice": "فروخت قیمت",
+    "adjustments": "ایڈجسٹمنٹ",
     "lineTotal": "لائن کل"
   },
   "actions": {
@@ -75,10 +77,16 @@
     "sourceNotFound": "ماخذ انوائس نہیں ملا۔",
     "returnRecorded": "{{name}} کے لیے واپسی {{returnNumber}} درج ہو گئی۔",
     "cancelled": "{{name}} منسوخ ہو گیا۔",
+    "completedCannotDelete": "مکمل فروخت حذف نہیں کی جا سکتی۔ اس کے بجائے منسوخ کریں۔",
+    "completedCannotEditLines": "مکمل فروخت میں ترمیم نہیں ہو سکتی۔ منسوخ یا واپس کریں۔",
+    "completedSkippedDelete": "{{count}} مکمل فروخت چھوڑ دی گئیں۔ حذف کے بجائے منسوخ کریں۔",
     "onlyPendingUnpaid": "صرف زیر التوا غیر ادا شدہ فروخت منسوخ کی جا سکتی ہے۔",
     "selectInvoiceFirst": "پہلے انوائس منتخب کریں۔",
     "customerRequired": "گاہک کا نام درکار ہے۔",
     "lineRequired": "کم از کم ایک لائن آئٹم مصنوعات کے نام کے ساتھ شامل کریں۔",
+    "quantityInvalid": "ہر لائن کی مقدار کم از کم 1 ہونی چاہیے۔",
+    "outOfStock": "{{name}} اسٹاک میں نہیں ہے۔",
+    "onlyInStock": "{{name}} کے لیے صرف {{count}} اسٹاک میں ہیں۔",
     "saleOnNewInvoice": "نئے انوائس پر فروخت درج ہو گئی (ڈیمو)۔",
     "saleAdded": "فروخت انوائس میں شامل ہو گئی (ڈیمو)۔",
     "lineNotFound": "لائن آئٹم نہیں ملا۔"

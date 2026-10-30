@@ -1091,6 +1091,7 @@ export function DataTable<TData>({
   enableLayoutToggle = true,
   settingsKey,
   defaultColumnVisibility,
+  defaultSorting,
   onAddClick,
   onDataChange,
   onRowsImported,
@@ -1136,6 +1137,8 @@ export function DataTable<TData>({
   settingsKey?: string
   /** Initial column visibility (`false` = hidden). */
   defaultColumnVisibility?: VisibilityState
+  /** Initial sort when no saved sort exists for `settingsKey`. */
+  defaultSorting?: SortingState
   /** Primary add button (e.g. open create sheet). */
   onAddClick?: () => void
   /** Notified when table data changes (e.g. CSV import). */
@@ -1226,7 +1229,9 @@ export function DataTable<TData>({
     React.useState<VisibilityState>(() => defaultColumnVisibility ?? {})
   const [layoutView, setLayoutView] =
     React.useState<DataTableLayoutView>("list")
-  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [sorting, setSorting] = React.useState<SortingState>(
+    () => defaultSorting ?? []
+  )
   const [tableSettingsReady, setTableSettingsReady] = React.useState(
     () => !settingsKey
   )
@@ -1241,9 +1246,13 @@ export function DataTable<TData>({
       }))
     }
     if (stored.layoutView) setLayoutView(stored.layoutView)
-    if (stored.sorting) setSorting(stored.sorting)
+    if (stored.sorting && stored.sorting.length > 0) {
+      setSorting(stored.sorting)
+    } else if (defaultSorting?.length) {
+      setSorting(defaultSorting)
+    }
     setTableSettingsReady(true)
-  }, [settingsKey])
+  }, [settingsKey, defaultSorting])
 
   React.useEffect(() => {
     if (!settingsKey || !tableSettingsReady) return

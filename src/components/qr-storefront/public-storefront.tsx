@@ -26,15 +26,14 @@ import {
   type CompanySettings,
 } from "@/lib/company-settings"
 import type { CustomerRow } from "@/lib/customers"
+import { apiPlaceStorefrontOrder } from "@/lib/api/business"
 import {
-  buildStorefrontOrderFromCart,
   cartItemCount,
   cartLineTotal,
   cartSubtotal,
   filterStorefrontCatalog,
   formatStorefrontMoney,
   loadStorefrontSettings,
-  nextStorefrontInvoiceNumber,
   parseStorefrontPrefillFromSearch,
   storefrontCatalogProducts,
   type StorefrontCartLine,
@@ -51,9 +50,9 @@ type PlacedOrder = {
 
 export function PublicStorefront({ storeId }: { storeId: string }) {
   const { t } = useTranslation("storefront")
-  const { products, getProduct, updateProduct } = useProducts()
+  const { products, getProduct, getApiProductId, refreshProducts } = useProducts()
   const { customers } = useCustomers()
-  const { orders, addOrder } = useOrders()
+  const { refreshOrders } = useOrders()
   const searchParams = useSearchParams()
   const qrPrefill = React.useMemo(
     () => parseStorefrontPrefillFromSearch(searchParams),
@@ -168,53 +167,54 @@ export function PublicStorefront({ storeId }: { storeId: string }) {
 
   const placeOrder = React.useCallback(async () => {
     if (!selectedCustomer || cart.length === 0) return
+    const lines: { productId: string; quantity: number }[] = []
     for (const line of cart) {
       const product = getProduct(line.productId)
       if (!product || product.stock < line.quantity) {
         toast.error(t("notEnoughStock", { name: line.productName }))
         return
       }
+      const apiId = getApiProductId(line.productId)
+      if (!apiId) {
+        toast.error(t("notEnoughStock", { name: line.productName }))
+        return
+      }
+      lines.push({ productId: apiId, quantity: line.quantity })
     }
     setProcessing(true)
     try {
-      const created = addOrder(
-        buildStorefrontOrderFromCart(cart, {
-          customerName: selectedCustomer.name,
-          invoiceNumber: nextStorefrontInvoiceNumber(orders),
-          brand: qrPrefill.brand,
-          category: qrPrefill.category,
-          variant: qrPrefill.variant,
-        })
-      )
-      for (const line of cart) {
-        const product = getProduct(line.productId)
-        if (product) {
-          updateProduct(line.productId, {
-            stock: Math.max(0, product.stock - line.quantity),
-            orders: product.orders + line.quantity,
-          })
-        }
-      }
+      const placedOrder = await apiPlaceStorefrontOrder(storeId, {
+        buyerName: selectedCustomer.name,
+        buyerPhone:
+          selectedCustomer.phone && selectedCustomer.phone !== "—"
+            ? selectedCustomer.phone
+            : undefined,
+        lines,
+      })
+      const totalAmount = cartSubtotal(cart).toFixed(2)
       setPlaced({
-        invoiceNumber: created.invoiceNumber,
+        invoiceNumber: placedOrder.invoiceNumber,
         customerName: selectedCustomer.name,
-        totalAmount: created.totalAmount,
+        totalAmount,
       })
       setCart([])
+      await Promise.all([refreshProducts({ silent: true }), refreshOrders()])
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Could not place order."
+      )
     } finally {
       setProcessing(false)
     }
   }, [
-    addOrder,
     cart,
+    getApiProductId,
     getProduct,
-    orders,
-    qrPrefill.brand,
-    qrPrefill.category,
-    qrPrefill.variant,
+    refreshOrders,
+    refreshProducts,
     selectedCustomer,
+    storeId,
     t,
-    updateProduct,
   ])
 
   if (!hydrated) return <PageLoader fullScreen message={t("openingStore")} />

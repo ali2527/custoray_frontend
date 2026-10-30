@@ -1,71 +1,29 @@
 "use client"
 
 import * as React from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 
-import { useCustomers } from "@/context/customers-context"
+import { useAuth } from "@/context/auth-context"
 import { useOrders } from "@/context/orders-context"
-import { useProducts } from "@/context/products-context"
 import { useReturns } from "@/context/returns-context"
 import { confirmReturnLineAction } from "@/lib/confirm-action"
-import { applySalesReturnToCustomer } from "@/lib/customers"
+import { invalidateCustomers } from "@/lib/customers-query"
 import { type OrderLineRow, type OrderRow } from "@/lib/orders"
+import { mapApiReturnToRow } from "@/lib/pos-api"
 import {
   canReturnDocument,
   isReturnableOrderLine,
 } from "@/lib/return-eligibility"
-import { buildReturnFromOrder, type ReturnRow } from "@/lib/returns"
-
-function restoreStockForProductName(
-  productName: string,
-  quantity: number,
-  products: { id: number; name: string; stock: number }[],
-  updateProduct: (id: number, patch: { stock: number }) => void
-) {
-  const product = products.find(
-    (item) => item.name.trim().toLowerCase() === productName.trim().toLowerCase()
-  )
-  if (!product) return
-  updateProduct(product.id, { stock: product.stock + quantity })
-}
+import { persistCompletedReturn } from "@/lib/return-persist"
+import { buildReturnFromOrder } from "@/lib/returns"
 
 export function useInvoiceLineReturn() {
-  const { getOrder, updateOrder } = useOrders()
-  const { addReturn } = useReturns()
-  const { products, updateProduct } = useProducts()
-  const { customers, updateCustomer } = useCustomers()
+  const { session } = useAuth()
+  const queryClient = useQueryClient()
+  const { refreshOrders } = useOrders()
+  const { addReturn, refreshReturns } = useReturns()
   const [returningLineId, setReturningLineId] = React.useState<number | null>(null)
-
-  const applyCompletedReturnEffects = React.useCallback(
-    (created: ReturnRow, order: OrderRow) => {
-      for (const line of created.lines) {
-        if (!isReturnableOrderLine(line)) continue
-        restoreStockForProductName(
-          line.productName,
-          line.quantity,
-          products,
-          updateProduct
-        )
-      }
-
-      const customer = customers.find(
-        (item) =>
-          item.name.trim().toLowerCase() ===
-          order.customerName.trim().toLowerCase()
-      )
-      if (customer) {
-        updateCustomer(
-          customer.id,
-          applySalesReturnToCustomer(
-            customer,
-            created.totalAmount,
-            created.refundDue
-          )
-        )
-      }
-    },
-    [customers, products, updateCustomer, updateProduct]
-  )
 
   const returnInvoiceLine = React.useCallback(
     async (order: OrderRow, line: OrderLineRow) => {
@@ -75,6 +33,11 @@ export function useInvoiceLineReturn() {
       }
       if (!isReturnableOrderLine(line)) {
         toast.error("This line cannot be returned.")
+        return false
+      }
+      const sourceApiId = order.apiId?.trim()
+      if (!sourceApiId) {
+        toast.error("This sale is not saved on the server yet.")
         return false
       }
 
@@ -93,23 +56,34 @@ export function useInvoiceLineReturn() {
 
       setReturningLineId(line.id)
       try {
-        const created = addReturn(
-          { ...draft, status: "completed" },
-          { getOrder, onApplySales: updateOrder }
+        const productIdBySourceLineId: Record<number, string> = {}
+        if (line.productApiId?.trim()) {
+          productIdBySourceLineId[line.id] = line.productApiId.trim()
+        }
+        const apiReturn = await persistCompletedReturn(
+          draft,
+          sourceApiId,
+          productIdBySourceLineId
         )
-
-        applyCompletedReturnEffects(created, order)
-
+        addReturn(mapApiReturnToRow(apiReturn, { sourceNumericId: order.id }))
+        await refreshOrders()
+        await refreshReturns()
+        invalidateCustomers(queryClient, session?.tenantId)
         toast.success(
-          `Return ${created.returnNumber} recorded. Invoice ${order.invoiceNumber} updated.`
+          `Return ${apiReturn.returnNumber} recorded. Invoice ${order.invoiceNumber} updated.`
         )
         return true
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not record return."
+        )
+        return false
       } finally {
         setReturningLineId(null)
       }
     },
-    [addReturn, applyCompletedReturnEffects, getOrder, updateOrder]
+    [addReturn, queryClient, refreshOrders, refreshReturns, session?.tenantId]
   )
 
-  return { returnInvoiceLine, returningLineId, applyCompletedReturnEffects }
+  return { returnInvoiceLine, returningLineId }
 }

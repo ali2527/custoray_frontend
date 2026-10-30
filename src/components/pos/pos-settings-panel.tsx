@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import {
   IconCreditCard,
   IconDeviceDesktop,
@@ -26,7 +27,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { usePosSettings } from "@/context/pos-settings-context"
-import { ORDER_STATUSES, PAYMENT_METHODS, statusLabel } from "@/lib/orders"
+import { usePaymentMethods } from "@/hooks/use-payment-methods"
+import { ORDER_STATUSES, statusLabel } from "@/lib/orders"
 import {
   DEFAULT_POS_SETTINGS,
   sanitizeReceiptPrefix,
@@ -53,10 +55,13 @@ function PaymentMethodToggles({
   updateSettings: (patch: Partial<PosSettings>) => void
 }) {
   const { t } = useTranslation("pos")
-  const toggleMethod = (method: PosSettings["defaultPaymentMethod"], enabled: boolean) => {
+  const { methods } = usePaymentMethods()
+  const catalog = methods.length > 0 ? methods : settings.enabledPaymentMethods
+
+  const toggleMethod = (method: string, enabled: boolean) => {
     const current = settings.enabledPaymentMethods
     if (enabled) {
-      if (current.includes(method)) return
+      if (current.some((item) => item.toLowerCase() === method.toLowerCase())) return
       updateSettings({ enabledPaymentMethods: [...current, method] })
       return
     }
@@ -65,13 +70,15 @@ function PaymentMethodToggles({
       return
     }
     updateSettings({
-      enabledPaymentMethods: current.filter((item) => item !== method),
+      enabledPaymentMethods: current.filter(
+        (item) => item.toLowerCase() !== method.toLowerCase()
+      ),
     })
   }
 
   return (
     <div className={toggleStackClass}>
-      {PAYMENT_METHODS.map((method) => (
+      {catalog.map((method) => (
         <SettingsToggleRow
           key={method}
           compact
@@ -81,10 +88,19 @@ function PaymentMethodToggles({
               ? t("settingsPage.currentDefault")
               : undefined
           }
-          checked={settings.enabledPaymentMethods.includes(method)}
+          checked={settings.enabledPaymentMethods.some(
+            (item) => item.toLowerCase() === method.toLowerCase()
+          )}
           onCheckedChange={(checked) => toggleMethod(method, checked)}
         />
       ))}
+      <p className={hintClass}>
+        Add or rename methods in{" "}
+        <Link href="/settings/documents" className="text-primary underline-offset-2 hover:underline">
+          Settings → Documents
+        </Link>
+        .
+      </p>
     </div>
   )
 }

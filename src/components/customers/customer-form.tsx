@@ -4,9 +4,16 @@ import type { FormEvent } from "react"
 import { useTranslation } from "react-i18next"
 
 import { CustomerImageField } from "@/components/customers/customer-image-field"
+import { DocumentNumberField } from "@/components/document-number-field"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { CUSTOMER_STATUS_OPTIONS, type CustomerRow } from "@/lib/customers"
+import { useCustomers } from "@/context/customers-context"
+import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
+import {
+  CUSTOMER_STATUS_OPTIONS,
+  type CustomerRow,
+} from "@/lib/customers"
+import { nextDocumentNumber } from "@/lib/document-number-settings"
 
 type CustomerFormProps = {
   formId: string
@@ -16,8 +23,26 @@ type CustomerFormProps = {
 
 export function CustomerForm({ formId, customer, onSubmit }: CustomerFormProps) {
   const { t } = useTranslation("customers")
+  const { settings } = useDocumentNumberSettings()
+  const { customers } = useCustomers()
+  const isNew = !customer.apiId
+  const nextCode = nextDocumentNumber(
+    customers.map((row) => row.code),
+    settings.customers.prefix,
+    "CUS"
+  )
   return (
     <form id={formId} className="flex flex-col gap-4 text-sm" onSubmit={onSubmit}>
+      <DocumentNumberField
+        id={`${formId}-code`}
+        name="code"
+        label={t("fields.code")}
+        value={customer.code}
+        settings={settings.customers}
+        isNew={isNew}
+        placeholder={t("fields.codePlaceholder")}
+        autoHint={nextCode}
+      />
       <CustomerImageField
         id={`${formId}-image`}
         name={customer.name || t("entity.customer")}

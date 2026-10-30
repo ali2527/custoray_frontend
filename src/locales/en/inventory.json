@@ -166,6 +166,7 @@
     "setInactiveCount": "Set {{count}} to inactive.",
     "deletedCategories": "Deleted {{count}} categories.",
     "maxImages": "You can upload up to {{count}} images.",
+    "imageTooLarge": "Image is too large. Try a smaller photo.",
     "onlyImagesAllowed": "Only {{count}} images are allowed."
   },
   "timeline": {

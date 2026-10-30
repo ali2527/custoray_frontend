@@ -29,6 +29,8 @@
     "description": "تفصیل",
     "descriptionPlaceholder": "نوٹس، شرائط، سیگمنٹ…",
     "openingBalance": "ابتدائی بیلنس",
+    "code": "گاہک آئی ڈی",
+    "codePlaceholder": "ACME-01",
     "phone": "فون نمبر",
     "phonePlaceholder": "+92 300 1234567",
     "status": "حیثیت"
@@ -37,7 +39,8 @@
     "photo": "گاہک کی تصویر",
     "upload": "گاہک کی تصویر اپ لوڈ کریں",
     "change": "گاہک کی تصویر تبدیل کریں",
-    "remove": "گاہک کی تصویر ہٹائیں"
+    "remove": "گاہک کی تصویر ہٹائیں",
+    "tooLarge": "تصویر بہت بڑی ہے۔ چھوٹی تصویر آزمائیں۔"
   },
   "actions": {
     "view": "دیکھیں",
@@ -168,6 +171,7 @@
     "removedNamed": "{{name}} ہٹا دیا گیا۔",
     "duplicatedNamed": "{{name}} کی نقل بن گئی۔",
     "nameRequired": "گاہک کا نام درکار ہے۔",
+    "idRequired": "گاہک آئی ڈی درکار ہے۔",
     "created": "گاہک بن گیا۔",
     "saved": "گاہک محفوظ ہو گیا۔",
     "saveFailed": "گاہک محفوظ نہیں ہو سکا۔",

@@ -3,6 +3,7 @@ import { z } from "zod"
 import { formatMoney, parseMoney } from "@/lib/customers"
 import {
   formatDate,
+  ORDER_STATUSES,
   statusBadgeClass,
   statusLabel,
   type OrderRow,
@@ -19,13 +20,22 @@ export const saleLineSchema = z.object({
   orderDate: z.string(),
   productName: z.string(),
   quantity: z.number(),
+  listPrice: z.string(),
   unitPrice: z.string(),
   lineTotal: z.string(),
-  orderStatus: z.enum(["pending", "completed", "cancelled"]),
-  paymentMethod: z.enum(["Cash", "Bank transfer", "Card", "Credit"]),
+  orderStatus: z.enum(ORDER_STATUSES),
+  paymentMethod: z.string(),
 })
 
 export type SaleLineRow = z.infer<typeof saleLineSchema>
+
+export function saleLineAdjustment(line: Pick<SaleLineRow, "listPrice" | "unitPrice" | "quantity">): number {
+  const list = Number(line.listPrice)
+  const unit = Number(line.unitPrice)
+  const qty = Number(line.quantity) || 0
+  if (!Number.isFinite(list) || !Number.isFinite(unit)) return 0
+  return (unit - list) * qty
+}
 
 export function flattenSaleLineForExport(
   line: SaleLineRow
@@ -36,7 +46,9 @@ export function flattenSaleLineForExport(
     orderDate: line.orderDate,
     productName: line.productName,
     quantity: line.quantity,
+    listPrice: line.listPrice,
     unitPrice: line.unitPrice,
+    adjustments: saleLineAdjustment(line).toFixed(2),
     lineTotal: line.lineTotal,
     totalAmount: "",
     paidAmount: "",
@@ -60,6 +72,7 @@ export function flattenOrdersToSaleLines(orders: OrderRow[]): SaleLineRow[] {
         orderDate: order.orderDate,
         productName: line.productName,
         quantity: line.quantity,
+        listPrice: line.listPrice ?? line.unitPrice,
         unitPrice: line.unitPrice,
         lineTotal: line.lineTotal,
         orderStatus: order.status,
@@ -90,6 +103,10 @@ export function mapImportedSaleLine(
 
   const orderId = Number(row.orderId ?? row.order_id) || 0
   const lineId = Number(row.lineId ?? row.line_id) || 1
+  const unitPrice = parseMoney(String(row.unitPrice ?? row.unit_price ?? row.rate ?? "0"))
+  const listPrice = parseMoney(
+    String(row.listPrice ?? row.list_price ?? row.originalPrice ?? unitPrice)
+  )
 
   return {
     id: `${orderId || "imp"}-${lineId}-${productName.slice(0, 8)}`,
@@ -102,7 +119,8 @@ export function mapImportedSaleLine(
       new Date().toISOString().slice(0, 10),
     productName: productName || "—",
     quantity: Number(row.quantity ?? row.qty) || 1,
-    unitPrice: parseMoney(String(row.unitPrice ?? row.unit_price ?? row.rate ?? "0")),
+    listPrice,
+    unitPrice,
     lineTotal: parseMoney(String(row.lineTotal ?? row.line_total ?? row.amount ?? "0")),
     orderStatus: "pending",
     paymentMethod: "Cash",

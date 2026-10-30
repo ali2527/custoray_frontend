@@ -166,6 +166,7 @@
     "setInactiveCount": "تم تعيين {{count}} كغير نشطة.",
     "deletedCategories": "تم حذف {{count}} فئة.",
     "maxImages": "يمكنك رفع حتى {{count}} صور.",
+    "imageTooLarge": "الصورة كبيرة جدًا. جرّب صورة أصغر.",
     "onlyImagesAllowed": "يُسمح بـ {{count}} صور فقط."
   },
   "timeline": {

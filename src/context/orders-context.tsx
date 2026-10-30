@@ -54,25 +54,27 @@ function OrdersProviderLive({
 
   const refreshOrders = React.useCallback(async () => {
     if (!tenantIdRef.current) return
+    setLoading(true)
     try {
       const items = await apiListAllOrders()
       setOrders(items.map(mapApiOrderToRow))
     } catch {
-      /* keep local cache when API is unavailable */
+      /* keep prior rows when API is unavailable; sales page can retry */
     } finally {
       setLoading(false)
+      setHydrated(true)
     }
   }, [])
 
   React.useEffect(() => {
     if (!active || !authHydrated) return
-    setOrders([])
-    setHydrated(true)
-    if (tenantId) {
-      void refreshOrders()
-    } else {
+    if (!tenantId) {
+      setOrders([])
       setLoading(false)
+      setHydrated(true)
+      return
     }
+    void refreshOrders()
   }, [active, authHydrated, tenantId, refreshOrders])
 
   const getOrder = React.useCallback(

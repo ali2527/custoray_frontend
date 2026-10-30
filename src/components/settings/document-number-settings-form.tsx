@@ -46,6 +46,7 @@ function ModeCard({
 }
 
 const KEY_LABEL: Record<DocumentNumberKey, string> = {
+  customers: "numbering.keys.customers",
   sales: "numbering.keys.sales",
   purchases: "numbering.keys.purchases",
   salesReturns: "numbering.keys.salesReturns",

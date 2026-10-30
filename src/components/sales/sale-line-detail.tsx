@@ -31,7 +31,23 @@ export function SaleLineDetail({ saleLine }: { saleLine: SaleLineRow }) {
         {detailRow("Customer", saleLine.customerName)}
         {detailRow("Date", formatDate(saleLine.orderDate))}
         {detailRow("Quantity", saleLine.quantity)}
-        {detailRow("Unit price", formatMoney(saleLine.unitPrice))}
+        {detailRow("Original price", formatMoney(saleLine.listPrice))}
+        {detailRow("Sale price", formatMoney(saleLine.unitPrice))}
+        {detailRow(
+          "Adjustments",
+          (() => {
+            const list = Number(saleLine.listPrice)
+            const unit = Number(saleLine.unitPrice)
+            const qty = Number(saleLine.quantity) || 0
+            const adjustment =
+              Number.isFinite(list) && Number.isFinite(unit)
+                ? (unit - list) * qty
+                : 0
+            if (Math.abs(adjustment) < 0.005) return "—"
+            const amount = formatMoney(Math.abs(adjustment).toFixed(2))
+            return adjustment < 0 ? `−${amount}` : `+${amount}`
+          })()
+        )}
         {detailRow("Line total", formatMoney(saleLine.lineTotal))}
         {detailRow(
           "Status",

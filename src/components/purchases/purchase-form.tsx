@@ -16,18 +16,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { ProductSearchSelect } from "@/components/inventory/product-search-select"
 import { InfiniteScrollSelect } from "@/components/ui/infinite-scroll-select"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useProducts } from "@/context/products-context"
 import { useVendors } from "@/context/vendors-context"
 import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
-import { formatMoney } from "@/lib/customers"
 import {
   findVendorBySelectValue,
   vendorSelectValue,
 } from "@/lib/vendors"
-import { EMPTY_PRODUCT, nextSku, productFromFormData } from "@/lib/products"
+import {
+  EMPTY_PRODUCT,
+  nextSku,
+  productFromFormData,
+  type ProductRow,
+} from "@/lib/products"
 import {
   computeLineTotal,
   computePurchaseTotal,
@@ -117,17 +122,6 @@ export function PurchaseForm({
     [vendors]
   )
 
-  const productOptions = useMemo(
-    () =>
-      products.map((product) => ({
-        value: String(product.id),
-        label: product.name,
-        description: product.sku,
-        trailing: formatMoney(product.costPrice),
-      })),
-    [products]
-  )
-
   const updateLine = useCallback(
     (index: number, patch: Partial<PurchaseLineRow>) => {
       setLines((prev) =>
@@ -161,15 +155,13 @@ export function PurchaseForm({
   }, [])
 
   const handleProductSelect = useCallback(
-    (index: number, productId: string) => {
-      const product = products.find((item) => String(item.id) === productId)
-      if (!product) return
+    (index: number, product: ProductRow) => {
       updateLine(index, {
         productName: product.name,
         unitPrice: product.costPrice,
       })
     },
-    [products, updateLine]
+    [updateLine]
   )
 
   const handleVendorCreated = useCallback((created: { id: number; apiId?: string }) => {
@@ -283,17 +275,15 @@ export function PurchaseForm({
                 />
                 <div className="flex flex-col gap-2">
                   <Label htmlFor={`${formId}-product-${index}`}>Product</Label>
-                  <InfiniteScrollSelect
+                  <ProductSearchSelect
                     id={`${formId}-product-${index}`}
                     value={resolveProductId(products, line.productName)}
-                    onValueChange={(productId) => handleProductSelect(index, productId)}
-                    options={productOptions}
-                    placeholder="Select product"
-                    searchPlaceholder="Search products…"
-                    emptyMessage="No products found."
-                    pageSize={10}
+                    selectedProduct={
+                      products.find((product) => product.name === line.productName) ?? null
+                    }
+                    onSelect={(product) => handleProductSelect(index, product)}
+                    priceField="costPrice"
                     onAddNew={() => setQuickAdd({ type: "product", lineIndex: index })}
-                    addNewLabel="Add product"
                   />
                 </div>
                 <div className="grid grid-cols-3 gap-2">

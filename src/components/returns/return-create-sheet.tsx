@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, type FormEvent } from "react"
+import { useCallback, useState, type FormEvent } from "react"
 import { toast } from "sonner"
 import { useTranslation } from "react-i18next"
 
@@ -18,6 +18,9 @@ import {
 import { useOrders } from "@/context/orders-context"
 import { usePurchases } from "@/context/purchases-context"
 import { useReturns } from "@/context/returns-context"
+import { apiCreateReturn } from "@/lib/api/business"
+import { mapApiReturnToRow } from "@/lib/pos-api"
+import { persistCompletedReturn, returnToCreateInput } from "@/lib/return-persist"
 import { returnFromFormData, type ReturnRow } from "@/lib/returns"
 import { canReturnDocument } from "@/lib/return-eligibility"
 
@@ -35,14 +38,15 @@ export function ReturnCreateSheet({
   formId = "return-create-form",
 }: ReturnCreateSheetProps) {
   const { t } = useTranslation("returns")
-  const { addReturn } = useReturns()
-  const { getOrder, updateOrder } = useOrders()
-  const { getPurchase, updatePurchase } = usePurchases()
+  const { addReturn, refreshReturns } = useReturns()
+  const { getOrder, refreshOrders } = useOrders()
+  const { getPurchase } = usePurchases()
+  const [saving, setSaving] = useState(false)
 
   const handleSubmit = useCallback(
-    (e: FormEvent<HTMLFormElement>) => {
+    async (e: FormEvent<HTMLFormElement>) => {
       e.preventDefault()
-      if (!draft) return
+      if (!draft || saving) return
 
       const parsed = returnFromFormData(new FormData(e.currentTarget), 0)
       if (parsed.lines.length === 0 || !parsed.lines.some((l) => l.productName.trim())) {
@@ -59,19 +63,68 @@ export function ReturnCreateSheet({
         return
       }
 
-      addReturn(parsed, {
-        getOrder,
-        getPurchase,
-        onApplySales: updateOrder,
-        onApplyPurchase: updatePurchase,
-      })
+      const sourceApiId =
+        ("apiId" in source ? source.apiId?.trim() : "") ||
+        draft.sourceApiId?.trim() ||
+        ""
+      if (!sourceApiId) {
+        toast.error("This document is not saved on the server yet.")
+        return
+      }
 
-      toast.success(
-        parsed.status === "completed" ? t("toasts.recorded") : t("toasts.saved")
-      )
-      onOpenChange(false)
+      setSaving(true)
+      try {
+        const productIdBySourceLineId =
+          parsed.type === "sales" && source && "lines" in source
+            ? Object.fromEntries(
+                (source.lines ?? [])
+                  .filter((line) => "productApiId" in line && line.productApiId?.trim())
+                  .map((line) => [
+                    line.id,
+                    (line as { productApiId?: string }).productApiId!.trim(),
+                  ])
+              )
+            : undefined
+
+        const apiReturn =
+          parsed.status === "completed"
+            ? await persistCompletedReturn(
+                parsed,
+                sourceApiId,
+                productIdBySourceLineId
+              )
+            : await apiCreateReturn(
+                returnToCreateInput(parsed, sourceApiId, productIdBySourceLineId)
+              )
+
+        addReturn(
+          mapApiReturnToRow(apiReturn, { sourceNumericId: parsed.sourceId })
+        )
+        if (parsed.type === "sales") await refreshOrders()
+        await refreshReturns()
+        toast.success(
+          parsed.status === "completed" ? t("toasts.recorded") : t("toasts.saved")
+        )
+        onOpenChange(false)
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not save return."
+        )
+      } finally {
+        setSaving(false)
+      }
     },
-    [addReturn, draft, getOrder, getPurchase, onOpenChange, t, updateOrder, updatePurchase]
+    [
+      addReturn,
+      draft,
+      getOrder,
+      getPurchase,
+      onOpenChange,
+      refreshOrders,
+      refreshReturns,
+      saving,
+      t,
+    ]
   )
 
   const title =
@@ -109,7 +162,7 @@ export function ReturnCreateSheet({
                   {t("actions.cancel", { ns: "common" })}
                 </Button>
               </SheetClose>
-              <Button type="submit" form={formId}>
+              <Button type="submit" form={formId} disabled={saving}>
                 {t("form.recordReturn")}
               </Button>
             </SheetFooter>

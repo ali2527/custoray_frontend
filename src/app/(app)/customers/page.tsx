@@ -51,15 +51,23 @@ import {
 import { buildSampleCsv } from "@/lib/csv"
 import { runBatchedBulkCreate } from "@/lib/import-batch"
 import { collectFailedImportRows } from "@/lib/import-result"
+import { useDocumentNumberSettings } from "@/hooks/use-document-number-settings"
+import {
+  loadDocumentNumberSettings,
+  nextDocumentNumber,
+  resolveDocumentNumber,
+} from "@/lib/document-number-settings"
 import {
   computeBalance,
+  customerDisplayId,
   customerErrorMessage,
   customerFromFormData,
+  customerImportColumns,
+  customerImportSampleRow,
   customerTabFilter,
-  CUSTOMER_IMPORT_COLUMNS,
-  CUSTOMER_IMPORT_SAMPLE_ROW,
   CUSTOMER_STATUS_OPTIONS,
   EMPTY_CUSTOMER,
+  importedCustomerIsExisting,
   customerTimelineHref,
   formatMoney,
   mapImportedCustomerWrite,
@@ -115,7 +123,7 @@ function getCustomerColumns(
       ),
       cell: ({ row }) => (
         <span className="text-muted-foreground font-mono tabular-nums">
-          {row.original.id}
+          {customerDisplayId(row.original)}
         </span>
       ),
       meta: { dataTableFilter: false },
@@ -142,12 +150,18 @@ function getCustomerColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("columns.description")} />
       ),
-      cell: ({ row }) => (
-        <span className="text-muted-foreground text-sm leading-snug whitespace-normal">
-          {row.original.description || "—"}
-        </span>
-      ),
-      meta: { dataTableFilter: false, cellClassName: "whitespace-normal max-w-xs" },
+      cell: ({ row }) => {
+        const description = row.original.description?.trim() || ""
+        return (
+          <span
+            className="text-muted-foreground block max-w-[14rem] truncate text-sm"
+            title={description || undefined}
+          >
+            {description || "—"}
+          </span>
+        )
+      },
+      meta: { dataTableFilter: false, cellClassName: "max-w-[14rem]" },
     },
     {
       accessorKey: "openingBalance",
@@ -307,6 +321,7 @@ export default function CustomersPage() {
     setStatus,
     bulkCreate,
   } = useCustomers()
+  const { settings: numberSettings } = useDocumentNumberSettings()
   const [sidebar, setSidebar] = useState<CustomerSidebarState>(null)
   const [isMutating, setIsMutating] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
@@ -375,7 +390,19 @@ export default function CustomersPage() {
 
       try {
         if (sidebar?.mode === "add") {
-          await addCustomer(customerFromFormData(fd, EMPTY_CUSTOMER))
+          const draft = customerFromFormData(fd, EMPTY_CUSTOMER)
+          const code = resolveDocumentNumber({
+            settings: numberSettings.customers,
+            fallbackPrefix: "CUS",
+            existing: customers.map((row) => row.code),
+            value: draft.code,
+            isNew: true,
+          })
+          if (numberSettings.customers.mode === "custom" && !code) {
+            toast.error(t("toasts.idRequired"))
+            return
+          }
+          await addCustomer({ ...draft, code })
           toast.success(t("toasts.created"))
           closeSidebar()
           return
@@ -393,22 +420,31 @@ export default function CustomersPage() {
         toast.error(customerErrorMessage(error, t("toasts.saveFailed")))
       }
     },
-    [sidebar, addCustomer, updateCustomer, t]
+    [sidebar, addCustomer, updateCustomer, customers, numberSettings.customers, t]
   )
 
   const handleImportRows = useCallback(
     async (imported: Record<string, string>[]) => {
+      const settings = loadDocumentNumberSettings().customers
+      const usedCodes = customers.map((row) => row.code).filter(Boolean)
       const acceptedIndexes: number[] = []
       const payload = imported.flatMap((row, index) => {
         const write = mapImportedCustomerWrite(row)
         if (!write) return []
+        const existing = importedCustomerIsExisting(write, customers)
+        if (!write.code && !existing) {
+          if (settings.mode === "custom") return []
+          write.code = nextDocumentNumber(usedCodes, settings.prefix, "CUS")
+          usedCodes.push(write.code)
+        }
         acceptedIndexes.push(index)
         return [write]
       })
       if (payload.length === 0) {
         const failed = collectFailedImportRows(imported, {
           acceptedIndexes: [],
-          invalidMessage: t("toasts.saveFailed"),
+          invalidMessage:
+            settings.mode === "custom" ? t("toasts.idRequired") : t("toasts.saveFailed"),
         })
         toastFailure(
           t("toasts.importPartial", {
@@ -450,12 +486,12 @@ export default function CustomersPage() {
         setIsMutating(false)
       }
     },
-    [bulkCreate, t]
+    [bulkCreate, customers, t]
   )
 
   const flattenCustomerForExport = useCallback((row: CustomerRow) => {
     return {
-      id: row.apiId || "",
+      id: customerDisplayId(row),
       name: row.name,
       description: row.description === "—" ? "" : row.description,
       phone: row.phone === "—" ? "" : row.phone,
@@ -581,7 +617,10 @@ export default function CustomersPage() {
                   />
                 ) : null}
               </div>
-              <SheetFooter className="border-border/60 gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end">
+              <SheetFooter
+                key={sidebar.mode}
+                className="border-border/60 gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end"
+              >
                 {sidebar.mode === "view" && sheetCustomer ? (
                   <>
                     <SheetClose asChild>
@@ -592,9 +631,16 @@ export default function CustomersPage() {
                     <Button
                       type="button"
                       className="w-full sm:w-auto"
-                      onClick={() =>
-                        setSidebar({ mode: "edit", customer: sheetCustomer })
-                      }
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        const customer = sheetCustomer
+                        // Defer so this click cannot land on the Save submit
+                        // button that replaces Edit in the same footer slot.
+                        window.setTimeout(() => {
+                          setSidebar({ mode: "edit", customer })
+                        }, 0)
+                      }}
                     >
                       {t("actions.edit")}
                     </Button>
@@ -632,10 +678,10 @@ export default function CustomersPage() {
         searchPlaceholder={t("search")}
         importSampleFilename="customers-sample.csv"
         importSampleCsvContent={buildSampleCsv(
-          [...CUSTOMER_IMPORT_COLUMNS],
-          CUSTOMER_IMPORT_SAMPLE_ROW
+          customerImportColumns(numberSettings.customers.mode),
+          customerImportSampleRow(numberSettings.customers.mode)
         )}
-        importColumns={[...CUSTOMER_IMPORT_COLUMNS]}
+        importColumns={customerImportColumns(numberSettings.customers.mode)}
         importSelectColumns={{
           status: [...CUSTOMER_STATUS_OPTIONS],
         }}

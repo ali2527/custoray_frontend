@@ -39,11 +39,11 @@ import {
 } from "@/lib/app-preferences"
 import { confirmDeleteAction } from "@/lib/confirm-action"
 import { buildSampleCsv } from "@/lib/csv"
+import { apiDeleteReturn } from "@/lib/api/business"
 import {
   flattenReturnForExport,
   formatDate,
   formatMoney,
-  importReturnsFromRows,
   RETURN_IMPORT_COLUMNS,
   RETURN_IMPORT_SAMPLE_ROW,
   RETURN_STATUSES,
@@ -440,7 +440,7 @@ function getReturnLineColumns(
 
 export default function ReturnsPage() {
   const { t } = useTranslation("returns")
-  const { returns, setReturns, removeReturn } = useReturns()
+  const { returns, removeReturn } = useReturns()
   const [viewMode, setViewMode] = useState<BillItemViewMode>("item")
   const [viewReturn, setViewReturn] = useState<ReturnRow | null>(null)
   const [viewLine, setViewLine] = useState<ReturnLineReportRow | null>(null)
@@ -468,9 +468,17 @@ export default function ReturnsPage() {
       ) {
         return
       }
-      removeReturn(row.id)
-      if (viewReturn?.id === row.id) setViewReturn(null)
-      toast.message(t("toasts.removedNamed", { name: row.returnNumber }))
+      try {
+        const apiId = row.apiId?.trim()
+        if (apiId) await apiDeleteReturn(apiId)
+        removeReturn(row.id)
+        if (viewReturn?.id === row.id) setViewReturn(null)
+        toast.message(t("toasts.removedNamed", { name: row.returnNumber }))
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Could not delete return."
+        )
+      }
     },
     [removeReturn, viewReturn, t]
   )
@@ -484,16 +492,13 @@ export default function ReturnsPage() {
   )
 
   const handleImportReturns = useCallback(
-    (rows: Record<string, string>[]) => {
-      let added = 0
-      setReturns((prev) => {
-        const created = importReturnsFromRows(rows, prev)
-        added = created.length
-        return added > 0 ? [...prev, ...created] : prev
-      })
-      return added
+    async (_rows: Record<string, string>[]) => {
+      toast.error(
+        "CSV return import is disabled. Record returns from a saved sale or purchase so they persist to the database."
+      )
+      return 0
     },
-    [setReturns]
+    []
   )
 
   const returnImportSampleCsv = useMemo(

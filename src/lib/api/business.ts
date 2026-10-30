@@ -195,7 +195,7 @@ export async function apiListProducts(params?: {
   const limit = Math.min(PRODUCT_LIST_LIMIT, Math.max(1, Math.floor(params?.limit ?? 50)))
   q.set("page", String(page))
   q.set("limit", String(limit))
-  const search = params?.search?.trim().replace(/[%_]/g, "").slice(0, 100)
+  const search = params?.search?.trim().slice(0, 100)
   if (search) q.set("search", search)
   return apiFetch<{ items: ApiProduct[]; total: number }>(`/products?${q}`)
 }
@@ -436,6 +436,7 @@ export async function apiBulkCreateVariants(items: CatalogWrite[]) {
 export type ApiBuyer = {
   id: string
   legacyId: number | null
+  code?: string | null
   name: string
   phone?: string
   description?: string
@@ -448,6 +449,7 @@ export type ApiBuyer = {
 
 export type ApiBuyerWrite = {
   id?: string
+  code?: string
   name: string
   phone?: string
   description?: string
@@ -625,7 +627,15 @@ export async function apiBulkCreateVendors(items: ApiVendorWrite[]) {
 }
 
 export type ApiOrderSource = "MANUAL" | "POS" | "QR_STOREFRONT"
-export type ApiOrderStatus = "pending" | "completed" | "cancelled"
+export type ApiOrderStatus =
+  | "draft"
+  | "pending"
+  | "confirmed"
+  | "processing"
+  | "on_hold"
+  | "completed"
+  | "cancelled"
+  | "refunded"
 
 export type ApiOrderLine = {
   id: string
@@ -633,6 +643,7 @@ export type ApiOrderLine = {
   productName: string
   sku: string
   quantity: number
+  listPrice?: string | number | null
   unitPrice: string | number
   lineTotal: string | number
   lineNo: number
@@ -712,6 +723,7 @@ export type ApiPosCheckoutInput = {
     productName: string
     sku?: string
     quantity: number
+    listPrice?: number | null
     unitPrice: number
   }[]
 }
@@ -769,6 +781,96 @@ export async function apiListAllOrders(source?: ApiOrderSource) {
   return items
 }
 
+export type ApiOrderLineWrite = {
+  productId?: string | null
+  productName: string
+  sku?: string
+  quantity: number
+  listPrice?: number | null
+  unitPrice: number
+}
+
+export type ApiOrderCreateInput = {
+  storeId: string
+  buyerId?: string | null
+  buyerName?: string
+  description?: string
+  orderDate: string
+  paidAmount?: number
+  paymentMethod?: string
+  status?: ApiOrderStatus
+  source?: ApiOrderSource
+  lines: ApiOrderLineWrite[]
+}
+
+export type ApiOrderPatchInput = {
+  buyerId?: string | null
+  buyerName?: string
+  description?: string
+  orderDate?: string
+  paidAmount?: number
+  paymentMethod?: string
+  status?: ApiOrderStatus
+  lines?: ApiOrderLineWrite[]
+}
+
+export async function apiCreateOrder(data: ApiOrderCreateInput) {
+  return apiFetch<ApiOrder>("/orders", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiUpdateOrder(id: string, data: ApiOrderPatchInput) {
+  return apiFetch<ApiOrder>(`/orders/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiDeleteOrder(id: string) {
+  return apiFetch<null>(`/orders/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  })
+}
+
+export type ApiReturnLineWrite = {
+  productId?: string | null
+  productName: string
+  quantity: number
+  unitPrice: number
+}
+
+export type ApiReturnCreateInput = {
+  type: "SALES" | "PURCHASE"
+  sourceId: string
+  referenceNumber?: string
+  partyName?: string
+  returnDate: string
+  description?: string
+  refundedAmount?: number
+  lines: ApiReturnLineWrite[]
+}
+
+export async function apiCreateReturn(data: ApiReturnCreateInput) {
+  return apiFetch<ApiReturn>("/returns", {
+    method: "POST",
+    body: JSON.stringify(data),
+  })
+}
+
+export async function apiCompleteReturn(id: string) {
+  return apiFetch<ApiReturn>(`/returns/${encodeURIComponent(id)}/complete`, {
+    method: "POST",
+  })
+}
+
+export async function apiDeleteReturn(id: string) {
+  return apiFetch<null>(`/returns/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  })
+}
+
 export async function apiListReturns(params?: { page?: number; limit?: number }) {
   const q = new URLSearchParams()
   const page = Math.max(1, Math.floor(params?.page ?? 1))
@@ -811,6 +913,25 @@ export async function apiPosCheckout(data: ApiPosCheckoutInput) {
     method: "POST",
     body: JSON.stringify(data),
   })
+}
+
+export type ApiStorefrontOrderInput = {
+  buyerName: string
+  buyerPhone?: string
+  lines: { productId: string; quantity: number }[]
+}
+
+export async function apiPlaceStorefrontOrder(
+  slug: string,
+  data: ApiStorefrontOrderInput
+) {
+  return apiFetch<{ orderId: string; invoiceNumber: string }>(
+    `/public/storefronts/${encodeURIComponent(slug)}/order`,
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  )
 }
 
 export async function apiPosReturn(data: ApiPosReturnInput) {

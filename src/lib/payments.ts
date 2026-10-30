@@ -8,10 +8,11 @@ import {
   loadDocumentNumberSettings,
   nextDocumentNumber,
 } from "@/lib/document-number-settings"
+import { DEFAULT_PAYMENT_METHODS } from "@/lib/payment-methods-settings"
 
 export { formatMoney, parseMoney }
 
-export const PAYMENT_METHODS = ["Cash", "Bank transfer", "Card", "Credit"] as const
+export const PAYMENT_METHODS = DEFAULT_PAYMENT_METHODS
 export const PAYMENT_STATUSES = ["pending", "completed", "voided"] as const
 
 export const PAYMENT_IMPORT_COLUMNS = [
@@ -63,7 +64,7 @@ export const paymentSchema = z.object({
   referenceNumber: z.string(),
   paymentDate: z.string(),
   amount: z.string(),
-  paymentMethod: z.enum(["Cash", "Bank transfer", "Card", "Credit"]),
+  paymentMethod: z.string().min(1),
   status: z.enum(["pending", "completed", "voided"]),
   notes: z.string(),
 })
@@ -393,10 +394,11 @@ export function parsePaymentStatus(raw: string): PaymentRow["status"] {
 
 export function parsePaymentMethod(raw: string): PaymentRow["paymentMethod"] {
   const normalized = raw.trim()
-  if (PAYMENT_METHODS.includes(normalized as PaymentRow["paymentMethod"])) {
-    return normalized as PaymentRow["paymentMethod"]
-  }
-  return "Cash"
+  if (!normalized) return "Cash"
+  const known = PAYMENT_METHODS.find(
+    (method) => method.toLowerCase() === normalized.toLowerCase()
+  )
+  return known ?? normalized.slice(0, 40)
 }
 
 export function paymentStatusTabFilter(row: PaymentRow, tab: string) {

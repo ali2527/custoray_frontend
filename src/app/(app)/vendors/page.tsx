@@ -142,12 +142,18 @@ function getVendorColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("columns.description")} />
       ),
-      cell: ({ row }) => (
-        <span className="text-muted-foreground text-sm leading-snug whitespace-normal">
-          {row.original.description || "—"}
-        </span>
-      ),
-      meta: { dataTableFilter: false, cellClassName: "whitespace-normal max-w-xs" },
+      cell: ({ row }) => {
+        const description = row.original.description?.trim() || ""
+        return (
+          <span
+            className="text-muted-foreground block max-w-[14rem] truncate text-sm"
+            title={description || undefined}
+          >
+            {description || "—"}
+          </span>
+        )
+      },
+      meta: { dataTableFilter: false, cellClassName: "max-w-[14rem]" },
     },
     {
       accessorKey: "openingBalance",
@@ -565,7 +571,10 @@ export default function VendorsPage() {
                   />
                 ) : null}
               </div>
-              <SheetFooter className="border-border/60 gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end">
+              <SheetFooter
+                key={sidebar.mode}
+                className="border-border/60 gap-2 border-t px-6 py-4 sm:flex-row sm:justify-end"
+              >
                 {sidebar.mode === "view" && sheetVendor ? (
                   <>
                     <SheetClose asChild>
@@ -576,9 +585,14 @@ export default function VendorsPage() {
                     <Button
                       type="button"
                       className="w-full sm:w-auto"
-                      onClick={() =>
-                        setSidebar({ mode: "edit", vendor: sheetVendor })
-                      }
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        const vendor = sheetVendor
+                        window.setTimeout(() => {
+                          setSidebar({ mode: "edit", vendor })
+                        }, 0)
+                      }}
                     >
                       {t("actions.edit")}
                     </Button>

@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { formatMoney, type CustomerRow } from "@/lib/customers"
+import { customerDisplayId, formatMoney, type CustomerRow } from "@/lib/customers"
 import { computeLineTotal, type OrderRow } from "@/lib/orders"
 import { ALL_ITEMS_RETURNED_NAME } from "@/lib/return-eligibility"
 import { type ReturnRow } from "@/lib/returns"
@@ -54,6 +54,7 @@ export const customerRecordSchema = z.object({
   asOf: z.string(),
   customer: z.object({
     id: z.number(),
+    code: z.string().optional(),
     name: z.string(),
     phone: z.string(),
     description: z.string(),
@@ -290,6 +291,7 @@ export function buildCustomerRecord(
     asOf,
     customer: {
       id: customer.id,
+      code: customerDisplayId(customer),
       name: customer.name,
       phone: customer.phone,
       description: customer.description,
